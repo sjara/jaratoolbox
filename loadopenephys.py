@@ -37,12 +37,14 @@ def parse_header(headerfull):
 
 
 class DataCont(object):
-    def __init__(self,filename):
+    def __init__(self,filename,nRecordsToLoad=None):
         # -- Find number of records --
         self.filesize = os.path.getsize(filename)
         if (self.filesize-HEADER_SIZE)%CONT_RECORD_SIZE:
             print 'The file size does not match a integer number of records'
         self.nRecords = (self.filesize-HEADER_SIZE)/CONT_RECORD_SIZE
+        if nRecordsToLoad is None:
+            nRecordsToLoad = self.nRecords
 
         fid = open(filename,'rb')
         headerfull = fid.read(HEADER_SIZE)
@@ -56,7 +58,8 @@ class DataCont(object):
         self.samples = []
         self.recordingNumber = []
         self.recordMarker = []
-        for indr in range(self.nRecords):
+
+        for indr in range(nRecordsToLoad):
             self.timestamp.extend(unpack('q', fid.read(8)))  # signed or unsigned? (header not clear)
             self.samplesPerRecord.extend(unpack('H', fid.read(2)))
             self.recordingNumber.extend(unpack('H', fid.read(2)))
@@ -135,6 +138,15 @@ if __name__=='__main__':
         show()
 
     elif CASE==2:
+        dataDir = '/var/tmp/2014-04-25_12-19-27/'
+        filenameOnly = '100_CH1.continuous'
+        filename = os.path.join(dataDir,filenameOnly)
+        datacont = DataCont(filename,nRecordsToLoad=10)
+        plot(datacont.samples[:10000],'.-')
+        draw()
+        show()
+
+    elif CASE==3:
         dataDir = '/var/tmp/2014-04-25_12-19-27/'
         filenameOnly = 'Tetrode8.spikes'
         filename = os.path.join(dataDir,filenameOnly)
