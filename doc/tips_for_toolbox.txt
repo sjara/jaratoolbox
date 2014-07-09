@@ -1,0 +1,12 @@
+
+ Tips for improving jaratoolbox
+--------------------------------
+
+See also gdocs:"Tips when writing protocols"
+
+
+- Use pandas?
+ 
+- save_many_sessions: Save with each session as one column and have
+  an easy way to flatten. Currently it is the other way around.
+  

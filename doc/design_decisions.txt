@@ -1,0 +1,31 @@
+
+* BUGS and ISSUES:
+- Don't know if I should save nTrials from the paradigm, or created on loading.
+  1. If I save it, I'm not sure where to put it. In session? all other vars are strings.
+  2. BehaviorData does not know what variables exist, so it has no way of calculating
+     that value before reading data.
+- Not sure how to store arrays with boolean items in HDF5.
+  bdata['valid'] is read as 'int' and has to be converted before using for slicing arrays.
+
+
+Loading behavior data:
+---------------------
+For each paradigm, we create a class that inherits loadbehavior.BehaviorData,
+and we add all additional methods specific for that paradigm.
+
+This class creates an object with the following features:
+* The class is a python dict where all items are numerical numpy.arrays
+  with length equal to the number of trials.
+* All other information about the session and labels for menu variables is
+  stored in the classes attributes: stateMatrix, events, session, labels, etc
+  These attributes are dictionaries containing items of various types and sizes.
+* BehaviorData.events contains numpy arrays of length equal to the number of events
+* BehaviorData.labels contains bidirectional dicts that associate labels with indices.
+
+How are non-numeric variables (like a GUI menu, or discrete results) stored?
+----------------------------------------------------------------------------
+* BehaviorData['variableName'] stores the values (indices) for each trial.
+* BehaviorData.labels['variableName'] contains a bidirectional dict that associate labels with indices.
+
+For example, to find all trials with left choices you would run:
+ leftChoice = behavData['choice']==behavData.labels['choice']['left']
