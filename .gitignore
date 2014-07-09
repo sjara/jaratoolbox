@@ -6,6 +6,8 @@ old
 test
 doc/_build
 
+settings.py
+
 # C extensions
 *.so
 
