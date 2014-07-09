@@ -33,6 +33,8 @@ def parse_header(headerfull):
             key = keyitem[0].split('.')[1].strip()
             item = keyitem[1].strip()
             header[key] = item
+    if header['version']!=FORMAT_VERSION:
+        print 'The version of the file does not correspond to that of this script'
     return header
 
 
@@ -71,6 +73,55 @@ class DataCont(object):
 
 
 
+class Events(object):
+    def __init__(self,filename):
+
+        fid = open(filename,'rb')
+        headerfull = fid.read(HEADER_SIZE)
+        self.header = parse_header(headerfull)
+
+        self.filesize = os.path.getsize(filename)
+        if self.filesize==HEADER_SIZE:
+            print 'File is empty'
+            return
+
+        # -- Find record size --
+        fid.seek(HEADER_SIZE)
+        EVENT_RECORD_SIZE= 8 + 2 + 1 + 1 + 1 + 1 + 2 #One int64, one int16, four uint8 numbers, and one int16
+
+        # -- Find number of records --
+        if (self.filesize-HEADER_SIZE)%EVENT_RECORD_SIZE:
+            print 'The file size does not match a integer number of records'
+        self.nRecords = (self.filesize-HEADER_SIZE)/EVENT_RECORD_SIZE
+
+        if self.header['version']!=FORMAT_VERSION:
+            print 'The version of the file does not correspond to that of this script'
+
+        self.timestamp = []
+        self.samplePosition = []
+        self.eventType = []
+        self.processorID = []
+        self.eventID = []
+        self.eventChannel = []
+        self.recordingNumber = []
+        for indr in range(self.nRecords):
+            buf=fid.read(8)
+            if len(buf) == 8:
+                self.timestamp.extend(unpack('Q', buf))  # reading as unsigned although docs say signed
+            else:
+                print "error figured out: 8 bytes not available"
+                print "bytes available: {0}".format(len(buf))
+            self.samplePosition.extend(unpack('H', fid.read(2))) #reading as unsigned, although documentation says signed.
+            self.eventType.extend(unpack('B', fid.read(1)))
+            self.processorID.extend(unpack('B', fid.read(1)))
+            self.eventID.extend(unpack('B', fid.read(1)))
+            self.eventChannel.extend(unpack('B', fid.read(1)))
+            self.recordingNumber.extend(unpack('H', fid.read(2)))
+            
+
+        fid.close()
+
+        
 class DataSpikes(object):
     def __init__(self,filename):
 
@@ -122,8 +173,6 @@ class DataSpikes(object):
             self.recordingNumber.extend(unpack('H', fid.read(2)))
         fid.close()
         self.samples = np.array(self.samples)
-
-        
 
 if __name__=='__main__':
     from pylab import *
