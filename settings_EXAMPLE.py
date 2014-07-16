@@ -7,7 +7,7 @@ General settings for jaratoolbox.
 import os
 
 BEHAVIOR_PATH = '/data/behavior/'
-#EPHYS_PATH = '/data/ephys'
+EPHYS_PATH = '/data/ephys'
 
 DEFAULT_EXPERIMENTER = 'santiago'
 

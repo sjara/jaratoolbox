@@ -39,6 +39,11 @@ def parse_header(headerfull):
 
 
 class DataCont(object):
+    '''
+    Continuous data.
+    timestamps is a python list with one value per record
+    samples is a numpy array
+    '''
     def __init__(self,filename,nRecordsToLoad=None):
         # -- Find number of records --
         self.filesize = os.path.getsize(filename)
@@ -55,14 +60,14 @@ class DataCont(object):
         if self.header['version']!=FORMAT_VERSION:
             print 'The version of the file does not correspond to that of this script'
 
-        self.timestamp = []
+        self.timestamps = []
         self.samplesPerRecord = []
         self.samples = []
         self.recordingNumber = []
         self.recordMarker = []
 
         for indr in range(nRecordsToLoad):
-            self.timestamp.extend(unpack('q', fid.read(8)))  # signed or unsigned? (header not clear)
+            self.timestamps.extend(unpack('q', fid.read(8)))  # signed or unsigned? (header not clear)
             self.samplesPerRecord.extend(unpack('H', fid.read(2)))
             self.recordingNumber.extend(unpack('H', fid.read(2)))
             self.samples.extend(unpack('>'+1024*'h', fid.read(1024*2))) # Big-endian byte order
@@ -97,7 +102,7 @@ class Events(object):
         if self.header['version']!=FORMAT_VERSION:
             print 'The version of the file does not correspond to that of this script'
 
-        self.timestamp = []
+        self.timestamps = []
         self.samplePosition = []
         self.eventType = []
         self.processorID = []
@@ -107,7 +112,7 @@ class Events(object):
         for indr in range(self.nRecords):
             buf=fid.read(8)
             if len(buf) == 8:
-                self.timestamp.extend(unpack('Q', buf))  # reading as unsigned although docs say signed
+                self.timestamps.extend(unpack('Q', buf))  # reading as unsigned although docs say signed
             else:
                 print "error figured out: 8 bytes not available"
                 print "bytes available: {0}".format(len(buf))
@@ -117,12 +122,15 @@ class Events(object):
             self.eventID.extend(unpack('B', fid.read(1)))
             self.eventChannel.extend(unpack('B', fid.read(1)))
             self.recordingNumber.extend(unpack('H', fid.read(2)))
-            
-
         fid.close()
 
         
 class DataSpikes(object):
+    '''
+    Spike data
+    timestamps is a numpy array
+    samples is a numpy array of size (nSpikes,nChans,nSamples)
+    '''
     def __init__(self,filename):
 
         fid = open(filename,'rb')
@@ -151,7 +159,7 @@ class DataSpikes(object):
             print 'The version of the file does not correspond to that of this script'
 
         self.eventType = []
-        self.timestamp = []
+        self.timestamps = []
         self.electrodeID = []
         self.nChannels = []
         self.nSamplesPerSpike = []
@@ -159,9 +167,10 @@ class DataSpikes(object):
         self.gain = []
         self.threshold = []
         self.recordingNumber = []
+        self.clusters = None # To store the cluster assignment for each spike
         for indr in range(self.nRecords):
             self.eventType.extend(unpack('B', fid.read(1)))
-            self.timestamp.extend(unpack('Q', fid.read(8)))  # unsigned
+            self.timestamps.extend(unpack('Q', fid.read(8)))  # unsigned
             self.electrodeID.extend(unpack('H', fid.read(2)))
             self.nChannels.extend(unpack('H', fid.read(2)))
             self.nSamplesPerSpike.extend(unpack('H', fid.read(2)))
@@ -172,7 +181,18 @@ class DataSpikes(object):
             self.threshold.append(unpack(nChannels*'H', fid.read(nChannels*2)))
             self.recordingNumber.extend(unpack('H', fid.read(2)))
         fid.close()
+        self.timestamps = np.array(self.timestamps)
         self.samples = np.array(self.samples)
+        self.samples = self.samples.reshape((-1,self.nChannels[0],self.nSamplesPerSpike[0]),order='C') # (nSpikes,nChans,nSamples)
+
+
+    def set_clusters(self,clusterFileOrArray):
+        '''Access to KlustaKwik CLU files containing cluster data.'''
+        if isinstance(clusterFileOrArray,str):
+            self.clusters = np.fromfile(clusterFileOrArray,dtype='int32',sep=' ')[1:]
+        else:
+            self.clusters = np.array(clusterFileOrArray)
+
 
 if __name__=='__main__':
     from pylab import *
