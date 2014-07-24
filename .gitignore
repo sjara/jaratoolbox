@@ -3,7 +3,6 @@
 \#*
 .emacs*
 old
-test
 doc/_build
 
 settings.py
