@@ -27,12 +27,18 @@ behavDataFileName = os.path.join(dataDir,'test030_tuning_curve_20140723b.h5')
 event_filename = os.path.join(dataDir,'all_channels.events')
 spike_filename = os.path.join(dataDir,'Tetrode4.spikes')
 '''
-
+'''
 dataDir = '/home/jarauser/data/ephys/test030/2014-07-23_16-36-05/'
 behavDataFileName = os.path.join(dataDir,'test030_tuning_curve_20140723e.h5')
 event_filename = os.path.join(dataDir,'all_channels.events')
 spike_filename = os.path.join(dataDir,'Tetrode4.spikes')
+'''
 
+ephysDir='/home/jarauser/data/ephys/test030/2014-07-24_15-47-13/'
+behaviorDir='/var/tmp/data/behavior/nick/test030/'
+behavDataFileName=os.path.join(behaviorDir, 'test030_tuning_curve_20140724g.h5')
+event_filename=os.path.join(ephysDir, 'all_channels.events')
+spike_filename=os.path.join(ephysDir, 'Tetrode1.spikes')
 
 # -- Load behavior data --
 bdata = loadbehavior.BehaviorData(behavDataFileName,readmode='full')
