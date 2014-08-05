@@ -6,6 +6,7 @@ https://github.com/open-ephys/GUI/wiki/Data-format
 
 BUGS (for OpenEphys to fix)
 - timestamp on continuous: signed or unsigned?
+- samplePosition on events: signed or unsigned?
 - wiki does not include recording number
 
 '''
@@ -13,13 +14,11 @@ BUGS (for OpenEphys to fix)
 import numpy as np
 import re
 import os
-from struct import unpack
 
 FORMAT_VERSION = '0.2'
 HEADER_SIZE = 1024 # in bytes
 CONT_RECORD_SIZE = 2070 # 8+2+2+2048+10 bytes
 
-#class DataCont(object):
  
 def parse_header(headerfull):
     ###patt = re.compile(r'\s*header\.(\w+)\s*=\s*(.*)')
@@ -60,22 +59,25 @@ class DataCont(object):
         if self.header['version']!=FORMAT_VERSION:
             print 'The version of the file does not correspond to that of this script'
 
-        self.timestamps = []
-        self.samplesPerRecord = []
-        self.samples = []
-        self.recordingNumber = []
-        self.recordMarker = []
-
-        for indr in range(nRecordsToLoad):
-            self.timestamps.extend(unpack('q', fid.read(8)))  # signed or unsigned? (header not clear)
-            self.samplesPerRecord.extend(unpack('H', fid.read(2)))
-            self.recordingNumber.extend(unpack('H', fid.read(2)))
-            self.samples.extend(unpack('>'+1024*'h', fid.read(1024*2))) # Big-endian byte order
-            self.recordMarker.append(unpack(10*'B', fid.read(10)))
+        dt = np.dtype([('timestamps','<i8'), ('samplesPerRecord','<u2'), ('recordingNumber','<u2'),
+                       ('samples','>1024i2'), ('recordMarker','<10u1')])
+        data=np.fromfile(fid, dtype=dt, count=nRecordsToLoad)
         fid.close()
-        self.samples = np.array(self.samples)
-
-
+        '''
+        self.timestamps = data['timestamps']
+        self.samplesPerRecord = data['samplesPerRecord']
+        #self.samples = data['samples'].flatten(order='C')
+        #self.samples = data['samples'].ravel(order='C')
+        self.samples = data['samples']
+        self.recordingNumber = data['recordingNumber']
+        self.recordMarker = data['recordMarker']
+        '''
+        # -- We make copies of all fields, to garbage-collect 'data' after init. --
+        self.timestamps = data['timestamps'].copy()
+        self.samplesPerRecord = data['samplesPerRecord'].copy()
+        self.samples = data['samples'].flatten(order='C')
+        self.recordingNumber = data['recordingNumber'].copy()
+        self.recordMarker = data['recordMarker'].copy()
 
 
 class Events(object):
@@ -102,34 +104,28 @@ class Events(object):
         if self.header['version']!=FORMAT_VERSION:
             print 'The version of the file does not correspond to that of this script'
 
-        self.timestamps = []
-        self.samplePosition = []
-        self.eventType = []
-        self.processorID = []
-        self.eventID = []
-        self.eventChannel = []
-        self.recordingNumber = []
-        for indr in range(self.nRecords):
-            buf=fid.read(8)
-            if len(buf) == 8:
-                self.timestamps.extend(unpack('Q', buf))  # reading as unsigned although docs say signed
-            else:
-                print "error figured out: 8 bytes not available"
-                print "bytes available: {0}".format(len(buf))
-            self.samplePosition.extend(unpack('H', fid.read(2))) #reading as unsigned, although documentation says signed.
-            self.eventType.extend(unpack('B', fid.read(1)))
-            self.processorID.extend(unpack('B', fid.read(1)))
-            self.eventID.extend(unpack('B', fid.read(1)))
-            self.eventChannel.extend(unpack('B', fid.read(1)))
-            self.recordingNumber.extend(unpack('H', fid.read(2)))
+        # -- Reading timestamps and samplePosition as unsigned, although documentation says signed. --
+        dt = np.dtype([('timestamps','<u8'), ('samplePosition','<u2'), ('eventType','<u1'), ('processorID','<u1'),
+                       ('eventID','<u1'), ('eventChannel','<u1'), ('recordingNumber','<u2')])
+        data=np.fromfile(fid, dtype=dt, count=-1)
         fid.close()
 
-        
+        self.timestamps = data['timestamps'].copy()
+        self.samplePosition = data['samplePosition'].copy()
+        self.eventType = data['eventType'].copy()
+        self.processorID = data['processorID'].copy()
+        self.eventID = data['eventID'].copy()
+        self.eventChannel = data['eventChannel'].copy()
+        self.recordingNumber = data['recordingNumber'].copy()
+
+
 class DataSpikes(object):
     '''
     Spike data
     timestamps is a numpy array
     samples is a numpy array of size (nSpikes,nChans,nSamples)
+
+    It assumes that nChannels and nSamplesPerSpike do not change from record to record.
     '''
     def __init__(self,filename):
 
@@ -145,8 +141,11 @@ class DataSpikes(object):
         # -- Find record size --
         currentPos = fid.tell()
         fid.seek(1+8+2,1) # Move from current position
-        nChannels = unpack('H', fid.read(2))[0]
-        nSamplesPerSpike = unpack('H', fid.read(2))[0]
+        dtpre = np.dtype([('nChannels','<u2'),('nSamplesPerSpike','<u2')])
+        datapre = np.fromfile(fid, dtype=dtpre, count=1)[0]
+        nChannels = datapre['nChannels']
+        nSamplesPerSpike = datapre['nSamplesPerSpike']
+        nSamplesPerRecord = nChannels*nSamplesPerSpike
         fid.seek(HEADER_SIZE)
         SPIKES_RECORD_SIZE = 1 + 8 + 2 + 2 + 2 + nChannels*nSamplesPerSpike*2 + nChannels*2 + nChannels*2 + 2
 
@@ -158,33 +157,23 @@ class DataSpikes(object):
         if self.header['version']!=FORMAT_VERSION:
             print 'The version of the file does not correspond to that of this script'
 
-        self.eventType = []
-        self.timestamps = []
-        self.electrodeID = []
-        self.nChannels = []
-        self.nSamplesPerSpike = []
-        self.samples = []
-        self.gain = []
-        self.threshold = []
-        self.recordingNumber = []
-        self.clusters = None # To store the cluster assignment for each spike
-        for indr in range(self.nRecords):
-            self.eventType.extend(unpack('B', fid.read(1)))
-            self.timestamps.extend(unpack('Q', fid.read(8)))  # unsigned
-            self.electrodeID.extend(unpack('H', fid.read(2)))
-            self.nChannels.extend(unpack('H', fid.read(2)))
-            self.nSamplesPerSpike.extend(unpack('H', fid.read(2)))
-            nChannels = self.nChannels[-1]
-            nSamplesPerRecord = nChannels*self.nSamplesPerSpike[-1]
-            self.samples.append(unpack(nSamplesPerRecord*'H', fid.read(nSamplesPerRecord*2)))
-            self.gain.append(unpack(nChannels*'H', fid.read(nChannels*2))) # this value is actually 1000*gain
-            self.threshold.append(unpack(nChannels*'H', fid.read(nChannels*2)))
-            self.recordingNumber.extend(unpack('H', fid.read(2)))
+        dt = np.dtype([('eventType','<u1'), ('timestamps','<u8'), ('electrodeID','<u2'), ('nChannels','<u2'),
+                       ('nSamplesPerSpike','<u2'),('samples','{0}<u2'.format(nSamplesPerRecord)),
+                       ('gain','{0}<u2'.format(nChannels)),('threshold','{0}<u2'.format(nChannels)),
+                       ('recordingNumber','<u2')])
+        data=np.fromfile(fid, dtype=dt, count=-1)
         fid.close()
-        self.timestamps = np.array(self.timestamps)
-        self.samples = np.array(self.samples)
-        self.samples = self.samples.reshape((-1,self.nChannels[0],self.nSamplesPerSpike[0]),order='C') # (nSpikes,nChans,nSamples)
-
+        # -- We make copies of all fields, to garbage-collect 'data' after init. --
+        self.eventType = data['eventType'].copy()
+        self.timestamps = data['timestamps'].copy()
+        self.electrodeID = data['electrodeID'].copy()
+        self.nChannels = data['nChannels'].copy()
+        self.nSamplesPerSpike = data['nSamplesPerSpike'].copy()
+        self.samples = data['samples'].reshape((self.nRecords,nChannels,nSamplesPerSpike),order='C')
+        self.gain = data['gain'].copy()  # This value is actually 1000*gain
+        self.threshold = data['threshold'].copy()
+        self.recordingNumber = data['recordingNumber'].copy()
+        self.clusters = None # To store the cluster assignment for each spike
 
     def set_clusters(self,clusterFileOrArray):
         '''Access to KlustaKwik CLU files containing cluster data.'''
@@ -196,17 +185,44 @@ class DataSpikes(object):
 
 if __name__=='__main__':
     from pylab import *
-    CASE = 2
+    CASE = 3
     if CASE==1:
         dataDir = '/var/tmp/2014-04-25_12-19-27/'
         filenameOnly = '100_CH1.continuous'
         filename = os.path.join(dataDir,filenameOnly)
         datacont = DataCont(filename)
-        plot(datacont.samples[:10000],'.-')
-        draw()
-        show()
+        if 1:
+            plot(datacont.samples[:10000],'.-')
+            draw(); show()
 
     elif CASE==2:
+        dataDir = '/data/ephys/test030/2014-06-25_18-33-30_TT6goodGND'
+        filenameOnly = '100_CH21.continuous'
+        filename = os.path.join(dataDir,filenameOnly)
+        datacont = DataCont(filename)
+        if 1:
+            plot(datacont.samples[:10000],'.-')
+            draw(); show()
+        '''
+        d=[]
+        for ind in range(10):
+            d.append(DataCont(filename))
+        '''
+    elif CASE==3:
+        dataDir = '/data/ephys/test030/2014-06-25_18-33-30_TT6goodGND'
+        filenameOnly = 'Tetrode6.spikes'
+        filename = os.path.join(dataDir,filenameOnly)
+        dataspikes = DataSpikes(filename)
+        if 1:
+            plot(dataspikes.samples[2,:,:].T,'.-')
+            draw(); show()
+        '''
+        for ind in range(1000):
+            plot(dataspikes.samples[ind,:,:].T,'.-')
+            draw(); show()
+            waitforbuttonpress()
+        '''
+    elif CASE==4:
         dataDir = '/var/tmp/2014-04-25_12-19-27/'
         filenameOnly = '100_CH1.continuous'
         filename = os.path.join(dataDir,filenameOnly)
@@ -215,7 +231,7 @@ if __name__=='__main__':
         draw()
         show()
 
-    elif CASE==3:
+    elif CASE==5:
         dataDir = '/var/tmp/2014-04-25_12-19-27/'
         filenameOnly = 'Tetrode8.spikes'
         filename = os.path.join(dataDir,filenameOnly)
@@ -223,6 +239,15 @@ if __name__=='__main__':
         plot(dataspikes.samples[:10,:].T,'.')
         draw()
         show()
+
+    elif CASE==6:
+        dataDir = '/data/ephys/test030/2014-07-30_13-25-28/'
+        filenameOnly = 'all_channels.events'
+        filename = os.path.join(dataDir,filenameOnly)
+        events = Events(filename)
+        #plot(events.timestamps,'.')
+        plot(events.samplePosition,'.')
+        draw(); show()
 
 
 
