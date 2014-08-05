@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 from jaratoolbox import loadbehavior
 from jaratoolbox import loadopenephys
@@ -20,11 +21,33 @@ numTetrodes = 4
 
 event_filename=os.path.join(ephysDir, 'all_channels.events')
 
+behaviorDir='/var/tmp/data/behavior/nick/hm4d002/'
+behavDataFileName=os.path.join(behaviorDir, 'hm4d002_tuning_curve_20140804a.h5')
+
+bdata = loadbehavior.BehaviorData(behavDataFileName,readmode='full')
+
+freqEachTrial = bdata['currentFreq']
+
+# -- Workaround for bug (as of 2014-07-08) --
+#freqEachTrial = freqEachTrial[1:]
+#freqEachTrial = np.roll(freqEachTrial,-1)
+
+possibleFreq = np.unique(freqEachTrial)
+
+sortedTrials = []
+for indf,oneFreq in enumerate(possibleFreq):
+    indsThisFreq = np.flatnonzero(freqEachTrial==oneFreq)
+    sortedTrials = np.concatenate((sortedTrials,indsThisFreq))
+sortingInds = argsort(sortedTrials)
+
+
 #Load event data and convert event timestamps to ms
 ev=loadopenephys.Events(event_filename)
 eventTimes=np.array(ev.timestamps)/SAMPLING_RATE
 evID=np.array(ev.eventID)
 eventOnsetTimes=eventTimes[evID==1]
+
+#eventOnsetTimes=eventOnsetTimes[:-1] #FIXME: Horrible fix
 clf()
 
 
@@ -36,9 +59,12 @@ for ind in range(numTetrodes):
         spkTimeStamps=np.array(sp.timestamps)/SAMPLING_RATE
         (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = spikesanalysis.eventlocked_spiketimes(spkTimeStamps,eventOnsetTimes,timeRange)
 
+	sortedIndexForEachSpike = sortingInds[trialIndexForEachSpike]
+
         subplot(numTetrodes,1,ind+1)
 
-        plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.')
+        #plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.')
+        plot(spikeTimesFromEventOnset, sortedIndexForEachSpike, '.', ms=1)
         axvline(x=0, ymin=0, ymax=1, color='r')
 	if ind == 0:
 	    title(ephysDir)
