@@ -28,6 +28,7 @@ bdata = loadbehavior.BehaviorData(behavDataFileName,readmode='full')
 freqEachTrial = bdata['currentFreq']
 possibleFreq = np.unique(freqEachTrial)
 
+# -- The old way of sorting (useful for plotting sorted raster) --
 sortedTrials = []
 for indf,oneFreq in enumerate(possibleFreq):
     indsThisFreq = np.flatnonzero(freqEachTrial==oneFreq)
@@ -50,7 +51,7 @@ sortedIndexForEachSpike = sortingInds[trialIndexForEachSpike]
 
 
 # -- Calculate tuning --
-responseRange = [0,0.020]
+responseRange = [0.010,0.020]
 nSpikes = spikesanalysis.count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,responseRange)
 meanSpikesEachFrequency = np.empty(len(possibleFreq))
 
