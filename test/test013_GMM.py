@@ -6,10 +6,17 @@ from sklearn.mixture import GMM
 from pylab import *
 import matplotlib.pyplot as plt
 
+'''
+Computes PCA components for a group of spike waveforms and clusters them using a Gaussian Mixture Model. 
+'''
+
+__author__='Nick Ponvert'
+__date__='2014-08-16'
+
 GAIN = 5000.0
 
-ephys_path = '/home/nick/data/ephys/hm4d002/cno_08-14/'
-ephys_session = '2014-08-14_12-00-25'
+ephys_path = '/home/nick/data/ephys/hm4d002/cno_08-15/'
+ephys_session = os.listdir(ephys_path)[13]
 tetrode = 3
 
 # -- Read ephys data
@@ -25,15 +32,17 @@ results = PCA(ch0)
 
 threshold = 0.75  #threshold for proportion of variance described
 
-comps_to_use=1
+comps_to_use=6 # FIXME: hardcoded number of comps to use,
+               # commented code below can be used but need new colors (line 100)
 figure()
 plot(cumsum(results.fracs))  # scree plot
 show()
+'''
 for comp, var in enumerate(cumsum(results.fracs)):
     if var > threshold:
         comps_to_use = comp+1
         break
-
+'''
 # -- Collect the points projected into the number of Pcs we want to use
 X = results.Y[:, 0:comps_to_use]
 
@@ -81,7 +90,7 @@ elif case == 4:  #Plot the waveforms for each cluster
 
 elif case==5: #plot clusters and waveforms
 
-    #figure()
+    figure()
     ax2 = plt.subplot2grid((max(preds)+1,2), (0, 0), colspan=1, rowspan=max(preds)+1)
     for cluster_num in set(preds):
         #print cluster_num
@@ -96,7 +105,7 @@ elif case==5: #plot clusters and waveforms
     for cluster_num in set(preds):
         ax2 = plt.subplot2grid((max(preds)+1,2), (cluster_num, 1), colspan=1, rowspan=1)
 
-        for sample in spikes.samples[preds==cluster_num][:25]:
+        for sample in spikes.samples[preds==cluster_num][:100]:
             plot((concatenate(sample)-32768.00)/GAIN*1000.0, '{0}-'.format(some_colors[cluster_num]), alpha=0.1)
 
 
@@ -120,6 +129,16 @@ elif case==5: #plot clusters and waveforms
 #DONE: Cluster the projected points (sklearn.mixture.GMM or Kmeans)
 #DONE: Predict the cluster for each point
 #DONE: Apply the cluster data to the original spike data
+
+#TODO: Should I use more than ch0 for the original PCA?
+
+#TODO: We will need to track spikes between multiple sessions. I see several ways that this could happen. 
+# - We can sort each trial and then manually look for similarities in the sorted waveforms. This is a bad idea. 
+# - Concatenate ALL of the data for the whole session and run it through the PCA and GMM, then seperate it back out (or have a vector of session numbers)
+# - Do PCA on a subset of the data, train the GMM, and then use the fitted model to predict the cluster for all of the other observations. If this works, it would likely be the fastest way.
+
+
+
 #TODO: Use santiago's cluster summary plotting routeines.
 #TODO: CLuster CNO experiment data, plot time series per clustered spike
 #    -Can we show the same spike across multiple experiments though? 
