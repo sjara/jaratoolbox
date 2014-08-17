@@ -15,6 +15,10 @@ __date__='2014-08-16'
 
 GAIN = 5000.0
 
+# -- Old way of reading the files and choosing the waveforms to use for PCA
+# -- New way involves using a module to read the data from all of the files in an
+# -- experiment directory at once into some data objects. 
+'''
 ephys_path = '/home/nick/data/ephys/hm4d002/cno_08-14'
 ephys_session = os.listdir(ephys_path)[0]
 tetrode = 3
@@ -23,21 +27,49 @@ tetrode = 3
 ephys_file = os.path.join(ephys_path, ephys_session, 'Tetrode{0}.spikes'.format(tetrode))
 spikes = loadopenephys.DataSpikes(ephys_file)
 
-# -- take first channel only (for now)
-ch0 = spikes.samples[:,0]
-#ch0 = ((ch0 - 32768)/GAIN)*1000
-
-# -- Compute PCs (weight vectors, %var, projected pts)
-#results = PCA(ch0)
-
 
 # -- New Attempt: use the concatenated traces from all four channels. 
-conc=[]
-for ind, channels in enumerate(spikes.samples):
-    conc.append(concatenate(channels))
+concatenate_channels = True
 
-conc=array(conc)
-results=PCA(conc)
+if concatenate_channels:
+    conc=[]
+    for ind, channels in enumerate(spikes.samples):
+        conc.append(concatenate(channels))
+
+    conc=array(conc)
+    results=PCA(conc)
+
+else:
+    ch0 = spikes.samples[:,0]
+    results = PCA(ch0)
+'''
+
+# -- New method for reading all of the spike data from multiple files at once. 
+ephys_path = '/home/nick/data/ephys/hm4d002/cno_08-14/'
+ephys_sessions=sorted(os.listdir(ephys_path))
+tetrode = 3
+
+session_inds=[]
+conc_samples=[]
+t0_each_session=[]
+timestamps_each_session=[]
+
+for session_ind, session in enumerate(ephys_sessions):
+    ephys_file = os.path.join(ephys_path, session, 'Tetrode{0}.spikes'.format(tetrode))
+    spikes=loadopenephys.DataSpikes(ephys_file)
+    t0_each_session.append(spikes.timestamps[0])
+
+    for sample_ind, channels in enumerate(spikes.samples):
+        conc_samples.append(np.concatenate(channels))  #For each spike, save the concatenated channels
+        session_inds.append(session_ind)  #For each spike, save the index of the session it came from 
+        timestamps_each_session.append(spikes.timestamps[sample_ind])
+
+
+conc_samples=np.array(conc_samples)
+session_inds=np.array(session_inds)
+t0_each_session=np.array(t0_each_session)
+timestamps_each_session=np.array(timestamps_each_session)
+results = PCA(conc_samples)
 
 
 threshold = 0.75  #threshold for proportion of variance described
@@ -104,7 +136,7 @@ elif case==5: #plot clusters and waveforms
     ax2 = plt.subplot2grid((max(preds)+1,2), (0, 0), colspan=1, rowspan=max(preds)+1)
     for cluster_num in set(preds):
         #print cluster_num
-        plot(results.Y[:,0][preds==cluster_num], results.Y[:,1][preds==cluster_num], '.', ms=1)
+        plot(results.Y[:,0][preds==cluster_num][::50], results.Y[:,1][preds==cluster_num][::50], '.', ms=1)
     xlabel('PC0')
     ylabel('PC1')
     #show()
@@ -115,8 +147,8 @@ elif case==5: #plot clusters and waveforms
     for cluster_num in set(preds):
         ax2 = plt.subplot2grid((max(preds)+1,2), (cluster_num, 1), colspan=1, rowspan=1)
 
-        for sample in spikes.samples[preds==cluster_num][:100]:
-            plot((concatenate(sample)-32768.00)/GAIN*1000.0, '{0}-'.format(some_colors[cluster_num]), alpha=0.1)
+        for sample in conc_samples[preds==cluster_num][::700]:
+            plot((sample-32768.00)/GAIN*1000.0, '{0}-'.format(some_colors[cluster_num]), alpha=0.1)
 
 
         '''
@@ -148,6 +180,9 @@ elif case==5: #plot clusters and waveforms
 # - Do PCA on a subset of the data, train the GMM, and then use the fitted model to predict the cluster for all of the other observations. If this works, it would likely be the fastest way.
 # - Concatenate all four channels together before we do PCA? This might help us if the small-magnitude portions of spikes on one channel look similar to noise but have large-magnitude portions on other channels. 
 
+#DONE: Read all of the samples from all sessons, concatenate the samples, and sort them. 
+#TODO: Implement this using a few seperate functions or modules. 
+#TODO: Apply the cluster numbers to the spike timestamps and plot a time series!
 
 
 #TODO: Use santiago's cluster summary plotting routeines.
