@@ -15,8 +15,8 @@ __date__='2014-08-16'
 
 GAIN = 5000.0
 
-ephys_path = '/home/nick/data/ephys/hm4d002/cno_08-15/'
-ephys_session = os.listdir(ephys_path)[13]
+ephys_path = '/home/nick/data/ephys/hm4d002/cno_08-14'
+ephys_session = os.listdir(ephys_path)[0]
 tetrode = 3
 
 # -- Read ephys data
@@ -28,7 +28,17 @@ ch0 = spikes.samples[:,0]
 #ch0 = ((ch0 - 32768)/GAIN)*1000
 
 # -- Compute PCs (weight vectors, %var, projected pts)
-results = PCA(ch0)
+#results = PCA(ch0)
+
+
+# -- New Attempt: use the concatenated traces from all four channels. 
+conc=[]
+for ind, channels in enumerate(spikes.samples):
+    conc.append(concatenate(channels))
+
+conc=array(conc)
+results=PCA(conc)
+
 
 threshold = 0.75  #threshold for proportion of variance described
 
@@ -136,6 +146,7 @@ elif case==5: #plot clusters and waveforms
 # - We can sort each trial and then manually look for similarities in the sorted waveforms. This is a bad idea. 
 # - Concatenate ALL of the data for the whole session and run it through the PCA and GMM, then seperate it back out (or have a vector of session numbers)
 # - Do PCA on a subset of the data, train the GMM, and then use the fitted model to predict the cluster for all of the other observations. If this works, it would likely be the fastest way.
+# - Concatenate all four channels together before we do PCA? This might help us if the small-magnitude portions of spikes on one channel look similar to noise but have large-magnitude portions on other channels. 
 
 
 
