@@ -18,8 +18,23 @@ FREQCOLORS = [colorpalette.TangoPalette['Chameleon3'],
               colorpalette.TangoPalette['SkyBlue2'] ]
 #colorpalette.TangoPalette['Orange2']
 
-def find_trials_each_type(psyCurveParameter,psyCurveParameterPossibleValues,\
-                          currentBlock,currentBlockPossibleValues,validTrials=[]):
+def find_trials_each_type(parameter,parameterPossibleValues):
+    nTrials = len(parameter)
+    nValues = len(parameterPossibleValues)
+    trialsEachType = np.zeros((nTrials,nValues),dtype=bool)
+    for indval,paramValue in enumerate(parameterPossibleValues):
+        trialsEachType[:,indval] = (parameter==paramValue)
+    return trialsEachType
+
+'''    
+,validTrials=[]
+    if(not len(validTrials)):
+        validTrials = np.ones(nTrials,dtype=bool)
+        trialsEachType[:,indval] = trialsThisValue & validTrials
+'''
+
+def find_trials_each_type_each_block(psyCurveParameter,psyCurveParameterPossibleValues,\
+                                     currentBlock,currentBlockPossibleValues,validTrials=[]):
     '''
     Parameters
     ----------
@@ -130,8 +145,8 @@ def plot_summary(behavData,fontsize=12):
     early = behavData['outcome']==behavData.labels['outcome']['invalid']
     possibleFreq = np.unique(behavData['targetFrequency'])
     possibleBlockID = np.unique(behavData['currentBlock'])
-    trialsEachType = find_trials_each_type(behavData['targetFrequency'],possibleFreq,
-                                           behavData['currentBlock'],possibleBlockID)
+    trialsEachType = find_trials_each_type_each_block(behavData['targetFrequency'],possibleFreq,
+                                                      behavData['currentBlock'],possibleBlockID)
     validTrialsEachType = trialsEachType & behavData['valid'][:,np.newaxis,np.newaxis].astype(bool)
     correctTrialsEachType = validTrialsEachType & correct[:,np.newaxis,np.newaxis]
     nCorrectEachType = np.sum(correctTrialsEachType,axis=0)
