@@ -11,28 +11,25 @@ SAMPLING_RATE=30000.0
 timeRange=[-0.5, 1] #In seconds
 
 #########################
-#ephysDir='/home/jarauser/data/ephys/hm4d002/2014-08-04_17-11-30'
-ephysRoot= '/home/jarauser/data/ephys/hm4d002/'
+ephysDir='/home/nick/data/ephys/hm4d002/2014-08-04_18-04-45'  #Setting filepath 
+ephysRoot= '/home/nick/data/ephys/hm4d002/'
 ephysSession=sort(os.listdir(ephysRoot))[-1]
-ephysDir=os.path.join(ephysRoot, ephysSession)
+#ephysDir=os.path.join(ephysRoot, ephysSession)
 
 numTetrodes = 4
 #########################
 
 event_filename=os.path.join(ephysDir, 'all_channels.events')
 
-behaviorDir='/var/tmp/data/behavior/nick/hm4d002/'
+behaviorDir='/home/nick/data/behavior/nick/hm4d002/'
 behavDataFileName=os.path.join(behaviorDir, 'hm4d002_tuning_curve_20140804a.h5')
 
 bdata = loadbehavior.BehaviorData(behavDataFileName,readmode='full')
 
-freqEachTrial = bdata['currentFreq']
+freqEachTrial = bdata['currentFreq'] # Returns an array containing the freq of the
+                                     # presented sound each trial
 
-# -- Workaround for bug (as of 2014-07-08) --
-#freqEachTrial = freqEachTrial[1:]
-#freqEachTrial = np.roll(freqEachTrial,-1)
-
-possibleFreq = np.unique(freqEachTrial)
+possibleFreq = np.unique(freqEachTrial) 
 
 sortedTrials = []
 for indf,oneFreq in enumerate(possibleFreq):
@@ -46,10 +43,11 @@ ev=loadopenephys.Events(event_filename)
 eventTimes=np.array(ev.timestamps)/SAMPLING_RATE
 evID=np.array(ev.eventID)
 eventOnsetTimes=eventTimes[evID==1]
-
-#eventOnsetTimes=eventOnsetTimes[:-1] #FIXME: Horrible fix
+eventOnsetTimes=eventOnsetTimes[:-1] # The last behavior trial is always started but never finishe
+                                     # by the time that we stop the paradigm
 clf()
 
+sortedFreqs = sorted(bdata['currentFreq'])
 
 for ind in range(numTetrodes):
     tetrodeID = ind+1
@@ -64,7 +62,8 @@ for ind in range(numTetrodes):
         subplot(numTetrodes,1,ind+1)
 
         #plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.')
-        plot(spikeTimesFromEventOnset, sortedIndexForEachSpike, '.', ms=1)
+        scatter(spikeTimesFromEventOnset, sortedIndexForEachSpike, '.', ms=1, c=sortedFreqs)
+        jet()
         axvline(x=0, ymin=0, ymax=1, color='r')
 	if ind == 0:
 	    title(ephysDir)
@@ -76,4 +75,3 @@ xlabel('time(sec)')
 #tight_layout()
 draw()
 show()
-

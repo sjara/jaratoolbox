@@ -34,11 +34,11 @@ event_filename = os.path.join(dataDir,'all_channels.events')
 spike_filename = os.path.join(dataDir,'Tetrode4.spikes')
 '''
 
-ephysDir='/home/jarauser/data/ephys/hm4d002/2014-08-04_18-04-45'
-behaviorDir='/var/tmp/data/behavior/nick/hm4d002/'
+ephysDir='/home/nick/data/ephys/hm4d002/2014-08-04_17-54-34'
+behaviorDir='/home/nick/data/behavior/nick/hm4d002'
 behavDataFileName=os.path.join(behaviorDir, 'hm4d002_tuning_curve_20140804a.h5')
 event_filename=os.path.join(ephysDir, 'all_channels.events')
-spike_filename=os.path.join(ephysDir, 'Tetrode1.spikes')
+spike_filename=os.path.join(ephysDir, 'Tetrode2.spikes')
 
 
 # -- Load behavior data -

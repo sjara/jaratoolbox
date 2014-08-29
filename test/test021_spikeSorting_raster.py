@@ -15,7 +15,8 @@ spikes=loadopenephys.DataSpikes(spikeFilename)
 eventsFilename = os.path.join(ephysDir, 'all_channels.events')
 events=loadopenephys.Events(eventsFilename)
 
-def threshold_spikes(threshold_uV, spike_samples):
+def threshold_spikes(lower_threshold_uV, upper_threshold_uV, spike_samples):
+
     '''Converts a new threshold to unsigned int (the openephys data format
     for spikes) and applies it to a spike array. 
 
@@ -29,18 +30,17 @@ def threshold_spikes(threshold_uV, spike_samples):
     pass_inds: bool list with True for spikes that pass the threshold and False for spikes that do not. 
     '''
 
-    threshold_converted=(threshold_uV*5000.0/1000.0)+32768.0
-    threshold_converted=int(threshold_converted)
+    lower_threshold_converted=(lower_threshold_uV*5000.0/1000.0)+32768.0
+    lower_threshold_converted=int(lower_threshold_converted)
+    upper_threshold_converted=(upper_threshold_uV*5000.0/1000.0)+32768.0
+    upper_threshold_converted=int(upper_threshold_converted)
 
-    pass_inds=((spike_samples>threshold_converted).any(1)).any(1)
+    #pass_inds= ((spikes.samples>lower_threshold_converted) & (spikes.samples<upper_threshold_converted)).any((1,2))
+    max_channels=spikes.samples[:,:,10:20].max(2)
+    pass_inds=((max_channels>lower_threshold_converted) & (max_channels < upper_threshold_converted))
+    print sum(pass_inds)
     return pass_inds
 
-pass_inds=threshold_spikes(100.0, spikes.samples)
-
-pass_spike_timestamps=spikes.timestamps[pass_inds]
-eventTimes=np.array(events.timestamps)/SAMPLING_RATE
-pass_spkTimeStamps=np.array(pass_spike_timestamps)/SAMPLING_RATE
-evID=np.array(events.eventID)
     
 
 def plot_raster(spikeTimestamps, eventTimes, eventID, targetID=1,timeRange=[-0.5, 1]):
@@ -66,7 +66,7 @@ def plot_raster(spikeTimestamps, eventTimes, eventID, targetID=1,timeRange=[-0.5
 
 
 
-def plot_spike_peak_volatage(spikeSamples, chx=0, chy=1):
+def plot_spike_peak_voltage(spikeSamples, chx=0, chy=1):
     max_samp=spikeSamples.max(2)
     plot(max_samp[:,chx], max_samp[:,chy], 'b.', ms=1)
     xlabel('Channel {0}'.format(chx))
@@ -79,7 +79,7 @@ def plot_spike_peak_volatage(spikeSamples, chx=0, chy=1):
 
 
 
-def plot_spike_peak_volatage_hist(spikeSamples, chx=0, chy=1):
+def plot_spike_peak_voltage_hist(spikeSamples, chx=0, chy=1):
 
     max_samp=spikeSamples.max(2)
     nbins = len(max_samp[:,0])/60
@@ -98,11 +98,51 @@ def plot_spike_peak_volatage_hist(spikeSamples, chx=0, chy=1):
     cbar = plt.colorbar()
     cbar.ax.set_ylabel('Counts')
     plt.show()
+    
 
-case=2
+def spike_voltage_threshold_summary(spikeSamples, lower_threshold_uV, upper_threshold_uV):
+
+    passing_inds=threshold_spikes(lower_threshold_uV,upper_threshold_uV, spikeSamples)
+    for spike in reshape(spikeSamples, (len(spikeSamples), 160))[passing_inds][:200]:
+        plot(spike, 'b-', alpha=0.1)
+
+def peak_voltage_cluster(spikeSamples, comps_to_use, plot_clusters=True):
+    from sklearn.mixture import GMM
+    
+    '''
+    Accepts an array of spike samples, plots spike peak voltages per channel, and clusters spikes based on peak voltages. 
+    '''
+    max_samp=spikeSamples.max(2)
+    g=GMM(n_components=comps_to_use)
+    g.fit(max_samp)
+    preds = g.predict(max_samp)
+    
+    if plot_clusters:
+        for i in preds:
+            plot(max_samp[:,0][preds==i], max_samp[:,1][preds==i], ms=1)
+        show()
+        
+    return preds
+
+    
+
+case=1
 if case==1:
+    pass_inds=threshold_spikes(100, 150, spikes.samples)
+    pass_spike_timestamps=spikes.timestamps[pass_inds[:,3]]
+    eventTimes=np.array(events.timestamps)/SAMPLING_RATE
+    pass_spkTimeStamps=np.array(pass_spike_timestamps)/SAMPLING_RATE
+    evID=np.array(events.eventID)
+    figure()
     plot_raster(pass_spkTimeStamps, eventTimes, evID) 
+    
+    figure()
+    for spike in reshape(spikes.samples, (len(spikes.samples), 160))[pass_inds[:,0]][:500]:
+        plot(spike, 'b-', alpha=0.1)
+    show()
+
 elif case==2:
-    plot_spike_peak_volatage(spikes.samples)
+    plot_spike_peak_voltage(spikes.samples)
 elif case==3:
-    plot_spike_peak_volatage_hist(spikes.samples)
+    plot_spike_peak_voltage_hist(spikes.samples)
+

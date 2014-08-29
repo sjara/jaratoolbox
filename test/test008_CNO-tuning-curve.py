@@ -13,7 +13,7 @@ timeRange=[-0.5, 1] #In seconds
 
 #########################
 #ephysDir='/home/jarauser/data/ephys/hm4d002/2014-08-04_17-11-30'
-ephysRoot= '/home/jarauser/data/ephys/hm4d002/cno_08-12'
+ephysRoot= '/home/nick/data/ephys/hm4d002/cno_08-12'
 ephysSessions=sort(os.listdir(ephysRoot))
 
 
@@ -26,7 +26,7 @@ tetrodeNum= 'Tetrode3.spikes'
 for ind, ephysDir in enumerate(ephysSessions):
     event_filename=os.path.join(ephysRoot, ephysDir, 'all_channels.events')
 
-    behaviorDir='/var/tmp/data/behavior/nick/hm4d002/'
+    behaviorDir='/home/nick/data/behavior/nick/hm4d002/'
     behavDataFileName=os.path.join(behaviorDir, 'hm4d002_tuning_curve_20140812_exp0{0}.h5'.format(ind+1))
 
     bdata = loadbehavior.BehaviorData(behavDataFileName,readmode='full')
@@ -85,4 +85,9 @@ for ind, ephysDir in enumerate(ephysSessions):
 #xlabel('time(sec)')
 #tight_layout()
 show()
-
+'''
+fig=gcf()
+import plotly.plotly as py
+py.sign_in('nickponvert', '915nslwqbx')
+unique_url = py.plot_mpl(fig, strip_style=True)
+'''

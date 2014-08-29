@@ -12,7 +12,7 @@ import os
 SAMPLING_RATE=30000.0
 timeRange=[-0.5, 1] #In seconds
 
-ephysRoot = '/data/ephys/hm4d002/'
+ephysRoot = '/home/nick/data/ephys/hm4d002/cno_08-12'
 #ephysSession=sort(os.listdir(ephysRoot))[-1]
 ephysSession = '2014-08-12_14-00-18'
 ephysDir = os.path.join(ephysRoot, ephysSession)
@@ -21,7 +21,7 @@ event_filename=os.path.join(ephysDir, 'all_channels.events')
 numTetrodes = 4
 
 
-behaviorDir='/data/behavior/nick/hm4d002/'
+behaviorDir='/home/nick/data/behavior/nick/hm4d002/'
 behavDataFileName=os.path.join(behaviorDir, 'hm4d002_tuning_curve_20140812_exp01.h5')
 
 bdata = loadbehavior.BehaviorData(behavDataFileName,readmode='full')
