@@ -4,12 +4,22 @@ import numpy as np
 from pylab import *
 import matplotlib.pyplot as plt
 
-subject = 'hm4d003'
-session = '20140820a'
+#subject = 'hm4d003'
+#session = '20140820a'
+
+'''
+subject = 'test053'
+session = '20140907a'
+experimenter = 'santiago'
+'''
+
+subject = 'test000'
+session = '20141110a'
+experimenter = 'santiago'
 
 minIntensityToPlot = 30
 
-fname=loadbehavior.path_to_behavior_data(subject,'nick','2afc',session)
+fname=loadbehavior.path_to_behavior_data(subject,experimenter,'2afc',session)
 
 
 bdata=loadbehavior.BehaviorData(fname)
@@ -37,9 +47,13 @@ fractionRightEachFreq = nRightwardEachFreq/nTrialsEachFreq.astype(float)
 #plot(possibleFreq,fractionRightEachFreq,'-o')
 #gca().set_xscale('log')
 
-plot(fractionRightEachFreq,'-o')
+plot(np.log2(possibleFreq),fractionRightEachFreq,'-o')
+
+#plot(fractionRightEachFreq,'-o')
 title(subject)
 ylim([0,1])
+ylabel('Fraction correct')
+xlabel('Frequency [log2(Hz)]')
 show()
 
 
