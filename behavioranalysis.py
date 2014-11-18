@@ -233,9 +233,34 @@ def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
     plt.show()
 
 
+def calculate_psychometric(behavData,parameterName='targetFrequency'):
+    '''
+    FIXME: what to do about trials with no choice?
+    It assumes behavData has the keys 'valid' and 'choice'.
+    '''
+    paramValues=bdata[parameterName]
+    valid=bdata['valid']
+    choice=bdata['choice']
+    choiceRight = choice==bdata.labels['choice']['right']
+
+    possibleValues = np.unique(paramValues)
+    nValues = len(possibleValues) 
+    trialsEachValue = find_trials_each_type(paramValues,possibleValues)
+
+    nTrialsEachValue = np.empty(nValues,dtype=int)
+    nRightwardEachValue = np.empty(nValues,dtype=int)
+    for indv,thisValue in enumerate(possibleValues):
+        nTrialsEachValue[indv] = sum(valid & trialsEachValue[:,indv])
+        nRightwardEachValue[indv] = sum(valid & choiceRight & trialsEachValue[:,indv])
+    
+    fractionRightEachValue = nRightwardEachValue/nTrialsEachValue.astype(float)
+    confintervRightEachValue = [] # TO BE IMPLEMENTED LATER
+    return (possibleValues,fractionRightEachValue,confintervRightEachValue,nTrialsEachValue,nRightwardEachValue)
+
+
 if __name__ == "__main__":
 
-    CASE=2
+    CASE=3
     if CASE==1:
         from jaratoolbox import loadbehavior
         import numpy as np
@@ -270,4 +295,8 @@ if __name__ == "__main__":
         behavior_summary(subjects,sessions,trialslim=[0,1200],outputDir='/tmp/')
 
     elif CASE==3:
-        pass
+        fname=loadbehavior.path_to_behavior_data('test052','santiago','2afc','20140911a')
+        bdata=loadbehavior.BehaviorData(fname)
+        (possibleFreq,pRightEach,ci,nTrialsEach,nRightwardEach) = calculate_psychometric(bdata,
+                                                                                         parameterName='targetFrequency')
+        print pRightEach

@@ -61,7 +61,7 @@ class BehaviorData(dict):
         try:
             self.h5file = h5py.File(self.filename,'r')
         except IOError:
-            print '{0} does not exist or cannot be open'.format(self.filename)
+            print '{0} does not exist or cannot be opened.'.format(self.filename)
             raise
         try:
             if readmode=='summary':
