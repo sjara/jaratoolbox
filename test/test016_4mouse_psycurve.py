@@ -5,40 +5,51 @@ import numpy as np
 from pylab import *
 import matplotlib.pyplot as plt
 from statsmodels.stats.proportion import proportion_confint #Used to compute confidence interval for the error bars. 
+from jaratoolbox import settings 
 
 subjects = ['hm4d004', 'hm4d005', 'hm4d006']
 session = '20140826a'
+positions=[(0,0), (0,1), (1,0), (1,1)] #FIXME: can only place 4 mice for now
 
-for ind, subject in enumerate(subjects):
+for ind, subject in enumerate(subjects): #Iterate through each subject
     fname=loadbehavior.path_to_behavior_data(subject,'nick','2afc',session)
 
+    try: #Attempt to load the data for this subject
 
-    try:
         bdata=loadbehavior.BehaviorData(fname)
-    except IOError:
-        pass
-    from jaratoolbox import settings 
 
+    except IOError: #If the data from this subject is not available:
+        
+        ax1=plt.subplot2grid((2,2), positions[ind]) #Alert the user
+        xlim([0,2])
+        ylim([0,2])
+        ax1.text(1, 1, "No Data Available", va = 'center', ha = 'center', color = 'r')
+        title(subject)
+        continue #Continue to the next subject
+    
+    #Extract data from the bdata object
     targetFrequency=bdata['targetFrequency']
     valid=bdata['valid']
     choice=bdata['choice']
     intensities=bdata['targetIntensity']
     choiceRight = choice==bdata.labels['choice']['right']
 
-
-    possibleFreq = np.unique(targetFrequency)
-    nFreq = len(possibleFreq) 
-    fractionRightEachFreq=np.zeros(nFreq)
-    confLimitsEachFreq=np.zeros([2, nFreq]) #Upper and lower confidence limits
-    trialsEachFreq = behavioranalysis.find_trials_each_type(targetFrequency,possibleFreq)
-
-    positions=[(0,0), (0,1), (1,0), (1,1)] #FIXME: can only place 4 mice for now
-    ax1=plt.subplot2grid((2,2), positions[ind])
-
+    #Preallocate arrays
+    fractionRightEachFreq=np.empty(nFreq)
+    confLimitsEachFreq=np.empty([2, nFreq]) #Upper and lower confidence limits
     nTrialsEachFreq = np.empty(nFreq)
     nRightwardEachFreq = np.empty(nFreq)
-    for indf,thisFreq in enumerate(possibleFreq): #Compute the %right and c.i for each freq.
+    
+    #Find trials at each frequency
+    possibleFreq = np.unique(targetFrequency)
+    nFreq = len(possibleFreq) 
+    trialsEachFreq = behavioranalysis.find_trials_each_type(targetFrequency,possibleFreq)
 
+    #Configure subplot for this subject
+    ax1=plt.subplot2grid((2,2), positions[ind])
+    
+    #Compute the number right and c.i for each freq.
+    for indf,thisFreq in enumerate(possibleFreq): 
 
         nTrialsThisFreq = sum(valid & trialsEachFreq[:,indf])
         nRightwardThisFreq =  sum(valid & choiceRight & trialsEachFreq[:,indf])
@@ -49,17 +60,25 @@ for ind, subject in enumerate(subjects):
         confLimitsEachFreq[0, indf] = conf[0] # Lower ci
         confLimitsEachFreq[1, indf] = conf[1] # Upper ci
 
+    #Compute %right (c.i. are already in percent)
     fractionRightEachFreq = nRightwardEachFreq/nTrialsEachFreq.astype(float)
 
     #plot(possibleFreq,fractionRightEachFreq,'-o')
     #gca().set_xscale('log')
-    upperWhisker = confLimitsEachFreq[1, :] - fractionRightEachFreq #Find lengths of whiskers for plotting function
+
+    #Find lengths of whiskers for plotting function
+    upperWhisker = confLimitsEachFreq[1, :] - fractionRightEachFreq
     lowerWhisker = fractionRightEachFreq - confLimitsEachFreq[0,:]
+    
+    #Plot the data for this subject
     x = range(nFreq)
     errorbar(x, fractionRightEachFreq, yerr = [lowerWhisker, upperWhisker])
     axhline(y=0.5, color = 'red')
     title(subject)
     ylim([0,1])
+    
+#Include the date of the session
+suptitle(session)
 show()
 
 
