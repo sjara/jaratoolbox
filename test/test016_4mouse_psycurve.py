@@ -29,15 +29,16 @@ for ind, subject in enumerate(subjects):
     possibleFreq = np.unique(targetFrequency)
     nFreq = len(possibleFreq) 
     fractionRightEachFreq=np.zeros(nFreq)
-    confLimitsEachFreq=np.zeros([2, nFreq]) #Upper and lower confidence limitsi
+    confLimitsEachFreq=np.zeros([2, nFreq]) #Upper and lower confidence limits
     trialsEachFreq = behavioranalysis.find_trials_each_type(targetFrequency,possibleFreq)
 
-    positions=[(0,0), (0,1), (1,0), (1,1)]
+    positions=[(0,0), (0,1), (1,0), (1,1)] #FIXME: can only place 4 mice for now
     ax1=plt.subplot2grid((2,2), positions[ind])
 
     nTrialsEachFreq = np.empty(nFreq)
     nRightwardEachFreq = np.empty(nFreq)
-    for indf,thisFreq in enumerate(possibleFreq):
+    for indf,thisFreq in enumerate(possibleFreq): #Compute the %right and c.i for each freq.
+
 
         nTrialsThisFreq = sum(valid & trialsEachFreq[:,indf])
         nRightwardThisFreq =  sum(valid & choiceRight & trialsEachFreq[:,indf])
