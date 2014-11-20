@@ -11,7 +11,7 @@ timeRange=[-0.5, 1] #In seconds
 
 #########################
 #ephysDir='/home/jarauser/data/ephys/hm4d002/2014-08-04_17-11-30'
-ephysRoot= '/home/jarauser/data/ephys/hm4d002/'
+ephysRoot= '/home/nick/data/ephys/hm4d002/'
 ephysSession=sort(os.listdir(ephysRoot))[-1]
 ephysDir=os.path.join(ephysRoot, ephysSession)
 

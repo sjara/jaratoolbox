@@ -34,17 +34,17 @@ for ind, subject in enumerate(subjects): #Iterate through each subject
     intensities=bdata['targetIntensity']
     choiceRight = choice==bdata.labels['choice']['right']
 
+    #Find trials at each frequency
+    possibleFreq = np.unique(targetFrequency)
+    nFreq = len(possibleFreq) 
+    trialsEachFreq = behavioranalysis.find_trials_each_type(targetFrequency,possibleFreq)
+
     #Preallocate arrays
     fractionRightEachFreq=np.empty(nFreq)
     confLimitsEachFreq=np.empty([2, nFreq]) #Upper and lower confidence limits
     nTrialsEachFreq = np.empty(nFreq)
     nRightwardEachFreq = np.empty(nFreq)
     
-    #Find trials at each frequency
-    possibleFreq = np.unique(targetFrequency)
-    nFreq = len(possibleFreq) 
-    trialsEachFreq = behavioranalysis.find_trials_each_type(targetFrequency,possibleFreq)
-
     #Configure subplot for this subject
     ax1=plt.subplot2grid((2,2), positions[ind])
     

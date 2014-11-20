@@ -10,7 +10,8 @@ from jaratoolbox import settings
 subjects = ['hm4d004', 'hm4d005', 'hm4d006']
 session = '20140826a'
 
-#This can handle up to 9 subjects now but there should be a more robust solution
+#This can handle up to 9 subjects now but there could be a more robust solution
+#FIXME: May need to change positions so they make more visual sense
 if len(subjects)==1:
     positions = [(0,0)]
     shape = (1, 1)
@@ -26,6 +27,10 @@ elif len(subjects)>4 and len(subjects)<=6:
 elif len(subjects)>6 and len(subjects)<=9:
     positions=[(0,0), (0,1), (1,0), (1,1), (2, 0), (2, 1), (0, 2), (1, 2), (2, 2)]
     shape = (3,3) 
+    
+else:
+    print "This function accepts up to 9 subjects"
+    break
 
 for ind, subject in enumerate(subjects): #Iterate through each subject
     fname=loadbehavior.path_to_behavior_data(subject,'nick','2afc',session)
@@ -50,16 +55,16 @@ for ind, subject in enumerate(subjects): #Iterate through each subject
     intensities=bdata['targetIntensity']
     choiceRight = choice==bdata.labels['choice']['right']
 
+    #Find trials at each frequency
+    possibleFreq = np.unique(targetFrequency)
+    nFreq = len(possibleFreq) 
+    trialsEachFreq = behavioranalysis.find_trials_each_type(targetFrequency,possibleFreq)
+
     #Preallocate arrays
     fractionRightEachFreq=np.empty(nFreq)
     confLimitsEachFreq=np.empty([2, nFreq]) #Upper and lower confidence limits
     nTrialsEachFreq = np.empty(nFreq)
     nRightwardEachFreq = np.empty(nFreq)
-    
-    #Find trials at each frequency
-    possibleFreq = np.unique(targetFrequency)
-    nFreq = len(possibleFreq) 
-    trialsEachFreq = behavioranalysis.find_trials_each_type(targetFrequency,possibleFreq)
 
     #Configure subplot for this subject
     ax1=plt.subplot2grid(shape, positions[ind])

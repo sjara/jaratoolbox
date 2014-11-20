@@ -6,7 +6,7 @@ from pylab import *
 import matplotlib.pyplot as plt
 from jaratoolbox import settings 
 
-subjects = ['hm4d003', 'hm4d004', 'hm4d005', 'hm4d006']
+subjects = ['hm4d004', 'hm4d005', 'hm4d006']
 sessions = ['20140824a']
 
 for subject_ind, subject in enumerate(subjects):
