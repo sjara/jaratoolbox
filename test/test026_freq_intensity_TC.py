@@ -88,12 +88,14 @@ for indFreq, currentFreq in enumerate(possibleFreq):
 maxVoltageAllSettings = np.max(np.max(meanTraceEachSetting, axis = 2))
 minVoltageAllSettings = np.min(np.min(meanTraceEachSetting, axis = 2))
 
-ax = subplot(111)
 
 #Plot all of the mean traces in a grid according to frequency and intensity
 for intensity in range(len(possibleIntensity)):
+    #Subplot2grid plots from top to bottom, but we need to plot from bottom to top
+    #on the intensity scale. So we make an array of reversed intensity indices.
+    intensPlottingInds = range(len(possibleIntensity))[::-1]
     for frequency in range(len(possibleFreq)):
-        subplot2grid((len(possibleIntensity), len(possibleFreq)), (intensity, frequency))
+        subplot2grid((len(possibleIntensity), len(possibleFreq)), (intensPlottingInds[intensity], frequency))
         plot(meanTraceEachSetting[intensity, frequency, :])
         ylim([minVoltageAllSettings, maxVoltageAllSettings])
         axis('off')
