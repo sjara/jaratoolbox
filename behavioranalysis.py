@@ -71,6 +71,69 @@ def find_trials_each_type_each_block(psyCurveParameter,psyCurveParameterPossible
 
 
 
+
+def load_many_sessions(animalNames,sessions,paradigm='2afc',datesRange=None):
+    '''
+    Based on behavioranalysis.save_many_sessions_reversal()
+
+    TO DO:
+    - Add params='all', (it depends on loadbehavior.FlexCateg being able to load a subset of vars)
+    - What to do if a parameter only exists for some sessions?
+    '''
+    if isinstance(animalNames,str):
+        animalNames = [animalNames]
+    if datesRange:
+        datesLims = [parse_isodate(dateStr) for dateStr in datesRange]
+        allDates = [datesLims[0]+datetime.timedelta(n) \
+                        for n in range((datesLims[-1]-datesLims[0]).days+1)]
+        allSessions = [oneDate.strftime('%Y%m%da') for oneDate in allDates]
+    else:
+        allSessions = sessions
+    nAnimals = len(animalNames)
+    if paradigm=='2afc':
+        loadingClass = loadbehavior.FlexCategBehaviorData
+    else:
+        raise TypeError('Loading many sessions for that paradigm has not been implemented')
+    
+    #if params=='all':
+    #    readmode = 'full'
+    #else:
+    #    readmode = params
+    readmode = 'full'
+
+    #allBehavData = {}
+    #allBehavData['sessionID'] = np.empty(0,dtype='i2')
+    #allBehavData['animalID'] = np.empty(0,dtype='i1')
+
+    inds=0
+    for inda,animalName in enumerate(animalNames):
+        for indsa,thisSession in enumerate(allSessions):
+            try:
+                behavFile = loadbehavior.path_to_behavior_data(animalName,EXPERIMENTER,paradigm,thisSession)
+                behavData = loadingClass(behavFile,readmode=readmode)
+            except IOError:
+                print thisSession+' does not exist'
+                continue
+            if inds==0:
+                allBehavData = behavData  # FIXME: Should it be .copy()?
+                nTrials = len(behavData['outcome']) # FIXME: what if this key does not exist?
+                allBehavData['sessionID'] = np.zeros(nTrials,dtype='i2')
+                allBehavData['animalID'] = np.zeros(nTrials,dtype='i1')
+            else:
+                for key,val in behavData.iteritems():
+                    if not allBehavData.has_key(key):
+                        allBehavData[key]=val
+                    else:
+                        allBehavData[key] = np.concatenate((allBehavData[key],val))
+                nTrials = len(behavData['outcome']) # FIXME: what if this key does not exist?
+                allBehavData['sessionID'] = np.concatenate((allBehavData['sessionID'],
+                                                            np.tile(inds,nTrials)))
+                allBehavData['animalID'] = np.concatenate((allBehavData['animalID'],
+                                                            np.tile(inda,nTrials)))
+            inds += 1
+    return allBehavData
+
+
 def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,soundfreq=None):
     '''
     subjects: an array of animals to analyze (it can also be a string for a single animal)
@@ -260,7 +323,7 @@ def calculate_psychometric(behavData,parameterName='targetFrequency'):
 
 if __name__ == "__main__":
 
-    CASE=3
+    CASE=4
     if CASE==1:
         from jaratoolbox import loadbehavior
         import numpy as np
@@ -300,3 +363,5 @@ if __name__ == "__main__":
         (possibleFreq,pRightEach,ci,nTrialsEach,nRightwardEach) = calculate_psychometric(bdata,
                                                                                          parameterName='targetFrequency')
         print pRightEach
+    if CASE==4:
+        allBehavData = load_many_sessions(['test020'],sessions=['20140421a','20140422a','20140423a'])
