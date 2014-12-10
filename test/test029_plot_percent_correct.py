@@ -38,8 +38,8 @@ numRewardedPost = np.sum(rewardedEachPost)
 percentCorrectPre = numRewardedPre/float(numValidPre) *100
 percentCorrectPost = numRewardedPost/float(numValidPost) * 100
 
-confintPre = np.array(proportion_confint(percentCorrectPre, 100))*100
-confintPost = np.array(proportion_confint(percentCorrectPost, 100))*100
+confintPre = np.array(proportion_confint(numRewardedPre, numValidPre))*100
+confintPost = np.array(proportion_confint(numRewardedPost, numValidPost))*100
 
 whiskerlengthsPre = [percentCorrectPre - confintPre[0], confintPre[1] - percentCorrectPre]
 
@@ -54,12 +54,13 @@ xlim([0.8, 1.8])
 
 ###############Calculate stats####################
 
-percentIncorrectPre = 100-percentCorrectPre
-percentIncorrectPost = 100-percentCorrectPost
+numWrongPre = numValidPre - numRewardedPre
+numWrongPost = numValidPost - numRewardedPost
 
-ctable = [[percentCorrectPre, percentIncorrectPre], [percentCorrectPost, percentIncorrectPost]]
+ctable = [[numRewardedPre, numWrongPre], [numRewardedPost, numWrongPost]]
 
 oddsRatio, pVal = fisher_exact(ctable)
 title("p-value = {}".format(pVal))
+ylim([0, 100])
 
 show()
