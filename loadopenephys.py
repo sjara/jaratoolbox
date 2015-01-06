@@ -6,6 +6,7 @@ https://github.com/open-ephys/GUI/wiki/Data-format
 
 BUGS (for OpenEphys to fix)
 - timestamp on continuous: signed or unsigned?
+  Official wiki (2015-01-03) says signed for Cont, Events and Spikes.
 - samplePosition on events: signed or unsigned?
 - wiki does not include recording number
 
@@ -55,9 +56,9 @@ class DataCont(object):
         fid = open(filename,'rb')
         headerfull = fid.read(HEADER_SIZE)
         self.header = parse_header(headerfull)
-
         if self.header['version']!=FORMAT_VERSION:
             print 'The version of the file does not correspond to that of this script'
+        self.samplingRate = float(self.header['sampleRate'])
 
         dt = np.dtype([('timestamps','<i8'), ('samplesPerRecord','<u2'), ('recordingNumber','<u2'),
                        ('samples','>1024i2'), ('recordMarker','<10u1')])
@@ -78,6 +79,28 @@ class DataCont(object):
         self.samples = data['samples'].flatten(order='C')
         self.recordingNumber = data['recordingNumber'].copy()
         self.recordMarker = data['recordMarker'].copy()
+    def lock_to_event(self,eventOnsetTimes,timeRange):
+        '''Make matrix of LFP traces locked to stimulus
+        As of 2015-01-03, 
+        eventOnsetTimes should be in samples
+        timeRange should be in seconds
+        '''
+        if np.any(np.diff(np.diff(self.timestamps))):
+            print('WARNING: Not all LFP records are contiguous. lock_to_event() will not work properly.')
+        samplesVec = np.arange(int(timeRange[0]*self.samplingRate),
+                               int(timeRange[-1]*self.samplingRate))
+        timeVec = samplesVec/self.samplingRate
+        nSamples = len(timeVec)
+        nTrials = len(eventOnsetTimes)
+        lockedLFP = np.empty((nTrials,nSamples))
+        for inde,eventTime in enumerate(eventOnsetTimes):
+            if not np.isnan(eventTime):
+                zeroSampleThisEvent = eventTime-self.timestamps[0]
+                samplesIndexes = samplesVec + zeroSampleThisEvent
+                lockedLFP[inde,:] = self.samples[samplesIndexes]
+            else:
+                lockedLFP[inde,:] = np.NaN
+        return (lockedLFP,timeVec)
 
 
 class Events(object):
@@ -103,9 +126,10 @@ class Events(object):
 
         if self.header['version']!=FORMAT_VERSION:
             print 'The version of the file does not correspond to that of this script'
+        self.samplingRate = float(self.header['sampleRate'])
 
         # -- Reading timestamps and samplePosition as unsigned, although documentation says signed. --
-        dt = np.dtype([('timestamps','<u8'), ('samplePosition','<u2'), ('eventType','<u1'), ('processorID','<u1'),
+        dt = np.dtype([('timestamps','<i8'), ('samplePosition','<u2'), ('eventType','<u1'), ('processorID','<u1'),
                        ('eventID','<u1'), ('eventChannel','<u1'), ('recordingNumber','<u2')])
         data=np.fromfile(fid, dtype=dt, count=-1)
         fid.close()
@@ -157,7 +181,7 @@ class DataSpikes(object):
         if self.header['version']!=FORMAT_VERSION:
             print 'The version of the file does not correspond to that of this script'
 
-        dt = np.dtype([('eventType','<u1'), ('timestamps','<u8'), ('electrodeID','<u2'), ('nChannels','<u2'),
+        dt = np.dtype([('eventType','<u1'), ('timestamps','<i8'), ('electrodeID','<u2'), ('nChannels','<u2'),
                        ('nSamplesPerSpike','<u2'),('samples','{0}<u2'.format(nSamplesPerRecord)),
                        ('gain','{0}<u2'.format(nChannels)),('threshold','{0}<u2'.format(nChannels)),
                        ('recordingNumber','<u2')])
