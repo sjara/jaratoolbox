@@ -7,12 +7,23 @@ from jaratoolbox import loadopenephys
 reload(loadopenephys)
 from pylab import *
 
-
+'''
 dataDir = '/data/ephys/test084/2015-01-03_17-40-58'
 dataDir = '/data/ephys/test084/2015-01-03_17-55-46'
 dataDir = '/data/ephys/test084/2015-01-03_18-27-09'
 dataDir = '/data/ephys/test084/2015-01-03_18-52-02'
 dataDir = '/data/ephys/test084/2015-01-03_19-06-45'
+
+dataDir = '/home/jarauser/data/ephys/test090/2015-01-05_20-07-48'
+'''
+#ephysRoot= '/home/jarauser/data/ephys/test090/'
+#ephysRoot= '/home/jarauser/data/ephys/test091/'
+#ephysRoot= '/home/jarauser/data/ephys/test092/'
+ephysRoot= '/home/jarauser/data/ephys/test093/'
+ephysSession=sort(os.listdir(ephysRoot))[-1]
+dataDir = os.path.join(ephysRoot,ephysSession)
+
+#dataDir = '/home/jarauser/data/ephys/test084/2015-01-03_17-40-58'
 
 timeRange = [-0.6,0.8]
 
@@ -22,19 +33,26 @@ events = loadopenephys.Events(eventsFilename)
 eventOnsetTimes=events.timestamps[events.eventID==1] # Stim onset
 ###eventOnsetTimes=eventOnsetTimes[:-1] # The last behavior trial is always started but never finishe
 
-channelsToPlot = [15,18]
+#channelsToPlot = [15,18]
+channelsToPlot = [16,17]
 nChannels = len(channelsToPlot)
 clf()
 for indc,channel in enumerate(channelsToPlot):
     #filenameOnly = '109_CH15.continuous'
     #filenameOnly = '109_CH18.continuous'
     filenameOnly = '109_CH{0:02d}.continuous'.format(channel)
+    #filenameOnly = '110_CH{0:02d}.continuous'.format(channel)
     filename = os.path.join(dataDir,filenameOnly)
     datacont = loadopenephys.DataCont(filename)
     (lockedLFP,timeVec) = datacont.lock_to_event(eventOnsetTimes,timeRange)
 
     subplot(nChannels,1,indc-1)
-    plot(timeVec,mean(lockedLFP,axis=0))
+    maxAbsVal = np.max(abs(lockedLFP),axis=1)
+    tooLarge = maxAbsVal>6000
+    plot(timeVec,mean(lockedLFP[~tooLarge,:],axis=0))
+    #plot(timeVec,mean(lockedLFP,axis=0))
+    #plot(timeVec,mean(lockedLFP[100:200,:],axis=0))
+    ###plot(tile(timeVec,(1,locked)),lockedLFP) # NOT FINISHED
     ylim([-80,80])
     show()
 
