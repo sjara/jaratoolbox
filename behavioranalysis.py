@@ -165,6 +165,9 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
                 print thisSession+' does not exist'
                 continue
             print 'Loaded %s %s'%(animalName,thisSession)
+            if any(behavData['psycurveMode']):
+                print 'This subject run a psychometric session'
+                continue
             behavData.find_trials_each_block()
             thisAnimalPos = 3*inda*nSessions
             thisPlotPos = thisAnimalPos+3*inds
