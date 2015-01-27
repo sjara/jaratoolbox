@@ -19,7 +19,10 @@ dataDir = '/home/jarauser/data/ephys/test090/2015-01-05_20-07-48'
 #ephysRoot= '/home/jarauser/data/ephys/test090/'
 #ephysRoot= '/home/jarauser/data/ephys/test091/'
 #ephysRoot= '/home/jarauser/data/ephys/test092/'
-ephysRoot= '/home/jarauser/data/ephys/test093/'
+#ephysRoot= '/home/jarauser/data/ephys/test093/'
+#ephysRoot= '/home/jarauser/data/ephys/rata001/'
+ephysRoot= '/home/jarauser/data/ephys/rata002/'
+
 ephysSession=sort(os.listdir(ephysRoot))[-1]
 dataDir = os.path.join(ephysRoot,ephysSession)
 
@@ -35,18 +38,19 @@ eventOnsetTimes=events.timestamps[events.eventID==1] # Stim onset
 
 #channelsToPlot = [15,18]
 channelsToPlot = [16,17]
+channelsToPlot = [3,6,11,15,19,23]
 nChannels = len(channelsToPlot)
 clf()
 for indc,channel in enumerate(channelsToPlot):
     #filenameOnly = '109_CH15.continuous'
     #filenameOnly = '109_CH18.continuous'
-    filenameOnly = '109_CH{0:02d}.continuous'.format(channel)
+    filenameOnly = '109_CH{0}.continuous'.format(channel)
     #filenameOnly = '110_CH{0:02d}.continuous'.format(channel)
     filename = os.path.join(dataDir,filenameOnly)
     datacont = loadopenephys.DataCont(filename)
     (lockedLFP,timeVec) = datacont.lock_to_event(eventOnsetTimes,timeRange)
 
-    subplot(nChannels,1,indc-1)
+    subplot(nChannels,1,indc+1)
     maxAbsVal = np.max(abs(lockedLFP),axis=1)
     tooLarge = maxAbsVal>6000
     plot(timeVec,mean(lockedLFP[~tooLarge,:],axis=0))
