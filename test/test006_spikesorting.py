@@ -7,7 +7,7 @@ from jaratoolbox import spikesorting
 reload(spikesorting)
 import os
 
-CASE = 2
+CASE = 3
 
 if CASE==1:
     animalName = 'test030'
@@ -16,6 +16,10 @@ if CASE==1:
 elif CASE==2:
     animalName = 'hm4d002'
     ephysSession = '2014-08-04_18-04-45'
+    tetrode = 2
+elif CASE==3:
+    animalName = 'test080'
+    ephysSession = '2014-11-23_18-27-39'
     tetrode = 2
 
 #spike_filename='..../2014-06-25_18-33-30_TT6goodGND/Tetrode6.spikes'

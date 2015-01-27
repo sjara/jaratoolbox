@@ -103,7 +103,8 @@ class TetrodeToCluster(object):
         self.ephysSession = ephysSession
         self.tetrode = tetrode
         self.dataTT = None
-        
+        self.nSpikes = None
+
         self.dataDir = os.path.join(settings.EPHYS_PATH,'%s/%s/'%(self.animalName,self.ephysSession))
         self.clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,self.ephysSession))
         self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.animalName,self.ephysSession))
@@ -121,7 +122,11 @@ class TetrodeToCluster(object):
     def load_waveforms(self):
         print 'Loading data...'
         self.dataTT = loadopenephys.DataSpikes(self.tetrodeFile) #,readWaves=True)
-        ###self.dataTT.samples = self.dataTT.samples.reshape((-1,N_CHANNELS,SAMPLES_PER_SPIKE),order='C') # (nSpikes,nChan,nSamples) # THis is already done in loadopenephys.DataSpikes
+        self.nSpikes = self.dataTT.nRecords# FIXME: this is specific to the OpenEphys format
+        self.dataTT.samples = self.dataTT.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
+
+        ###self.dataTT.samples = self.dataTT.samples.reshape((-1,N_CHANNELS,SAMPLES_PER_SPIKE),order='C')
+        ### (nSpikes,nChan,nSamples) # THis is already done in loadopenephys.DataSpikes
     def create_fet_files(self):
         # -- Create output directory --
         if not os.path.exists(self.clustersDir):
@@ -133,12 +138,12 @@ class TetrodeToCluster(object):
     def run_clustering(self):
         # FIXME: it should not depend on dataTT, that way one can run it with just the FET file
         maxNumberOfEventsToUse = 1e5
-        Subset = np.floor(self.dataTT.nEvents/min(self.dataTT.nEvents,maxNumberOfEventsToUse))
-        MinClusters = 10          # See KlustaKwik.C for definition
-        MaxClusters = 24          # See KlustaKwik.C for definition
+        Subset = np.floor(self.nSpikes/min(self.nSpikes,maxNumberOfEventsToUse))
+        MinClusters = 10 #10          # See KlustaKwik.C for definition
+        MaxClusters = 12 #24          # See KlustaKwik.C for definition
         MaxPossibleClusters = 12  # See KlustaKwik.C for definition
         UseFeatures = (self.nFeatures*N_CHANNELS)*'1'
-        KKtetrode = 'TT%s'%(self.tetrode)
+        KKtetrode = 'Tetrode%s'%(self.tetrode)
         KKsuffix = '1'
         KKpath = settings.KK_PATH
         KKcommandAndParams = [KKpath,KKtetrode,KKsuffix, '-Subset','%d'%Subset,
@@ -165,7 +170,7 @@ class TetrodeToCluster(object):
     def save_report(self):
         if self.dataTT is None:
             self.load_waveforms()
-        self.dataTT.set_clusters(os.path.join(self.clustersDir,'TT%d.clu.1'%self.tetrode))
+        self.dataTT.set_clusters(os.path.join(self.clustersDir,'Tetrode%d.clu.1'%self.tetrode))
         figTitle = self.dataDir+' (T%d)'%self.tetrode
         self.report = ClusterReportFromData(self.dataTT,outputDir=self.reportDir,
                                             filename=self.reportFileName,figtitle=figTitle,
