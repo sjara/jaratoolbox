@@ -180,6 +180,7 @@ class DataSpikes(object):
 
         if self.header['version']!=FORMAT_VERSION:
             print 'The version of the file does not correspond to that of this script'
+        self.samplingRate = float(self.header['sampleRate'])
 
         dt = np.dtype([('eventType','<u1'), ('timestamps','<i8'), ('electrodeID','<u2'), ('nChannels','<u2'),
                        ('nSamplesPerSpike','<u2'),('samples','{0}<u2'.format(nSamplesPerRecord)),

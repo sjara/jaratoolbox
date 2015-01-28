@@ -4,6 +4,8 @@
 '''Objects and methods for keeping information about isolated cells'''
 
 import numpy as np
+import os
+from jaratoolbox import settings
 
 class EphysSessionInfo(object):
      def __init__(self, animalName, ephysSession, behavSession,
@@ -38,6 +40,11 @@ class CellInfo(object):
         self.trialsToExclude = np.array(trialsToExclude,dtype=int)
         # -- Response properties --
         #self.soundResponsive = None
+    def get_filename(self):
+        ephysDir = settings.EPHYS_PATH
+        filenameOnly = 'Tetrode{0}.spikes'.format(self.tetrode)
+        fullPath = os.path.join(ephysDir,self.animalName,self.ephysSession,filenameOnly)
+        return fullPath
     def __repr__(self):
         objStrings = []
         for key,value in sorted(vars(self).iteritems()):
