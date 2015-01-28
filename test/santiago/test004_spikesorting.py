@@ -14,13 +14,13 @@ if CASE==1:
 
 oneTT = spikesorting.TetrodeToCluster(animalName,ephysSession,tetrode)
 
-oneTT.load_waveforms()
+#oneTT.load_waveforms() # Note that create_fet_files will run this method again.
 
-'''
+
 oneTT.create_fet_files()
 
 oneTT.run_clustering()
 
 oneTT.save_report()
 '''
-
+'''
