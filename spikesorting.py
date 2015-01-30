@@ -105,13 +105,22 @@ class TetrodeToCluster(object):
         self.dataTT = None
         self.nSpikes = None
 
+        '''
         self.dataDir = os.path.join(settings.EPHYS_PATH,'%s/%s/'%(self.animalName,self.ephysSession))
         self.clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,self.ephysSession))
+        #self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.animalName,self.ephysSession))
         self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.animalName,self.ephysSession))
         self.tetrodeFile = os.path.join(self.dataDir,'Tetrode%d.spikes'%tetrode)
         self.fetFilename = os.path.join(self.clustersDir,'Tetrode%d.fet.1'%self.tetrode)
+        '''
 
-        self.reportFileName = '%s_%s_T%02d.png'%(self.animalName,ephysSession,tetrode)
+        self.dataDir = os.path.join(settings.EPHYS_PATH,self.animalName,self.ephysSession)
+        self.clustersDir = os.path.join(settings.EPHYS_PATH,self.animalName,self.ephysSession+'_kk')
+        self.reportDir = os.path.join(settings.EPHYS_PATH,self.animalName,'reports_clusters')
+        self.tetrodeFile = os.path.join(self.dataDir,'Tetrode{0}.spikes'.format(tetrode))
+        self.fetFilename = os.path.join(self.clustersDir,'Tetrode{0}.fet.1'.format(tetrode))
+
+        self.reportFileName = '{0}_{1}_T{2}.png'.format(self.animalName,ephysSession,tetrode)
         self.report = None
         
         self.featureNames = ['peak','valley','energy']
@@ -120,19 +129,25 @@ class TetrodeToCluster(object):
 
         self.process = None
     def load_waveforms(self):
+        '''
+        https://github.com/open-ephys/GUI/wiki/Data-format
+        Since the samples are saved as unsigned integers, converting them to microvolts
+        involves subtracting 32768, dividing by the gain, and multiplying by 1000.
+        '''
         print 'Loading data...'
         self.dataTT = loadopenephys.DataSpikes(self.tetrodeFile) #,readWaves=True)
         self.nSpikes = self.dataTT.nRecords# FIXME: this is specific to the OpenEphys format
         self.dataTT.samples = self.dataTT.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
-
-        ###self.dataTT.samples = self.dataTT.samples.reshape((-1,N_CHANNELS,SAMPLES_PER_SPIKE),order='C')
-        ### (nSpikes,nChan,nSamples) # THis is already done in loadopenephys.DataSpikes
+        # FIXME: This assumes the gain is the same for all channels and records
+        self.dataTT.samples = (1000.0/self.dataTT.gain[0,0]) * self.dataTT.samples
+        self.dataTT.timestamps = self.dataTT.timestamps/self.dataTT.samplingRate
     def create_fet_files(self):
         # -- Create output directory --
         if not os.path.exists(self.clustersDir):
             print 'Creating clusters directory: %s'%(self.clustersDir)
             os.makedirs(self.clustersDir)
-        self.load_waveforms()
+        if self.dataTT is None:
+            self.load_waveforms()
         self.featureValues = calculate_features(self.dataTT.samples,self.featureNames)
         write_fet_file(self.fetFilename,self.featureValues)
     def run_clustering(self):
@@ -243,7 +258,7 @@ def plot_isi_loghist(timeStamps,nBins=350,fontsize=8):
 
     Parameters
     ----------
-    timeStamps : array (assumed to be integers in microsec)
+    timeStamps : array (float in sec)
     '''
     fontsizeLegend = fontsize
     xLims = [1e-1,1e4]
@@ -252,24 +267,22 @@ def plot_isi_loghist(timeStamps,nBins=350,fontsize=8):
     if np.any(ISI<0):
         raise 'Times of events are not ordered (or there is at least one repeated).'
     if len(ISI)==0:  # Hack in case there is only one spike
-        ISI = np.array(1)
-    #if len(timeStamps)<2:
-    #    return (0,0,0) ### FIXME: what to do when only one spike?
+        ISI = np.array(10)
     logISI = np.log10(ISI)
     [ISIhistogram,ISIbinsLog] = np.histogram(logISI,bins=nBins)
-    ISIbins = 1e-3*(10**ISIbinsLog[:-1]) # Conversion to msec
-    percentViolation = 100*np.mean(ISI<1e3) # Assumes ISI in usec
-    percentViolation2 = 100*np.mean(ISI<2e3) # Assumes ISI in usec
+    ISIbins = 1000*(10**ISIbinsLog[:-1]) # Conversion to msec
+    fractionViolation = np.mean(ISI<1e-3) # Assumes ISI in usec
+    fractionViolation2 = np.mean(ISI<2e-3) # Assumes ISI in usec
     
     hp, = plt.semilogx(ISIbins,ISIhistogram,color='k')
-    #plt.ylabel('Cluster %d'%SelectedCluster)
     plt.setp(hp,lw=0.5,color='k')
     yLims = plt.ylim()
     plt.xlim(xLims)
-    plt.text(0.15,0.85*yLims[-1],'N=%d'%len(timeStamps),fontsize=fontsizeLegend,va='top')
-    #plt.text(0.15,0.7*yLims[-1],'%0.2f%%'%percentViolation,fontsize=fontsizeLegend)
-    plt.text(0.15,0.6*yLims[-1],'%0.2f%%\n%0.2f%%'%(percentViolation,percentViolation2),
+    plt.text(0.15,0.85*yLims[-1],'N={0}'.format(len(timeStamps)),fontsize=fontsizeLegend,va='top')
+    plt.text(0.15,0.6*yLims[-1],'{0:0.2%}\n{1:0.2%}'.format(fractionViolation,fractionViolation2),
              fontsize=fontsizeLegend,va='top')
+    #plt.text(0.15,0.6*yLims[-1],'%0.2f%%\n%0.2f%%'%(percentViolation,percentViolation2),
+    #         fontsize=fontsizeLegend,va='top')
     #'VerticalAlignment','top','HorizontalAlignment','left','FontSize',FontSizeAxes);
     ax.xaxis.grid(True)
     ax.yaxis.grid(False)
@@ -284,13 +297,13 @@ def plot_events_in_time(timeStamps,nBins=50,fontsize=8):
 
     Parameters
     ----------
-    timeStamps : array (assumed to be integers in microsec)
+    timeStamps : array (float in sec)
     '''
     ax = plt.gca()
     timeBinEdges = np.linspace(timeStamps[0],timeStamps[-1],nBins) # in microsec
-    # FIXME: xLimits depend on the time of the first spike (not of recording)
+    # FIXME: Limits depend on the time of the first spike (not of recording)
     (nEvents,binEdges) = np.histogram(timeStamps,bins=timeBinEdges)
-    hp, = plt.plot(1e-6/60 * (binEdges-timeStamps[0]),np.r_[nEvents,0],drawstyle='steps-post')
+    hp, = plt.plot((binEdges-timeStamps[0])/60.0, np.r_[nEvents,0], drawstyle='steps-post')
     plt.setp(hp,lw=1,color='k')
     plt.xlabel('Time (min)')
     plt.axis('tight')
@@ -304,28 +317,44 @@ def plot_waveforms(waveforms,ntraces=40,fontsize=8):
     Plot waveforms given array of shape (nChannels,nSamplesPerSpike,nSpikes)
     '''
     (nSpikes,nChannels,nSamplesPerSpike) = waveforms.shape
-    meanWaveforms = np.mean(waveforms,axis=0)
-    scalebarSize = meanWaveforms.max()
-    
     spikesToPlot = np.random.randint(nSpikes,size=ntraces)
+    alignedWaveforms = align_waveforms(waveforms[spikesToPlot,:,:])
+
+    meanWaveforms = np.mean(alignedWaveforms,axis=0)
+    scalebarSize = abs(meanWaveforms.min())
+    
     xRange = np.arange(nSamplesPerSpike)
     for indc in range(nChannels):
         newXrange = xRange+indc*(nSamplesPerSpike+2)
-        wavesToPlot = waveforms[spikesToPlot,indc,:].T###.T
+        wavesToPlot = alignedWaveforms[:,indc,:].T
         plt.plot(newXrange,wavesToPlot,color='k',lw=0.4,clip_on=False)
         plt.hold(True)
         plt.plot(newXrange,meanWaveforms[indc,:],color='0.75',lw=1.5,clip_on=False)
-    plt.plot(2*[-7],[0,scalebarSize],color='0.5',lw=2)
-    percentOfMax = 100*(scalebarSize/2**15)
-    plt.text(-10,scalebarSize/2,'%d%%\nmax'%np.round(percentOfMax),
+    plt.plot(2*[-7],[0,-scalebarSize],color='0.5',lw=2)
+    plt.text(-10,-scalebarSize/2,'{0:0.0f}uV'.format(np.round(scalebarSize)),
              ha='right',va='center',ma='center',fontsize=fontsize)
     plt.hold(False)
     plt.axis('off')
 
+def align_waveforms(waveforms,peakPosition=8):
+    '''
+    Shift waveforms so that peaks align.
+    '''
+    meanWaveforms = np.mean(waveforms,axis=0)
+    minEachChan = meanWaveforms.min(axis=1)
+    minChan = minEachChan.argmin()
+    minSampleEachSpike = waveforms[:,minChan,:].argmin(axis=1)
+    wavesToShift = np.flatnonzero(minSampleEachSpike!=peakPosition)
+    newWaveforms = waveforms.copy()
+    for indw in wavesToShift:
+        newWaveforms[indw,:,:] = np.roll(waveforms[indw,:,:],peakPosition-minSampleEachSpike[indw],axis=1)
+    return(newWaveforms)
+
 def plot_projections(waveforms,npoints=200):
     (nSpikes,nChannels,nSamplesPerSpike) = waveforms.shape
     spikesToPlot = np.random.randint(nSpikes,size=npoints)
-    peaks = np.max(waveforms[spikesToPlot,:,:],axis=2)
+    #peaks = np.max(waveforms[spikesToPlot,:,:],axis=2)
+    peaks = -np.min(waveforms[spikesToPlot,:,:],axis=2)
     plt.plot(peaks[:,0],peaks[:,1],'.k',ms=0.5)
     plt.hold(True)
     plt.plot(-peaks[:,2],peaks[:,3],'.k',ms=0.5)
@@ -374,7 +403,7 @@ class ClusterReportFromData(object):
         self.fig.set_facecolor('w')
         nCols = 3
         nRows = self.nRows
-        #for indc,clusterID in enumerate(self.clustersList[:2]):
+        #for indc,clusterID in enumerate(self.clustersList[:3]):
         for indc,clusterID in enumerate(self.clustersList):
             #print('Preparing cluster %d'%clusterID)
             if (indc+1)>self.nRows:
@@ -385,14 +414,14 @@ class ClusterReportFromData(object):
             # -- Plot ISI histogram --
             plt.subplot(self.nRows,nCols,indc*nCols+1)
             plot_isi_loghist(tsThisCluster)
-            if indc<(self.nClusters-1):
+            if indc<(self.nClusters-1): #indc<2:#
                 plt.xlabel('')
                 plt.gca().set_xticklabels('')
-            plt.ylabel('c%d'%clusterID)
+            plt.ylabel('c%d'%clusterID,rotation=0,va='center',ha='center')
             # -- Plot events in time --
             plt.subplot(2*self.nRows,nCols,2*(indc*nCols)+6)
             plot_events_in_time(tsThisCluster)
-            if indc<(self.nClusters-1):
+            if indc<(self.nClusters-1): #indc<2:#
                 plt.xlabel('')
                 plt.gca().set_xticklabels('')
             # -- Plot projections --
