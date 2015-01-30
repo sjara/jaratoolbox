@@ -7,25 +7,6 @@ Functions and classes for analysis of spikes.
 
 import numpy as np
 
-def count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange):
-    '''Count number of spikes on each trial in a given time range.
-
-       spikeTimesFromEventOnset: vector of spikes timestamps with respect
-         to the onset of the event.
-       indexLimitsEachTrial: each column contains [firstInd,lastInd+1] of the spikes on a trial.
-       timeRange: time range to evaluate. Spike times exactly at the limits are not counted.
-
-       returns nSpikes
-    '''
-    nTrials = indexLimitsEachTrial.shape[1]
-    nSpikes = np.empty(nTrials,dtype=int)
-    for indtrial in range(nTrials):
-        indsThisTrial = slice(indexLimitsEachTrial[0,indtrial],indexLimitsEachTrial[1,indtrial])
-        spikeTimesThisTrial = spikeTimesFromEventOnset[indsThisTrial]
-        nSpikes[indtrial] = sum((spikeTimesThisTrial>timeRange[0]) & (spikeTimesThisTrial<timeRange[-1]))
-    return nSpikes
-
-
 def eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange,spikeindex=False):
     '''Create a vector with the spike timestamps w.r.t. events onset.
 
@@ -71,6 +52,52 @@ def eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange,spikeindex=False
         return (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial,spikeIndices)
     else:
         return (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial)
+
+
+
+def spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec):
+    '''
+    Create a matrix with spike counts given the times of the spikes.
+    
+    spikeTimesFromEventOnset: vector of spikes timestamps with respect
+    to the onset of the event.
+    indexLimitsEachTrial: each column contains [firstInd,lastInd+1] of the spikes on a trial
+    timeVec: bin edges (including the left-most and right-most).
+    
+    Returns:
+    spikeCountMat: each column is one trial. N rows is len(timeVec)-1
+    '''
+    nTrials = indexLimitsEachTrial.shape[1]
+    spikeCountMat = np.empty((nTrials,len(timeVec)-1),dtype=int)
+    for indtrial in range(nTrials):
+        indsThisTrial = slice(indexLimitsEachTrial[0,indtrial],indexLimitsEachTrial[1,indtrial])
+        spkCountThisTrial,binsEdges = np.histogram(spikeTimesFromEventOnset[indsThisTrial],timeVec)
+        spikeCountMat[indtrial,:] = spkCountThisTrial
+    return spikeCountMat
+
+
+def count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange):
+    '''
+    OBSOLETE: use spiketimes_to_spikecounts() instead
+
+    Count number of spikes on each trial in a given time range.
+
+       spikeTimesFromEventOnset: vector of spikes timestamps with respect
+         to the onset of the event.
+       indexLimitsEachTrial: each column contains [firstInd,lastInd+1] of the spikes on a trial.
+       timeRange: time range to evaluate. Spike times exactly at the limits are not counted.
+
+       returns nSpikes
+    '''
+    nTrials = indexLimitsEachTrial.shape[1]
+    nSpikes = np.empty(nTrials,dtype=int)
+    for indtrial in range(nTrials):
+        indsThisTrial = slice(indexLimitsEachTrial[0,indtrial],indexLimitsEachTrial[1,indtrial])
+        spikeTimesThisTrial = spikeTimesFromEventOnset[indsThisTrial]
+        nSpikes[indtrial] = sum((spikeTimesThisTrial>timeRange[0]) & (spikeTimesThisTrial<timeRange[-1]))
+    return nSpikes
+
+
 
 
 if __name__ == "__main__":
