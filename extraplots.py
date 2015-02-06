@@ -41,9 +41,14 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
     Plot spikes raster plot grouped by condition
     Returns (pRaster,hcond)
     First trial is plotted at y=0
+
+    trialsEachCond can be a list of lists of indexes, or a boolean array of shape [nTrials,nConditions]
     '''
     import matplotlib.pyplot as plt
 
+    if isinstance(trialsEachCond,np.ndarray):
+        # -- Convert boolean matrix to list of trial indexes --
+        trialsEachCond = [flatnonzero(trialsEachCond[:,ind]) for ind in range(trialsEachCond.shape[1])]
     if trialsEachCond==[]:
         nCond=1
         trialsEachCond = [np.arange(indexLimitsEachTrial.shape[1])]
@@ -82,12 +87,14 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
     hcond=[]
     pRaster = []
     ax = plt.gca()
+    zline = plt.axvline(0,color='0.75',zorder=-10)
+    plt.hold(True)
+
     for indcond in range(nCond):
         pRasterOne, = plt.plot(spikeTimesEachCond[indcond],
                             trialIndexEachCond[indcond]+firstTrialEachCond[indcond],'.k',
                             rasterized=True)
         pRaster.append(pRasterOne)
-        plt.hold(True)
         ypos = np.array([firstTrialEachCond[indcond],firstTrialEachCond[indcond],
                          lastTrialEachCond[indcond],lastTrialEachCond[indcond]])-0.5
         hcond.extend(plt.fill(xpos,ypos,ec='none',fc=colorEachCond[indcond]))
@@ -102,6 +109,30 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
         ax.set_yticks(labelsPos)
         ax.set_yticklabels(labels)
 
-    #axvline(0,color='0.75',zorder=-10)
+    return(pRaster,hcond,zline)
 
-    return(pRaster,hcond)
+
+def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,xTicks=None,xTickPeriod=1000):
+    upperWhisker = ciHitsEachValue[1,:]-fractionHitsEachValue
+    lowerWhisker = fractionHitsEachValue-ciHitsEachValue[0,:]
+
+    (pline, pcaps, pbars) = plt.errorbar(possibleValues, 100*fractionHitsEachValue, 
+                                         yerr = [100*lowerWhisker, 100*upperWhisker],color='k')
+    pdots = plt.plot(possibleValues, 100*fractionHitsEachValue, 'o',mec='none',mfc='k',ms=8)
+    plt.setp(pline,lw=2)
+    plt.axhline(y=50, color = '0.5',ls='--')
+    ax=plt.gca()
+    ax.set_xscale('log')
+    if xTicks is None:
+        xTicks = [possibleValues[0],possibleValues[-1]]
+    ax.set_xticks(xTicks)
+    ax.set_xticks(np.arange(possibleValues[0],possibleValues[-1],xTickPeriod),minor=True)
+    from matplotlib.ticker import ScalarFormatter
+    for axis in [ax.xaxis, ax.yaxis]:
+        axis.set_major_formatter(ScalarFormatter())
+
+    plt.ylim([0,100])
+    plt.xlim([possibleValues[0]/1.2,possibleValues[-1]*1.2])
+    #plt.xlabel('Frequency (kHz)')
+    #plt.ylabel('Rightward trials (%)')
+    return (pline, pcaps, pbars, pdots)
