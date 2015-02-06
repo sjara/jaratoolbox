@@ -19,6 +19,11 @@ FREQCOLORS = [colorpalette.TangoPalette['Chameleon3'],
 #colorpalette.TangoPalette['Orange2']
 
 def find_trials_each_type(parameter,parameterPossibleValues):
+    '''
+    Note that if you want to include only a subset of elements of the parameters array
+    you can mask the output with something like:
+    trialsEachType & mask[:,np.newaxis]
+    '''
     nTrials = len(parameter)
     nValues = len(parameterPossibleValues)
     trialsEachType = np.zeros((nTrials,nValues),dtype=bool)
@@ -165,14 +170,25 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
                 print thisSession+' does not exist'
                 continue
             print 'Loaded %s %s'%(animalName,thisSession)
-            if any(behavData['psycurveMode']):
-                print 'This subject run a psychometric session'
-                continue
-            behavData.find_trials_each_block()
+            # -- Plot either psychometric or average performance
             thisAnimalPos = 3*inda*nSessions
             thisPlotPos = thisAnimalPos+3*inds
             ax1=plt.subplot(gs[thisPlotPos])
-            plot_summary(behavData,fontsize=8)
+            if any(behavData['psycurveMode']):
+                (pline, pcaps, pbars, pdots) = plot_frequency_psycurve(behavData,fontsize=8)
+                plt.setp(pdots,ms=6)
+                plt.ylabel('% rightward')
+                soundfreq = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                nValid = behavData['nValid'][-1]
+                nTrials = len(behavData['nValid'])
+                titleStr = '{0} [{1}] {2}\n'.format(behavData.session['subject'],behavData.session['date'],
+                                                    behavData.session['hostname'])
+                titleStr += '{0} valid, {1:.0%} early'.format(nValid,(nTrials-nValid)/float(nTrials))
+                plt.title(titleStr,fontweight='bold',fontsize=8,y=0.95)
+            else:
+                behavData.find_trials_each_block()
+                plot_summary(behavData,fontsize=8)
+            # -- Plot dynamics --
             ax2=plt.subplot(gs[thisPlotPos+1:thisPlotPos+3])
             plot_dynamics(behavData,winsize=40,fontsize=8,soundfreq=soundfreq)
             plt.setp(ax1.get_xticklabels(),visible=False)
@@ -204,7 +220,8 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
 
 
 def plot_summary(behavData,fontsize=12):
-    '''Show summary of performance.
+    '''
+    Show summary of performance.
     First argument is an object created by loadbehavior.BehaviorData (or subclasses)
     '''
     correct = behavData['outcome']==behavData.labels['outcome']['correct']
@@ -250,8 +267,24 @@ def plot_summary(behavData,fontsize=12):
     plt.show()
 
 
-
-
+def plot_frequency_psycurve(bdata,fontsize=12):
+    '''
+    Show psychometric curve (for frequency)
+    '''
+    targetFrequency = bdata['targetFrequency']
+    choice=bdata['choice']
+    valid=bdata['valid']& (choice!=bdata.labels['choice']['none'])
+    choiceRight = choice==bdata.labels['choice']['right']
+    possibleFreq = np.unique(targetFrequency)
+    nFreq = len(possibleFreq) 
+    trialsEachFreq = find_trials_each_type(targetFrequency,possibleFreq)
+    (possibleValues,fractionHitsEachValue,ciHitsEachValue,nTrialsEachValue,nHitsEachValue)=\
+       calculate_psychometric(choiceRight,targetFrequency,valid)
+    (pline, pcaps, pbars, pdots) = extraplots.plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue)
+    plt.xlabel('Frequency (kHz)',fontsize=fontsize)
+    plt.ylabel('Rightward trials (%)',fontsize=fontsize)
+    extraplots.set_ticks_fontsize(plt.gca(),fontsize)
+    return (pline, pcaps, pbars, pdots)
 
 def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
     '''
@@ -299,7 +332,48 @@ def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
     plt.show()
 
 
-def calculate_psychometric(behavData,parameterName='targetFrequency'):
+def calculate_psychometric(hitTrials,paramValueEachTrial,valid=None):
+    '''
+    Calculate fraction of hits for each parameter value (in vector param).
+    hitTrials: (boolean array of size nTrials) hit or miss
+    paramValueEachTrial: (array of size nTrials) parameter value for each trial
+    valid: (boolean array of size nTrials) trials to use in calculation
+
+    RETURNS:
+    possibleValues: array with possible values of the parameter
+    fractionHitsEachValue: array of same length as possibleValues
+    ciHitsEachValue: array of size [2,len(possibleValues)]
+    nTrialsEachValue: array of same length as possibleValues
+    nHitsEachValue: array of same length as possibleValues
+    '''
+    try:
+        from statsmodels.stats.proportion import proportion_confint #Used to compute confidence interval for the error bars. 
+        useCI = True
+    except ImportError:
+        print 'To calculate confidence intervals, please install "statsmodels" module.'
+        useCI = False
+    nTrials = len(hitTrials)
+    if valid is None:
+        valid = ones(nTrials,dtype=bool)
+    possibleValues = np.unique(paramValueEachTrial)
+    nValues = len(possibleValues) 
+    trialsEachValue = find_trials_each_type(paramValueEachTrial,possibleValues)
+
+    nTrialsEachValue = np.empty(nValues,dtype=int)
+    nHitsEachValue = np.empty(nValues,dtype=int)
+    for indv,thisValue in enumerate(possibleValues):
+        nTrialsEachValue[indv] = sum(valid & trialsEachValue[:,indv])
+        nHitsEachValue[indv] = sum(valid & hitTrials & trialsEachValue[:,indv])
+    
+    fractionHitsEachValue = nHitsEachValue/nTrialsEachValue.astype(float)
+    if useCI:
+        ciHitsEachValue = np.array(proportion_confint(nHitsEachValue, nTrialsEachValue, method = 'wilson'))
+    else:
+        ciHitsEachValue = None
+    return (possibleValues,fractionHitsEachValue,ciHitsEachValue,nTrialsEachValue,nHitsEachValue)
+
+
+def OLD_calculate_psychometric(behavData,parameterName='targetFrequency'):
     '''
     FIXME: what to do about trials with no choice?
     It assumes behavData has the keys 'valid' and 'choice'.
@@ -326,7 +400,7 @@ def calculate_psychometric(behavData,parameterName='targetFrequency'):
 
 if __name__ == "__main__":
 
-    CASE=4
+    CASE=5
     if CASE==1:
         from jaratoolbox import loadbehavior
         import numpy as np
@@ -363,8 +437,16 @@ if __name__ == "__main__":
     elif CASE==3:
         fname=loadbehavior.path_to_behavior_data('test052','santiago','2afc','20140911a')
         bdata=loadbehavior.BehaviorData(fname)
-        (possibleFreq,pRightEach,ci,nTrialsEach,nRightwardEach) = calculate_psychometric(bdata,
+        (possibleFreq,pRightEach,ci,nTrialsEach,nRightwardEach) = OLD_calculate_psychometric(bdata,
                                                                                          parameterName='targetFrequency')
         print pRightEach
-    if CASE==4:
+    elif CASE==4:
         allBehavData = load_many_sessions(['test020'],sessions=['20140421a','20140422a','20140423a'])
+    elif CASE==5:
+        param = np.array([7,4,7,5,7,4,7,5,7,4,7,8,8,8])
+        possibleParam = np.unique(param)
+        tet = find_trials_each_type(param,possibleParam)
+        mask = param>4
+        tet = tet & mask[:,np.newaxis]
+        print possibleParam
+        print tet
