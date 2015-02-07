@@ -191,7 +191,7 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
             # -- Plot dynamics --
             ax2=plt.subplot(gs[thisPlotPos+1:thisPlotPos+3])
             plot_dynamics(behavData,winsize=40,fontsize=8,soundfreq=soundfreq)
-            plt.setp(ax1.get_xticklabels(),visible=False)
+            #plt.setp(ax1.get_xticklabels(),visible=False)
             ax1xlabel = ax1.get_xlabel()
             ax2xlabel = ax2.get_xlabel()
             ax1.set_xlabel('')
