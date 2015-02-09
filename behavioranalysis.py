@@ -178,9 +178,9 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
                 (pline, pcaps, pbars, pdots) = plot_frequency_psycurve(behavData,fontsize=8)
                 plt.setp(pdots,ms=6)
                 plt.ylabel('% rightward')
-                soundfreq = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
                 nValid = behavData['nValid'][-1]
                 nTrials = len(behavData['nValid'])
+                soundfreq = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
                 titleStr = '{0} [{1}] {2}\n'.format(behavData.session['subject'],behavData.session['date'],
                                                     behavData.session['hostname'])
                 titleStr += '{0} valid, {1:.0%} early'.format(nValid,(nTrials-nValid)/float(nTrials))
@@ -188,6 +188,8 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
             else:
                 behavData.find_trials_each_block()
                 plot_summary(behavData,fontsize=8)
+                soundfreq = [behavData['lowFreq'][-1],behavData['midFreq'][-1],behavData['highFreq'][-1]]
+
             # -- Plot dynamics --
             ax2=plt.subplot(gs[thisPlotPos+1:thisPlotPos+3])
             plot_dynamics(behavData,winsize=40,fontsize=8,soundfreq=soundfreq)
