@@ -180,15 +180,17 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
                 plt.ylabel('% rightward')
                 nValid = behavData['nValid'][-1]
                 nTrials = len(behavData['nValid'])
-                soundfreq = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                if soundfreq is None:
+                    soundfreq = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
                 titleStr = '{0} [{1}] {2}\n'.format(behavData.session['subject'],behavData.session['date'],
                                                     behavData.session['hostname'])
                 titleStr += '{0} valid, {1:.0%} early'.format(nValid,(nTrials-nValid)/float(nTrials))
                 plt.title(titleStr,fontweight='bold',fontsize=8,y=0.95)
             else:
                 behavData.find_trials_each_block()
-                plot_summary(behavData,fontsize=8)
-                soundfreq = [behavData['lowFreq'][-1],behavData['midFreq'][-1],behavData['highFreq'][-1]]
+                if soundfreq is None:
+                    soundfreq = [behavData['lowFreq'][-1],behavData['midFreq'][-1],behavData['highFreq'][-1]]
+                plot_summary(behavData,fontsize=8,soundfreq=soundfreq)
 
             # -- Plot dynamics --
             ax2=plt.subplot(gs[thisPlotPos+1:thisPlotPos+3])
@@ -221,14 +223,18 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
 
 
 
-def plot_summary(behavData,fontsize=12):
+def plot_summary(behavData,fontsize=12,soundfreq=None):
     '''
     Show summary of performance.
     First argument is an object created by loadbehavior.BehaviorData (or subclasses)
     '''
     correct = behavData['outcome']==behavData.labels['outcome']['correct']
     early = behavData['outcome']==behavData.labels['outcome']['invalid']
-    possibleFreq = np.unique(behavData['targetFrequency'])
+    #possibleFreq = np.unique(behavData['targetFrequency'])
+    if soundfreq is None:
+        possibleFreq = np.unique(behavData['targetFrequency'])
+    else:
+        possibleFreq = soundfreq
     possibleBlockID = np.unique(behavData['currentBlock'])
     trialsEachType = find_trials_each_type_each_block(behavData['targetFrequency'],possibleFreq,
                                                       behavData['currentBlock'],possibleBlockID)
