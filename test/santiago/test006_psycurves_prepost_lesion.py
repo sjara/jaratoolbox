@@ -7,18 +7,39 @@ import matplotlib.pyplot as plt
 from statsmodels.stats.proportion import proportion_confint #Used to compute confidence interval for the error bars. 
 from jaratoolbox import settings 
 
-
-animalNames = ['test012','test020']
+'''
+animalsNames = ['test012','test020']
 sessionsPre = ['20150106a','20150108a','20150109a','20150110a'] # Pre-lesion
 sessionsPost = ['20150115a','20150116a','20150117a','20150118a'] # Post-lesion
+sessionsMorePost = ['20150126a','20150127a','20150128a','20150129a']
+#sessionsMorePost = ['20150129a']
 #sessions = ['20150119a'] # Post-lesion
+allSessions = [sessionsPre,sessionsPost,sessionsMorePost]
+'''
 
+'''
+animalsNames = ['test011','test015','test016']
+sessionsPre = ['20150210a','20150211a','20150212a','20150213a','20150214a','20150215a',] # Pre-lesion
+sessionsPost = ['20150220a','20150221a','20150222a','20150223a','20150225a','20150226a','20150227a'] # Post-lesion
+sessionsPost = ['20150220a','20150221a','20150222a'] # Post-lesion (first)
+sessionsPost = ['20150223a','20150225a','20150226a','20150227a'] # Post-lesion (last)
+sessionsPost = ['20150221a','20150222a','20150223a']
+allSessions = [sessionsPre,sessionsPost]
+'''
+
+animalsNames = ['test052','test057']
+sessionsPre = ['20150223a','20150224a','20150225a','20150226a','20150227a'] # Pre-lesion
+sessionsPost = ['20150311a','20150312a','20150313a','20150314a','20150315a'] # Post-lesion
 allSessions = [sessionsPre,sessionsPost]
 
+
+nAnimals = len(animalsNames)
+nSets = len(allSessions)
+
 clf()
-for inda, animalName in enumerate(animalNames):#enumerate(subjects):
+for inda, animalName in enumerate(animalsNames):#enumerate(subjects):
     for indset,sessions in enumerate(allSessions):
-        subplot2grid((2,2),(indset, inda))
+        subplot2grid((nSets,nAnimals),(indset, inda))
         try:
             #bdata=loadbehavior.BehaviorData(fname)
             bdata = behavioranalysis.load_many_sessions(animalName,sessions)

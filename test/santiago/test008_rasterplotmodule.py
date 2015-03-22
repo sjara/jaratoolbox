@@ -5,13 +5,24 @@ Testing raster_plot from extraplots
 
 from jaratoolbox import spikesanalysis
 reload(spikesanalysis)
+from jaratoolbox import behavioranalysis
+reload(behavioranalysis)
 from jaratoolbox import extraplots
 reload(extraplots)
 from pylab import *
 
-timeStamps = np.cumsum(np.random.random(120))
-eventOnsetTimes = np.arange(10,60,10)
-timeRange = [-4,6]
+if 0:
+    timeStamps = np.cumsum(np.random.random(120))
+    eventOnsetTimes = np.arange(10,60,10)
+    timeRange = [-4,6]
+    trialsEachCond=[[0,2],[1,3,4]]
+else:
+    nFactor = 60
+    timeStamps = np.cumsum(np.random.random(20*nFactor))
+    eventOnsetTimes = np.arange(10,10*nFactor,10)
+    timeRange = [-10,20]
+    trialsEachCond=[range(0,nFactor-1,2),range(1,nFactor-1,2)]
+    
 nTrials = len(eventOnsetTimes)
 
 # plot(timestamps,ones(len(timestamps)),'.'); show()
@@ -20,18 +31,15 @@ nTrials = len(eventOnsetTimes)
 
 
 clf()
-subplot(3,1,1)
+ax1=subplot(3,1,1)
 plot(spikeTimesFromEventOnset,trialIndexForEachSpike,'.'); show()
 ylim([-1,nTrials])
 
-subplot(3,1,2)
-# -- Function starts here --
-#spikeTimesFromEventOnset
-#indexLimitsEachTrial
-#timeRange = 
-trialsEachCond=[[0,2],[1,3,4]]
+# -- Plot sorted raster --
+ax2=subplot(3,1,2,sharex=ax1)
+
 colorEachCond=None
-fillWidth=.25
+fillWidth=None
 labels = ['one','two']
 
 extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,
@@ -40,10 +48,10 @@ extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,
 show()
 
 timeVec = np.arange(timeRange[0],timeRange[-1]+2,2) # Bin edges (including right-most)
-spikeCountMat = spikesanalysis.spiketimes_to_spikemat(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec)
+spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec)
 #spikeCountMat = spikesanalysis.count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec)
 
-subplot(3,1,3)
+ax3=subplot(3,1,3,sharex=ax1)
 bar(timeVec[:-1],mean(spikeCountMat,axis=0),width=timeVec[1]-timeVec[0], facecolor='0.5',lw=2)
 show()
 
