@@ -35,6 +35,23 @@ def set_ticks_fontsize(ax,fontSize):
     plt.setp(ax.get_yticklabels(),fontsize=fontSize)
 
 
+def trials_each_cond_inds(trialsEachCond,nTrials):
+    '''
+    Create trialsEachCond as a list of indexes with trials for each condition.
+    '''
+    if isinstance(trialsEachCond,np.ndarray):
+        # -- Convert boolean matrix to list of trial indexes --
+        trialsEachCond = [np.flatnonzero(trialsEachCond[:,ind]) for ind in range(trialsEachCond.shape[1])]
+    if trialsEachCond==[]:
+        nCond=1
+        #trialsEachCond = [np.arange(indexLimitsEachTrial.shape[1])]
+        trialsEachCond = [np.arange(nTrials)]
+    else:
+        nCond = len(trialsEachCond)
+    nTrialsEachCond = [len(x) for x in trialsEachCond]
+    return (trialsEachCond,nTrialsEachCond,nCond)
+
+
 def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEachCond=[],
                 colorEachCond=None,fillWidth=None,labels=None):
     '''
@@ -44,17 +61,8 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
 
     trialsEachCond can be a list of lists of indexes, or a boolean array of shape [nTrials,nConditions]
     '''
-    import matplotlib.pyplot as plt
-
-    if isinstance(trialsEachCond,np.ndarray):
-        # -- Convert boolean matrix to list of trial indexes --
-        trialsEachCond = [flatnonzero(trialsEachCond[:,ind]) for ind in range(trialsEachCond.shape[1])]
-    if trialsEachCond==[]:
-        nCond=1
-        trialsEachCond = [np.arange(indexLimitsEachTrial.shape[1])]
-    else:
-        nCond = len(trialsEachCond)
-    nTrialsEachCond = [len(x) for x in trialsEachCond]
+    nTrials = len(indexLimitsEachTrial[0])
+    (trialsEachCond,nTrialsEachCond,nCond) = trials_each_cond_inds(trialsEachCond,nTrials)
 
     if colorEachCond is None:
         colorEachCond = ['0.5','0.75']*np.ceil(nCond/2.0)
@@ -62,7 +70,6 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
     if fillWidth is None:
         fillWidth = 0.05*np.diff(timeRange)
 
-    nTrials = len(indexLimitsEachTrial[0])
     nSpikesEachTrial = np.diff(indexLimitsEachTrial,axis=0)[0]
     nSpikesEachTrial = nSpikesEachTrial*(nSpikesEachTrial>0) # Some are negative
     trialIndexEachCond = []
@@ -102,7 +109,7 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
                               fc=colorEachCond[indcond]))
     plt.hold(False)
     plt.xlim(timeRange)
-    plt.ylim(-0.5,nTrials-0.5)
+    plt.ylim(-0.5,lastTrialEachCond[-1]-0.5)
 
     if labels:
         labelsPos = (lastTrialEachCond+firstTrialEachCond)/2.0 -0.5
@@ -110,6 +117,42 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
         ax.set_yticklabels(labels)
 
     return(pRaster,hcond,zline)
+
+
+def plot_psth(spikeCountMat,smoothWinSize,binsStartTime,trialsEachCond=[],
+              colorEachCond=None,linestyle=None,linewidth=3,downsamplefactor=1):
+    '''
+    TODO: 
+    - Check if the windowing is non-causal
+    - Check the units of the vertical axis (is it spikes/sec?)
+    '''
+
+    #from scipy.signal import hanning
+    #winShape = hanning(smoothWinSize) # Hanning
+    winShape = np.ones(smoothWinSize) # Square
+    winShape = winShape/np.sum(winShape)
+
+
+    nTrials = spikeCountMat.shape[0]
+    (trialsEachCond,nTrialsEachCond,nCond) = trials_each_cond_inds(trialsEachCond,nTrials)
+
+    if colorEachCond is None:
+        colorEachCond = ['0.5']*nCond
+    if linestyle is None:
+        linestyle = ['-']*nCond
+    pPSTH = []
+    for indc in range(nCond):
+        thisCondCounts = spikeCountMat[trialsEachCond[indc],:]
+        thisPSTH = np.mean(thisCondCounts,axis=0)
+        smoothPSTH = np.convolve(thisPSTH,winShape,mode='same')
+        sSlice = slice(0,len(smoothPSTH),downsamplefactor)
+        ph, = plt.plot(binsStartTime[sSlice],smoothPSTH[sSlice],ls=linestyle[indc])
+        pPSTH.append(ph)
+        pPSTH[-1].set_linewidth(linewidth)
+        pPSTH[-1].set_color(colorEachCond[indc])    
+        plt.hold(True)
+    return pPSTH
+
 
 
 def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,xTicks=None,xTickPeriod=1000):
@@ -136,3 +179,5 @@ def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,
     #plt.xlabel('Frequency (kHz)')
     #plt.ylabel('Rightward trials (%)')
     return (pline, pcaps, pbars, pdots)
+
+

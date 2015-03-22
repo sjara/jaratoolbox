@@ -75,6 +75,28 @@ def spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,time
         spikeCountMat[indtrial,:] = spkCountThisTrial
     return spikeCountMat
 
+"""
+def calculate_psth(spikeRasterMat,timeVec,windowSize):
+    '''Calculate Peri-Stimulus Time Histogram.
+    It uses a square window and returns the average spikes per second.
+    '''
+    nTrials = spikeRasterMat.shape[0]
+    deltaTime = timeVec[1]-timeVec[0]
+    windowSizeInSamples = int(round(windowSize/deltaTime))
+
+    windowShape = np.ones(windowSizeInSamples,dtype=np.float64)
+    windowShape = windowShape/(windowSizeInSamples*deltaTime)
+    '''
+    PSTHeach = np.empty(spikeRasterMat.shape,dtype=np.float64)
+    for indt,trial in enumerate(spikeRasterMat):
+        PSTHeach[indt,:] = np.convolve(trial,windowShape,'same')
+    PSTH = np.mean(PSTHeach,axis=0)
+    '''
+    spikeMatMean = np.mean(spikeRasterMat,axis=0)
+    PSTH = np.convolve(spikeMatMean,windowShape,'same')
+    return PSTH
+"""
+
 
 def count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange):
     '''

@@ -181,7 +181,7 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
                 nValid = behavData['nValid'][-1]
                 nTrials = len(behavData['nValid'])
                 if soundfreq is None:
-                    soundfreq = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                    freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
                 titleStr = '{0} [{1}] {2}\n'.format(behavData.session['subject'],behavData.session['date'],
                                                     behavData.session['hostname'])
                 titleStr += '{0} valid, {1:.0%} early'.format(nValid,(nTrials-nValid)/float(nTrials))
@@ -189,12 +189,12 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
             else:
                 behavData.find_trials_each_block()
                 if soundfreq is None:
-                    soundfreq = [behavData['lowFreq'][-1],behavData['midFreq'][-1],behavData['highFreq'][-1]]
-                plot_summary(behavData,fontsize=8,soundfreq=soundfreq)
+                    freqsToUse = [behavData['lowFreq'][-1],behavData['midFreq'][-1],behavData['highFreq'][-1]]
+                plot_summary(behavData,fontsize=8,soundfreq=freqsToUse)
 
             # -- Plot dynamics --
             ax2=plt.subplot(gs[thisPlotPos+1:thisPlotPos+3])
-            plot_dynamics(behavData,winsize=40,fontsize=8,soundfreq=soundfreq)
+            plot_dynamics(behavData,winsize=40,fontsize=8,soundfreq=freqsToUse)
             #plt.setp(ax1.get_xticklabels(),visible=False)
             ax1xlabel = ax1.get_xlabel()
             ax2xlabel = ax2.get_xlabel()
@@ -288,7 +288,8 @@ def plot_frequency_psycurve(bdata,fontsize=12):
     trialsEachFreq = find_trials_each_type(targetFrequency,possibleFreq)
     (possibleValues,fractionHitsEachValue,ciHitsEachValue,nTrialsEachValue,nHitsEachValue)=\
        calculate_psychometric(choiceRight,targetFrequency,valid)
-    (pline, pcaps, pbars, pdots) = extraplots.plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue)
+    (pline, pcaps, pbars, pdots) = extraplots.plot_psychometric(1e-3*possibleValues,fractionHitsEachValue,
+                                                                ciHitsEachValue,xTickPeriod=1)
     plt.xlabel('Frequency (kHz)',fontsize=fontsize)
     plt.ylabel('Rightward trials (%)',fontsize=fontsize)
     extraplots.set_ticks_fontsize(plt.gca(),fontsize)
