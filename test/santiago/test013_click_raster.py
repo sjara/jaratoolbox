@@ -17,7 +17,8 @@ ephysRoot= '/home/jarauser/data/ephys/pinp001/'
 ephysSession=sort(os.listdir(ephysRoot))[-1]
 ephysDir=os.path.join(ephysRoot, ephysSession)
 
-numTetrodes = 8
+tetrodes = [3,4,5,6]
+nTetrodes = len(tetrodes)
 #########################
 
 event_filename=os.path.join(ephysDir, 'all_channels.events')
@@ -30,15 +31,15 @@ eventOnsetTimes=eventTimes[evID==1]
 clf()
 
 
-for ind in range(numTetrodes):
-    tetrodeID = ind+1
+for ind,tetrodeID in enumerate(tetrodes):
+    #tetrodeID = ind+1
     spike_filename=os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(tetrodeID))
     sp=loadopenephys.DataSpikes(spike_filename)
     try:
         spkTimeStamps=np.array(sp.timestamps)/SAMPLING_RATE
         (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = spikesanalysis.eventlocked_spiketimes(spkTimeStamps,eventOnsetTimes,timeRange)
 
-        subplot(numTetrodes,1,ind+1)
+        subplot(nTetrodes,1,ind+1)
 
         plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.',ms=1)
         axvline(x=0, ymin=0, ymax=1, color='r')

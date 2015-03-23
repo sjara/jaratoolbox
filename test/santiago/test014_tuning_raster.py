@@ -16,11 +16,12 @@ SAMPLING_RATE=30000.0
 timeRange=[-0.5, 1] #In seconds
 responseRange = [0.0,0.100] # range of time to count spikes in after event onset
 
-selectedIntensity = 80#None #80
+selectedIntensity = None #70
 
 subject = 'pinp001'
-behavSession = '20150322a'
-ephysSession = '2015-03-22_00-12-18'
+#behavSession = '20150322a'; ephysSession = '2015-03-22_00-12-18'
+#behavSession = '20150322b'; ephysSession = '2015-03-22_17-13-54'
+behavSession = '20150322c'; ephysSession = '2015-03-22_17-40-55'
 tetrodes = [3,4,6]
 
 nTetrodes = len(tetrodes)

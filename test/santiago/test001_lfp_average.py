@@ -21,7 +21,8 @@ dataDir = '/home/jarauser/data/ephys/test090/2015-01-05_20-07-48'
 #ephysRoot= '/home/jarauser/data/ephys/test092/'
 #ephysRoot= '/home/jarauser/data/ephys/test093/'
 #ephysRoot= '/home/jarauser/data/ephys/rata001/'
-ephysRoot= '/home/jarauser/data/ephys/rata002/'
+#ephysRoot= '/home/jarauser/data/ephys/rata002/'
+ephysRoot= '/home/jarauser/data/ephys/rata003/'
 
 ephysSession=sort(os.listdir(ephysRoot))[-1]
 dataDir = os.path.join(ephysRoot,ephysSession)
@@ -57,7 +58,7 @@ for indc,channel in enumerate(channelsToPlot):
     #plot(timeVec,mean(lockedLFP,axis=0))
     #plot(timeVec,mean(lockedLFP[100:200,:],axis=0))
     ###plot(tile(timeVec,(1,locked)),lockedLFP) # NOT FINISHED
-    ylim([-80,80])
+    ylim([-200,80])
     show()
 
     if 0:
