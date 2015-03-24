@@ -2,6 +2,7 @@
 from jaratoolbox import loadbehavior
 from jaratoolbox import loadopenephys
 from jaratoolbox import spikesanalysis
+from jaratoolbox import settings
 import numpy as np
 from pylab import *
 import os
@@ -9,13 +10,21 @@ import os
 SAMPLING_RATE=30000.0
 timeRange=[-0.4, 1.6] #In seconds
 
+subject = sys.argv[1]
+if len(sys.argv)>2:
+    sessionInd = int(sys.argv[2])
+else:
+    sessionInd=-1
+
 #########################
 #ephysDir='/home/jarauser/data/ephys/hm4d002/2014-08-04_17-11-30'
 #ephysRoot= '/home/nick/data/ephys/hm4d002/'
 #ephysRoot= '/home/jarauser/data/ephys/rata002/'
-ephysRoot= '/home/jarauser/data/ephys/pinp001/'
-ephysSession=sort(os.listdir(ephysRoot))[-1]
-ephysDir=os.path.join(ephysRoot, ephysSession)
+#ephysRoot= '/home/jarauser/data/ephys/pinp001/'
+#subject = 'pinp001'
+ephysRoot = os.path.join(settings.EPHYS_PATH, subject)
+ephysSession = sort(os.listdir(ephysRoot))[sessionInd]
+ephysDir = os.path.join(ephysRoot, ephysSession)
 
 tetrodes = [3,4,5,6]
 nTetrodes = len(tetrodes)
@@ -30,7 +39,7 @@ evID=np.array(ev.eventID)
 eventOnsetTimes=eventTimes[evID==1]
 clf()
 
-
+ax = [subplot(nTetrodes,1,1)]
 for ind,tetrodeID in enumerate(tetrodes):
     #tetrodeID = ind+1
     spike_filename=os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(tetrodeID))
@@ -39,10 +48,11 @@ for ind,tetrodeID in enumerate(tetrodes):
         spkTimeStamps=np.array(sp.timestamps)/SAMPLING_RATE
         (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = spikesanalysis.eventlocked_spiketimes(spkTimeStamps,eventOnsetTimes,timeRange)
 
-        subplot(nTetrodes,1,ind+1)
+        ax.append(subplot(nTetrodes,1,ind+1,sharex=ax[0]))
 
         plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.',ms=1)
         axvline(x=0, ymin=0, ymax=1, color='r')
+        xlim(timeRange)
 	if ind == 0:
 	    title(ephysDir)
         #title('Channel {0} spikes'.format(ind+1))
