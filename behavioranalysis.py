@@ -31,6 +31,24 @@ def find_trials_each_type(parameter,parameterPossibleValues):
         trialsEachType[:,indval] = (parameter==paramValue)
     return trialsEachType
 
+
+def find_trials_each_combination(parameter1,parameterPossibleValues1,parameter2,parameterPossibleValues2):
+    '''
+    Returns a boolean 3D array of size [nTrials,nValues1,nValues2]. True for each combination.
+    '''
+    if len(parameter1)!=len(parameter2):
+        raise ValueError('parameters must be vectors of same size.')
+    nTrials = len(parameter1)
+    nValues1 = len(parameterPossibleValues1)
+    nValues2 = len(parameterPossibleValues2)
+    trialsEachComb = np.zeros((nTrials,nValues1,nValues2),dtype=bool)
+    trialsEachType1 = find_trials_each_type(parameter1,parameterPossibleValues1)
+    trialsEachType2 = find_trials_each_type(parameter2,parameterPossibleValues2)
+    for ind2 in range(nValues2):
+        trialsEachComb[:,:,ind2] = trialsEachType1 & trialsEachType2[:,ind2][:,np.newaxis]
+    return trialsEachComb
+
+
 '''    
 ,validTrials=[]
     if(not len(validTrials)):
@@ -409,7 +427,7 @@ def OLD_calculate_psychometric(behavData,parameterName='targetFrequency'):
 
 if __name__ == "__main__":
 
-    CASE=5
+    CASE=6
     if CASE==1:
         from jaratoolbox import loadbehavior
         import numpy as np
@@ -458,4 +476,11 @@ if __name__ == "__main__":
         mask = param>4
         tet = tet & mask[:,np.newaxis]
         print possibleParam
+        print tet
+    elif CASE==6:
+        #parameter1 = np.array([1,2,3,4,5,1,2,3,4,5])
+        #parameter2 = np.array([2,2,2,3,3,3,4,4,4,4])
+        parameter1 = np.array([1,2,1,2])
+        parameter2 = np.array([4,4,5,6])
+        tet = find_trials_each_combination(parameter1,np.unique(parameter1),parameter2,np.unique(parameter2))
         print tet
