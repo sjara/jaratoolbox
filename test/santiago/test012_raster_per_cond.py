@@ -10,7 +10,7 @@ For test017
 
 
 TO CHANGE:
-- Use settings instead of ephysRootDir, ephysRoot
+- [DONE] Use settings instead of ephysRootDir, ephysRoot
 - Don't import loadopenephys, use ephyscore directly
 '''
 
@@ -86,12 +86,13 @@ oneFreq = bdata['targetFrequency'] == possibleFreq[1]
 rightward = (bdata['choice']==bdata.labels['choice']['right']) & oneFreq
 leftward = (bdata['choice']==bdata.labels['choice']['left']) & oneFreq
 
-if 1:
+# Set this to 1 to plot only correct trials
+if 0:
     rightward &= correct
     leftward &= correct
 
-#trialsEachCond = np.c_[leftward,rightward,invalid]; colorEachCond = ['0.5','0.7','0']
-trialsEachCond = np.c_[leftward,rightward]; colorEachCond = ['0.5','0.7','0']
+trialsEachCond = np.c_[invalid,leftward,rightward]; colorEachCond = ['0.75','g','r']
+#trialsEachCond = np.c_[leftward,rightward]; colorEachCond = ['0.5','0.7','0']
 
 (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
     spikesanalysis.eventlocked_spiketimes(spkTimeStamps,eventOnsetTimes,timeRange)
@@ -102,16 +103,21 @@ plt.clf()
 ax1 =  plt.subplot2grid((3,1), (0, 0), rowspan=2)
 extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEachCond=trialsEachCond,
                        colorEachCond=colorEachCond,fillWidth=None,labels=None)
+#plt.yticks([0,trialsEachCond.sum()])
+#ax1.set_xticklabels([])
+plt.ylabel('Trials')
 
 timeVec = np.arange(timeRange[0],timeRange[-1],binWidth)
 spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec)
 
 smoothWinSize = 3
 ax2 = plt.subplot2grid((3,1), (2, 0), sharex=ax1)
-#subplot(2,1,2, sharex=ax1)
 
-extraplots.plot_psth(spikeCountMat,smoothWinSize,timeVec,trialsEachCond=trialsEachCond,
+extraplots.plot_psth(spikeCountMat/binWidth,smoothWinSize,timeVec,trialsEachCond=trialsEachCond,
                      colorEachCond=colorEachCond,linestyle=None,linewidth=3,downsamplefactor=1)
+
+plt.xlabel('Time from sound onset (s)')
+plt.ylabel('Firing rate (spk/sec)')
 
 plt.show()
 
