@@ -27,6 +27,22 @@ def boxoff(ax,keep='left',yaxis=True):
         for t in ytlines:
             t.set_visible(False)
 
+def set_axes_color(ax,axColor):
+    '''
+    Change the color of axes, ticks and labels.
+    '''
+    import matplotlib
+    for child in ax.get_children():
+        if isinstance(child, matplotlib.axis.XAxis) or isinstance(child, matplotlib.axis.YAxis):
+            for gchild in child.get_children():
+                try:
+                    gchild.set_color(axColor)
+                except AttributeError:
+                    for ggchild in gchild.get_children():
+                        ggchild.set_color(axColor)
+        if isinstance(child, matplotlib.spines.Spine):
+            child.set_color(axColor)
+
 def set_ticks_fontsize(ax,fontSize):
     '''
     Set fontsize of axis tick labels
