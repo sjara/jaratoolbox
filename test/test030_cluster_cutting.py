@@ -5,6 +5,8 @@ import itertools
 
 class ClusterCutter(object):
     '''
+    Nick Ponvert 05-10-2015
+    
     GUI window for cutting a cluster. Accepts an N by M array of points, 
     where N is the number of spikes and M is the number of attributes 
     (i.e. peak amplitude on each wire). The window allows the user to click
@@ -111,7 +113,8 @@ class ClusterCutter(object):
     def cut_cluster(self, points, hull):
         ''' Method to take the current points from mouse input, 
         convert them to a convex hull, and then update the inCluster and 
-outsideCluster attributes based on the points that fall within the hull'''
+        outsideCluster attributes based on the points that fall within 
+        the hull'''
 
         if not isinstance(hull, Delaunay):
             hull=Delaunay(hull)
