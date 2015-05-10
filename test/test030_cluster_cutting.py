@@ -71,7 +71,8 @@ class ClusterCutter(object):
         
         #Function to cut the cluster
         if event.key=='c':
-            if len(self.mouseClickData)>0:
+            #Only cut the cluster if there are 3 points or more
+            if len(self.mouseClickData)>2:
                 hullArray=np.array(self.mouseClickData)
                 self.cut_cluster(self.points[:, self.combinations[self.dimNumber]], hullArray)
                 self.draw_dimension(self.dimNumber)
