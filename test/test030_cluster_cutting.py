@@ -145,8 +145,13 @@ class ClusterCutter(object):
         self.oldOutsideCluster=self.outsideCluster
 
         #Find the ponts that are inside the hull
-        self.inCluster = hull.find_simplex(points)>=0
-        self.outsideCluster=np.logical_not(self.inCluster)
+        inHull = hull.find_simplex(points)>=0
+
+        #Only take the points that are inside the hull and the cluster
+        #so we can cut from different angles and preserve old cuts
+        newInsidePoints = self.inCluster & inHull
+        self.inCluster = newInsidePoints
+        self.outsideCluster = np.logical_not(self.inCluster)
 
             
 
