@@ -71,10 +71,13 @@ class ClusterCutter(object):
         
         #Function to cut the cluster
         if event.key=='c':
-            hullArray=np.array(self.mouseClickData)
-            self.cut_cluster(self.points[:, self.combinations[self.dimNumber]], hullArray)
-            self.draw_dimension(self.dimNumber)
-            self.mouseClickData=[]
+            if len(self.mouseClickData)>0:
+                hullArray=np.array(self.mouseClickData)
+                self.cut_cluster(self.points[:, self.combinations[self.dimNumber]], hullArray)
+                self.draw_dimension(self.dimNumber)
+                self.mouseClickData=[]
+            else:
+                pass
             
         #Function to undo the last cut
         if event.key=='u':
