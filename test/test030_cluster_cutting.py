@@ -32,8 +32,13 @@ class ClusterCutter(object):
         
         #All points start inside the cluster
         self.inCluster=np.ones(len(self.points), dtype=bool)
-        self.outsideCluster=np.array([], dtype=bool)
-
+        self.outsideCluster=np.logical_not(self.inCluster)
+        
+        #Preserve the last cluster state for undo
+        self.oldInsideCluster=self.inCluster
+        self.oldOutsideCluster=self.outsideCluster
+    
+        #Make the fig and ax, and draw the initial plot
         self.fig=plt.figure()
         self.ax = self.fig.add_subplot(111)
         self.draw_dimension(self.dimNumber)
@@ -64,12 +69,21 @@ class ClusterCutter(object):
         Method to listen for keypresses and take action
         '''
         
+        #Function to cut the cluster
         if event.key=='c':
             hullArray=np.array(self.mouseClickData)
             self.cut_cluster(self.points[:, self.combinations[self.dimNumber]], hullArray)
             self.draw_dimension(self.dimNumber)
             self.mouseClickData=[]
+            
+        #Function to undo the last cut
+        if event.key=='u':
+            self.mouseClickData=[]
+            self.inCluster=self.oldInsideCluster
+            self.outsideCluster=self.oldOutsideCluster
+            self.draw_dimension(self.dimNumber)
 
+        #Functions to cycle through the dimensions
         elif event.key=="<":
             if self.dimNumber>0:
                 self.dimNumber-=1
@@ -92,21 +106,23 @@ class ClusterCutter(object):
         '''
         Method to draw the points on the axes using the current dimension number
         '''
-
+    
+        #Clear the plot and any saved mouse click data for the old dimension
         self.ax.cla()
-
+        self.mouseClickData=[]
+        
+        #Find the point array indices for the dimensions to be plotted
         dim0 = self.combinations[self.dimNumber][0]
         dim1 = self.combinations[self.dimNumber][1]
 
+        #Plot the points in the cluster in green, and points outside as light grey
         self.ax.plot(self.points[:,dim0][self.inCluster], self.points[:, dim1][self.inCluster], 'g.')
-        
         self.ax.plot(self.points[:, dim0][self.outsideCluster], self.points[:,dim1][self.outsideCluster], marker='.', color='0.8', linestyle='None')
 
+        #Label the axes and draw
         self.ax.set_xlabel('Dimension {}'.format(dim0))
         self.ax.set_ylabel('Dimension {}'.format(dim1))
-
-        
-        plt.title('press c to cut, < or > to switch dimensions')
+        plt.title('press c to cut, u to undo last cut, < or > to switch dimensions')
         self.fig.canvas.draw()
         
     
@@ -116,9 +132,15 @@ class ClusterCutter(object):
         outsideCluster attributes based on the points that fall within 
         the hull'''
 
+        #If the hull is not already a Delaunay instance, make it one
         if not isinstance(hull, Delaunay):
             hull=Delaunay(hull)
 
+        #Save the old cluster for undo
+        self.oldInsideCluster=self.inCluster
+        self.oldOutsideCluster=self.outsideCluster
+
+        #Find the ponts that are inside the hull
         self.inCluster = hull.find_simplex(points)>=0
         self.outsideCluster=np.logical_not(self.inCluster)
 
