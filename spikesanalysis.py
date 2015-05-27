@@ -55,25 +55,51 @@ def eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange,spikeindex=False
 
 
 
-def spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec):
+def spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,binEdges):
     '''
     Create a matrix with spike counts given the times of the spikes.
     
     spikeTimesFromEventOnset: vector of spikes timestamps with respect
     to the onset of the event.
     indexLimitsEachTrial: each column contains [firstInd,lastInd+1] of the spikes on a trial
-    timeVec: bin edges (including the left-most and right-most).
+    binEdges: time bin edges (including the left-most and right-most).
     
     Returns:
-    spikeCountMat: each column is one trial. N rows is len(timeVec)-1
+    spikeCountMat: each column is one trial. N rows is len(binEdges)-1
     '''
     nTrials = indexLimitsEachTrial.shape[1]
-    spikeCountMat = np.empty((nTrials,len(timeVec)-1),dtype=int)
+    spikeCountMat = np.empty((nTrials,len(binEdges)-1),dtype=int)
     for indtrial in range(nTrials):
         indsThisTrial = slice(indexLimitsEachTrial[0,indtrial],indexLimitsEachTrial[1,indtrial])
-        spkCountThisTrial,binsEdges = np.histogram(spikeTimesFromEventOnset[indsThisTrial],timeVec)
+        spkCountThisTrial,binsEdges = np.histogram(spikeTimesFromEventOnset[indsThisTrial],binEdges)
         spikeCountMat[indtrial,:] = spkCountThisTrial
     return spikeCountMat
+
+
+def evaluate_responsiveness(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEdges):
+    '''
+    Evaluate the probability of observing increased firing on time periods given by binEdges
+    with respect to the baseline range.
+
+    NOTE: the duration of the the bins should be the same as that of the baseline period.
+
+    TODO:
+    - Change the statistic: ranksums is meant for continuous distributions.
+                            and it does not handle ties.
+    '''
+    from scipy import stats
+    rangeLength = np.diff(baseRange)
+    nBins = len(binEdges)-1
+    nspkBase = spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange)
+    nspkResp = spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,binEdges)
+
+    zStatsEachRange = np.empty(nBins)
+    pValueEachRange = np.empty(nBins)
+    for indbin in range(nBins):
+        [zStatsEachRange[indbin],pValueEachRange[indbin]] = \
+            stats.ranksums(nspkResp[:,indbin],nspkBase[:,0])
+    return (zStatsEachRange,pValueEachRange)
+
 
 """
 def calculate_psth(spikeRasterMat,timeVec,windowSize):
@@ -97,7 +123,7 @@ def calculate_psth(spikeRasterMat,timeVec,windowSize):
     return PSTH
 """
 
-
+"""
 def count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange):
     '''
     OBSOLETE: use spiketimes_to_spikecounts() instead
@@ -118,7 +144,7 @@ def count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRang
         spikeTimesThisTrial = spikeTimesFromEventOnset[indsThisTrial]
         nSpikes[indtrial] = sum((spikeTimesThisTrial>timeRange[0]) & (spikeTimesThisTrial<timeRange[-1]))
     return nSpikes
-
+"""
 
 
 
