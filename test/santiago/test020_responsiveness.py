@@ -26,10 +26,11 @@ ephysRootDir = settings.EPHYS_PATH
 experimenter = 'santiago'
 paradigm = '2afc'
 
-CASE = 2
+CASE = 1
 if CASE==1:
     import allcells_test055 as allcells
     cellID = allcells.cellDB.findcell('test055','20150228a',3,11)
+    cellID = allcells.cellDB.findcell('test055','20150228a',3,6)
 elif CASE==2:
     import allcells_test017 as allcells
     cellID = allcells.cellDB.findcell('test017','20150309a',6,10)
@@ -75,7 +76,9 @@ binEdges = np.arange(-8,24)*rangeLength  # Edges of bins to calculate response (
 
 #baseRange = [-0.1, 0]              # Baseline range (in seconds)
 #binEdges = [-0.1,0, 0.1, 0.2]
-[zStat,pValue] = spikesanalysis.evaluate_responsiveness(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEdges)
+[zStat,pValue,maxZ] = spikesanalysis.response_score(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEdges)
+
+print 'Max absolute z-score: {0}'.format(maxZ)
 
 ax2=plt.subplot(2,1,2,sharex=ax1)
 plt.axhline(0,ls='-',color='0.5')

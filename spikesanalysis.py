@@ -76,9 +76,9 @@ def spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,binE
     return spikeCountMat
 
 
-def evaluate_responsiveness(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEdges):
+def response_score(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEdges):
     '''
-    Evaluate the probability of observing increased firing on time periods given by binEdges
+    Evaluate the probability of observing changes in firing on time periods given by binEdges
     with respect to the baseline range.
 
     NOTE: the duration of the the bins should be the same as that of the baseline period.
@@ -98,7 +98,8 @@ def evaluate_responsiveness(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRa
     for indbin in range(nBins):
         [zStatsEachRange[indbin],pValueEachRange[indbin]] = \
             stats.ranksums(nspkResp[:,indbin],nspkBase[:,0])
-    return (zStatsEachRange,pValueEachRange)
+    maxZvalue = zStatsEachRange[np.argmax(np.abs(zStatsEachRange))]
+    return (zStatsEachRange,pValueEachRange,maxZvalue)
 
 
 """
