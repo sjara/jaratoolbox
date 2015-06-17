@@ -8,12 +8,24 @@ from statsmodels.stats.proportion import proportion_confint #Used to compute con
 
 #subjects = ['test065','test067','test068','test070']
 #subjects = ['test064']
-session = '20141116a' #20141116-20141119
+#session = '20141116a' #20141116-20141119
 #session = '20141117a' #20141116-20141119
-animalNames = ['test064']
-sessions = ['20141116a','20141117a','20141118a','20141119a']
+#animalNames = ['test064']
+animalNames = ['test070']
+sessions = ['20141116a','20141117a','20141118a','20141119a'] # Pre-lesion
+#sessions = ['20141201a','20141202a','20141203a','20141204a'] # Post-lesion
+#sessions = ['20141204a'] # Post-lesion
 
-#clf()
+
+animalNames = ['test012']
+animalNames = ['test020']
+#sessions = ['20150110a'] # Pre-lesion
+sessions = ['20150106a','20150108a','20150109a','20150110a'] # Pre-lesion
+sessions = ['20150115a','20150116a','20150117a','20150118a'] # Post-lesion
+#sessions = ['20150119a'] # Post-lesion
+
+
+clf()
 for ind, subject in enumerate(animalNames):#enumerate(subjects):
     #fname=loadbehavior.path_to_behavior_data(subject,'santiago','2afc',session)
 
@@ -59,12 +71,26 @@ for ind, subject in enumerate(animalNames):#enumerate(subjects):
     #gca().set_xscale('log')
     upperWhisker = confLimitsEachFreq[1, :] - fractionRightEachFreq #Find lengths of whiskers for plotting function
     lowerWhisker = fractionRightEachFreq - confLimitsEachFreq[0,:]
-    x = range(nFreq)
-    errorbar(x, fractionRightEachFreq, yerr = [lowerWhisker, upperWhisker])
-    axhline(y=0.5, color = 'red')
+    #x = range(nFreq)
+    x = possibleFreq
+    errorbar(x, 100*fractionRightEachFreq, yerr = [100*lowerWhisker, 100*upperWhisker])
+    axhline(y=50, color = 'red')
+    ax=gca()
+    ax.set_xscale('log')
+    #ax.set_xticks([3000,5000,7000,10000,14000,20000,40000])
+    ax.set_xticks([3000,7000,16000])
+    ax.set_xticks(np.arange(1000,40000,1000),minor=True)
+    from matplotlib.ticker import ScalarFormatter
+    for axis in [ax.xaxis, ax.yaxis]:
+        axis.set_major_formatter(ScalarFormatter())
+
+    ylim([0,100])
+    xlim([possibleFreq[0]/1.2,possibleFreq[-1]*1.2])
+    xlabel('Frequency (kHz)')
+    ylabel('Rightward trials (%)')
     title(subject)
-    ylim([0,1])   
-suptitle(session)    
+
+suptitle(', '.join(sessions))
 show()
 
 
