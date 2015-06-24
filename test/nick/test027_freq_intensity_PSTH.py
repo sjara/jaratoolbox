@@ -9,11 +9,11 @@ import os
 SAMPLING_RATE = 30000.0
 PLOTTING_WINDOW = 0.1 #Window to plot, in seconds
 
-ephysDir='/home/nick/data/ephys/test075/2014-11-06_17-27-43'
+ephysDir='/home/nick/data/ephys/pinp003/2015-06-22_18-57-35'
 event_filename=os.path.join(ephysDir, 'all_channels.events')
 
-behaviorDir='/home/nick/data/behavior/nick/test075/'
-behavDataFileName=os.path.join(behaviorDir, 'test075_tuning_curve_20141106a.h5')
+behaviorDir='/home/nick/data/behavior/nick/pinp003'
+behavDataFileName=os.path.join(behaviorDir, 'pinp003_laser_tuning_curve_20150622c.h5')
 
 #Extract the frequency presented each trial from the behavior data
 bdata = loadbehavior.BehaviorData(behavDataFileName,readmode='full')
@@ -28,7 +28,7 @@ ev=loadopenephys.Events(event_filename)
 evID=np.array(ev.eventID)
 eventOnsetTimes=ev.timestamps[evID==1] #The timestamps of all of the stimulus onsets
 
-tetrode = 4 #The tetrode to plot
+tetrode = 6 #The tetrode to plot
 spikeFilename = os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
 spikeData = loadopenephys.DataSpikes(spikeFilename)
 

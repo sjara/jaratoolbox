@@ -10,12 +10,13 @@ SAMPLING_RATE=30000.0
 timeRange=[-0.5, 1] #In seconds
 
 #########################
-#ephysDir='/home/jarauser/data/ephys/hm4d002/2014-08-04_17-11-30'
-ephysRoot= '/home/nick/data/ephys/hm4d002/'
-ephysSession=sort(os.listdir(ephysRoot))[-1]
-ephysDir=os.path.join(ephysRoot, ephysSession)
+ephysDir='/home/nick/data/ephys/pinp003/2015-06-22_19-43-42'
+# ephysRoot= '/home/nick/data/ephys/hm4d002/'
+# ephysSession=sort(os.listdir(ephysRoot))[-1]
+# ephysDir=os.path.join(ephysRoot, ephysSession)
 
 numTetrodes = 4
+tetrodeIDs = [3, 4, 5, 6]
 #########################
 
 event_filename=os.path.join(ephysDir, 'all_channels.events')
@@ -24,12 +25,16 @@ event_filename=os.path.join(ephysDir, 'all_channels.events')
 ev=loadopenephys.Events(event_filename)
 eventTimes=np.array(ev.timestamps)/SAMPLING_RATE
 evID=np.array(ev.eventID)
-eventOnsetTimes=eventTimes[evID==1]
+evChannel = np.array(ev.eventChannel)
+eventOnsetTimes=eventTimes[(evID==1)&(evChannel==0)]
+
+evdiff = np.r_[1.0, np.diff(eventOnsetTimes)]
+eventOnsetTimes=eventOnsetTimes[evdiff>0.5]
+
 clf()
 
 
-for ind in range(numTetrodes):
-    tetrodeID = ind+1
+for ind , tetrodeID in enumerate(tetrodeIDs):
     spike_filename=os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(tetrodeID))
     sp=loadopenephys.DataSpikes(spike_filename)
     try:
@@ -38,7 +43,7 @@ for ind in range(numTetrodes):
 
         subplot(numTetrodes,1,ind+1)
 
-        plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.')
+        plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', ms=1)
         axvline(x=0, ymin=0, ymax=1, color='r')
 	if ind == 0:
 	    title(ephysDir)
