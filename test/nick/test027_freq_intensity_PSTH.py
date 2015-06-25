@@ -9,11 +9,11 @@ import os
 SAMPLING_RATE = 30000.0
 PLOTTING_WINDOW = 0.1 #Window to plot, in seconds
 
-ephysDir='/home/nick/data/ephys/pinp003/2015-06-22_18-57-35'
+ephysDir='/home/jarauser/data/ephys/pinp003/2015-06-24_18-55-40'
 event_filename=os.path.join(ephysDir, 'all_channels.events')
 
-behaviorDir='/home/nick/data/behavior/nick/pinp003'
-behavDataFileName=os.path.join(behaviorDir, 'pinp003_laser_tuning_curve_20150622c.h5')
+behaviorDir='/home/jarauser/data/behavior/nick/pinp003'
+behavDataFileName=os.path.join(behaviorDir, 'pinp003_laser_tuning_curve_20150624i.h5')
 
 #Extract the frequency presented each trial from the behavior data
 bdata = loadbehavior.BehaviorData(behavDataFileName,readmode='full')

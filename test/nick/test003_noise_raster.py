@@ -10,10 +10,10 @@ SAMPLING_RATE=30000.0
 timeRange=[-0.5, 1] #In seconds
 
 #########################
-ephysDir='/home/nick/data/ephys/pinp003/2015-06-22_19-43-42'
-# ephysRoot= '/home/nick/data/ephys/hm4d002/'
-# ephysSession=sort(os.listdir(ephysRoot))[-1]
-# ephysDir=os.path.join(ephysRoot, ephysSession)
+#ephysDir='/home/nick/data/ephys/pinp003/2015-06-22_19-43-42'
+ephysRoot= '/home/jarauser/data/ephys/pinp003/'
+ephysSession=sort(os.listdir(ephysRoot))[-1]
+ephysDir=os.path.join(ephysRoot, ephysSession)
 
 numTetrodes = 4
 tetrodeIDs = [3, 4, 5, 6]
