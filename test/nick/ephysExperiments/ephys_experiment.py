@@ -49,6 +49,7 @@ class EphysExperiment(object):
             ephysSession = sort(os.listdir(ephysRoot))[session]
 
         ephysDir=os.path.join(self.localEphysDir, ephysSession)
+        plotTitle = ephysDir
         event_filename=os.path.join(ephysDir, 'all_channels.events')
 
         eventData=loadopenephys.Events(event_filename)
@@ -65,7 +66,7 @@ class EphysExperiment(object):
         if os.path.isfile(clustersFile):
             spikeData.set_clusters(clustersFile)
 
-        return spikeData, eventData
+        return spikeData, eventData, plotTitle
         
     def get_event_onset_times(self, eventData):
         '''
@@ -109,7 +110,17 @@ class EphysExperiment(object):
         oneTT.run_clustering()
         oneTT.save_report()
 
-    def plot_raster(spikeTimestamps, eventOnsetTimes, replace = 0):
+    def plot_session_raster(self, session, tetrode, cluster = None, replace=0):
+        spikeData, eventData, plotTitle= self.get_session_ephys_data(session, tetrode)
+        eventOnsetTimes = self.get_event_onset_times(eventData)
+        spikeTimestamps=spikeData.timestamps
+        
+        if cluster:
+            spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
+        
+        self.plot_raster(spikeTimestamps, eventOnsetTimes, plotTitle, replace)
+        
+    def plot_raster(self, spikeTimestamps, eventOnsetTimes, plotTitle, replace = 0):
         
         if replace:
             clf()
@@ -118,7 +129,7 @@ class EphysExperiment(object):
 
         plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', ms=1)
         axvline(x=0, ymin=0, ymax=1, color='r')
-        title(
+        title(plotTitle)
 
 
     def plot_array_raster(self, session, replace=0, SAMPLING_RATE = 30000.0, timeRange = [-0.5, 1], numTetrodes=4, tetrodeIDs=[3,4,5,6]):
@@ -370,7 +381,6 @@ class EphysExperiment(object):
         spikeData, eventData = self.get_session_ephys_data(session, tetrode)
         bdata = self.get_session_behav_data(session, behavFileIdentifier)
         eventOnsetTimes = self.get_event_onset_times(eventData)
-        spikeTimestamps = spikeData.timestamps/self.SAMPLING_RATE
         
         if cluster:
             spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
