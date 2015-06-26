@@ -120,13 +120,14 @@ class EphysExperiment(object):
         
         self.plot_raster(spikeTimestamps, eventOnsetTimes, plotTitle, replace)
         
-    def plot_raster(self, spikeTimestamps, eventOnsetTimes, plotTitle, replace = 0):
+    def plot_raster(self, spikeTimestamps, eventOnsetTimes, plotTitle, replace = 0, timeRange = [-0.5, 1]):
         
         if replace:
             clf()
         else:
             figure()
 
+        spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimeStamps,eventOnsetTimes,timeRange)
         plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', ms=1)
         axvline(x=0, ymin=0, ymax=1, color='r')
         title(plotTitle)
@@ -377,7 +378,7 @@ class EphysExperiment(object):
 
             
 
-    def session_tc_heatmap(self, session, tetrode, behavFileIdentifier, cluster = None, norm=False):
+    def plot_session_tc_heatmap(self, session, tetrode, behavFileIdentifier, cluster = None, norm=False):
         spikeData, eventData = self.get_session_ephys_data(session, tetrode)
         bdata = self.get_session_behav_data(session, behavFileIdentifier)
         eventOnsetTimes = self.get_event_onset_times(eventData)
@@ -444,4 +445,33 @@ class EphysExperiment(object):
         ax.set_yticks([0, 1, 2, 3])
         
         ax.set_yticklabels(possibleIntensity)
+
+class RecordingSite(object):
+
+    def __init__(self,
+                 depth,
+                 noiseburstEphysSession,
+                 laserPulseEphysSession,
+                 laserTrainEphysSession,
+                 tuningCurveEphysSession,
+                 tuningCurveBehavIdentifier,
+                 bfEphysSession,
+                 bfBehavIdentifier,
+                 laserPulseEphysSession3mW,
+                 laserPulseEphysSession1mW,
+                 goodTetrodes):
+
+        self.depth = depth
+        self.noiseburstephyssession = noiseburstephyssession
+        self.laserPulseEphysSession = laserPulseEphysSession
+        self.laserTrainEphysSession = laserTrainEphysSession
+        self.tuningCurveEphysSession = tuningCurveEphysSession
+        self.tuningCurveBehavIdentifier = tuningCurveBehavIdentifier
+        self.bfEphysSession = bfEphysSession
+        self.bfBehavIdentifier = bfBehavIdentifier
+        self.laserPulseEphysSession3mW = laserPulseEphysSession3mW
+        self.laserPulseEphysSession1mW = laserPulseEphysSession1mW
+        self.goodTetrodes = goodTetrodes
+
+
         

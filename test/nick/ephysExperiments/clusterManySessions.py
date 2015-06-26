@@ -11,17 +11,6 @@ import os
 '''The goal is to load many sessions, put the spikes from all of the sessions into a single structure in some kind of organized fashion, and then cluster the whole structure at once so that we can compare a cell across multiple sessions. 
 '''
 #We will have to do this part differently
-'''
-self.dataDir = os.path.join(settings.EPHYS_PATH,self.animalName,self.ephysSession)
-self.clustersDir = os.path.join(settings.EPHYS_PATH,self.animalName,self.ephysSession+'_kk')
-self.reportDir = os.path.join(settings.EPHYS_PATH,self.animalName,'reports_clusters')
-self.tetrodeFile = os.path.join(self.dataDir,'Tetrode{0}.spikes'.format(tetrode))
-self.fetFilename = os.path.join(self.clustersDir,'Tetrode{0}.fet.1'.format(tetrode))
-
-
-self.reportFileName = '{0}_{1}_T{2}.png'.format(self.animalName,ephysSession,tetrode)
-'''
-
 
 animalName = 'pinp003'
 #2015-06-22_18-57-35 - Tuning curve
