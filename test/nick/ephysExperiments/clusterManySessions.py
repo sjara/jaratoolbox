@@ -10,16 +10,6 @@ import os
 
 '''The goal is to load many sessions, put the spikes from all of the sessions into a single structure in some kind of organized fashion, and then cluster the whole structure at once so that we can compare a cell across multiple sessions. 
 '''
-#We will have to do this part differently
-
-animalName = 'pinp003'
-#2015-06-22_18-57-35 - Tuning curve
-#2015-06-22_19-43-42 - 100msec tones, 7.5-8kHz. Good responses
-#2015-06-22_19-52-23 - 100msec laser pulses at 3mW, spikes then silence
-#2015-06-22_19-57-14 - 100msec laser pulses at 2mW
-#2015-06-22_19-59-48 - 100msec laser pulses at 1mW
-sessionList = ['2015-06-22_18-57-35', '2015-06-22_19-43-42', '2015-06-22_19-52-23', '2015-06-22_19-57-14', '2015-06-22_19-59-48']
-tetrode = 6
 
 class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
 
@@ -38,7 +28,8 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
         self.timestamps = None
         self.clusters = None
         self.nSpikes = None
-        self.clustersDir = os.path.join(settings.EPHYS_PATH,self.animalName,'multisession_{}'.format(analysisDate))
+        self.analysisDate = analysisDate
+        self.clustersDir = os.path.join(settings.EPHYS_PATH,self.animalName,'multisession_{}'.format(self.analysisDate))
         self.fetFilename = os.path.join(self.clustersDir,'Tetrode%d.fet.1'%self.tetrode)
 
         self.report = None
@@ -53,7 +44,7 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
     def load_all_waveforms(self):
         for ind, session in enumerate(self.sessionList):
             ephysDir = os.path.join(settings.EPHYS_PATH, self.animalName, session)
-            spikeFile = os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(tetrode))
+            spikeFile = os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(self.tetrode))
             dataSpkObj = loadopenephys.DataSpikes(spikeFile)
             numSpikes = dataSpkObj.nRecords
             
@@ -191,12 +182,50 @@ class MultiSessionClusterReport(object):
 
 
 
-oneTT = MultipleSessionsToCluster(animalName,sessionList,tetrode, '20150623a')
+if __name__=="__main__":
+    
+    from jaratoolbox.test.nick.ephysExperiments import ephys_experiment
+    from jaratoolbox.test.nick.ephysExperiments.ephys_experiment import EphysExperiment
+    reload(ephys_experiment)
+
+    animalName = 'pinp003'
+    #2015-06-22_18-57-35 - Tuning curve
+    #2015-06-22_19-43-42 - 100msec tones, 7.5-8kHz. Good responses
+    #2015-06-22_19-52-23 - 100msec laser pulses at 3mW, spikes then silence
+    #2015-06-22_19-57-14 - 100msec laser pulses at 2mW
+    #2015-06-22_19-59-48 - 100msec laser pulses at 1mW
+    sessionList = ['2015-06-24_15-22-29', '2015-06-24_15-25-08', '2015-06-24_15-27-37', '2015-06-24_15-31-48', '2015-06-24_15-45-22']
+                      
+    tetrode = 6
+    oneTT = MultipleSessionsToCluster(animalName,sessionList,tetrode, '20150626site1')
 
 
 
-oneTT.load_all_waveforms()
-oneTT.create_multisession_fet_files()
-oneTT.run_clustering()
-oneTT.save_multisession_report()
+    oneTT.load_all_waveforms()
+
+    clusterFile = os.path.join(oneTT.clustersDir,'Tetrode%d.clu.1'%oneTT.tetrode)
+    if os.path.isfile(clusterFile):
+       oneTT.set_clusters_from_file() 
+    else:
+        oneTT.create_multisession_fet_files()
+        oneTT.run_clustering()
+    oneTT.save_multisession_report()
+    
+    ##PLot the noise burst response for a cluster
+
+    figure()
+    cluster = 3
+    clusterSpikeTimestamps = oneTT.timestamps[(oneTT.clusters==cluster) & (oneTT.recordingNumber==0)]
+    
+
+    exp = EphysExperiment('pinp003', '2015-06-24')
+    
+    spikeData, eventData, plotTitle = exp.get_session_ephys_data(sessionList[2], 6)
+    
+    eventOnsetTimes = exp.get_event_onset_times(eventData)
+    
+    exp.plot_raster(clusterSpikeTimestamps, eventOnsetTimes, 'laserResponse')    
+    
+
+
 

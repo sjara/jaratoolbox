@@ -1,4 +1,7 @@
-from jaratoolbox.test.nick.ephysExperiment.ephys_experiment import RecordingSite
+from jaratoolbox.test.nick.ephysExperiments import ephys_experiment
+reload(ephys_experiment)
+from jaratoolbox.test.nick.ephysExperiments.ephys_experiment import RecordingSite
+from jaratoolbox.test.nick.ephysExperiments.ephys_experiment import EphysExperiment
 
 site1 = RecordingSite(depth = 3543,
                       noiseburstEphysSession  = '2015-06-24_15-22-29',
@@ -44,7 +47,7 @@ site4 = RecordingSite(depth = 3757,
                       tuningCurveEphysSession  = '2015-06-24_17-25-16',
                       tuningCurveBehavIdentifier  = 'g',
                       bfEphysSession  = '2015-06-24_17-37-45',
-                      bfBehavIdentifier = 'af'
+                      bfBehavIdentifier = 'af',
                       laserPulseEphysSession3mW  = '2015-06-24_17-41-31',
                       laserPulseEphysSession1mW = '2015-06-24_17-44-25',
                       goodTetrodes = [3, 6])
@@ -56,19 +59,25 @@ site5 = RecordingSite(depth = 3805,
                       tuningCurveEphysSession  = '2015-06-24_18-10-38',
                       tuningCurveBehavIdentifier  = 'h',
                       bfEphysSession  = '2015-06-24_17-18-24-47',
-                      bfBehavIdentifier = None
+                      bfBehavIdentifier = None,
                       laserPulseEphysSession3mW  = '2015-06-24_18-29-24',
                       laserPulseEphysSession1mW = '2015-06-24_18-33-08',
                       goodTetrodes = [3, 6])
 
-site5 = RecordingSite(depth = 3855,
+site6 = RecordingSite(depth = 3855,
                       noiseburstEphysSession  = '2015-06-24_18-44-21',
                       laserPulseEphysSession  = '2015-06-24_18-47-59',
                       laserTrainEphysSession = '2015-06-24_18-51-29',
                       tuningCurveEphysSession  = '2015-06-24_18-55-40',
                       tuningCurveBehavIdentifier  = 'i',
                       bfEphysSession  = '2015-06-24_17-19-10-27',
-                      bfBehavIdentifier = None
+                      bfBehavIdentifier = None,
                       laserPulseEphysSession3mW  = '2015-06-24_19-13-33',
                       laserPulseEphysSession1mW = '2015-06-24_19-16-41',
                       goodTetrodes = [6])
+
+siteList = [site1, site2, site3, site4, site5, site6]
+
+exp = EphysExperiment('pinp003', '2015-06-24')
+
+exp.process_site(site1)

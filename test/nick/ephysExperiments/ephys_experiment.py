@@ -5,11 +5,16 @@ from jaratoolbox import spikesorting
 from jaratoolbox import loadbehavior
 from jaratoolbox import loadopenephys
 from collections import defaultdict
+import matplotlib.pyplot as plt
 import os
 import subprocess
 from pylab import *
 import numpy as np
 
+from jaratoolbox.test.nick.ephysExperiments import clusterManySessions
+reload(clusterManySessions)
+from jaratoolbox.test.nick.ephysExperiments.clusterManySessions import MultipleSessionsToCluster
+from jaratoolbox.test.nick.ephysExperiments.clusterManySessions import MultiSessionClusterReport
 
 class EphysExperiment(object):
 
@@ -28,7 +33,7 @@ class EphysExperiment(object):
         self.localEphysDir = os.path.join(settings.EPHYS_PATH, self.animalName)
         self.behavFileBaseName = '_'.join([self.animalName, self.paradigm, ''.join(self.date.split('-'))])
 
-    def getBehavior(self):
+    def get_behavior(self):
         transferCommand = ['rsync', '-a', '--progress', self.remoteBehavLocation, self.localBehavPath]
         print ' '.join(transferCommand)
         subprocess.call(transferCommand)
@@ -122,12 +127,13 @@ class EphysExperiment(object):
         
     def plot_raster(self, spikeTimestamps, eventOnsetTimes, plotTitle, replace = 0, timeRange = [-0.5, 1]):
         
-        if replace:
-            clf()
-        else:
-            figure()
+        #Replace is not working well with this fxn, and may not be needed
+        # if replace:
+        #     clf()
+        # else:
+        #     figure()
 
-        spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimeStamps,eventOnsetTimes,timeRange)
+        spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimes,timeRange)
         plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', ms=1)
         axvline(x=0, ymin=0, ymax=1, color='r')
         title(plotTitle)
@@ -446,7 +452,58 @@ class EphysExperiment(object):
         
         ax.set_yticklabels(possibleIntensity)
 
+    def process_site(self, site):
+
+        '''
+        Function to plot a summary report for a site. Will be expanded to plot a report per good cluster
+        Will: 
+
+        - Put all of the sites together into a container and cluster them together
+        - Use the clustered data, along with an EphysExperiment object, to plot a bunch of 
+        figures for each of the units, for each of the sites. 
+        '''
+        oneTT = MultipleSessionsToCluster(self.animalName,site.sessionList,site.goodTetrodes[0], '20150626site1')
+
+        oneTT.load_all_waveforms()
+
+        clusterFile = os.path.join(oneTT.clustersDir,'Tetrode%d.clu.1'%oneTT.tetrode)
+        if os.path.isfile(clusterFile):
+           oneTT.set_clusters_from_file() 
+        else:
+            oneTT.create_multisession_fet_files()
+            oneTT.run_clustering()
+        
+        
+        figure()
+        
+        possibleClusters = np.unique(oneTT.clusters)
+        
+        recordingNumberToPlot = 0
+        
+        for ind, cluster in enumerate(possibleClusters):
+            clusterSpikeTimestamps = oneTT.timestamps[(oneTT.clusters==cluster) & (oneTT.recordingNumber==recordingNumberToPlot)]
+
+
+
+            spikeData, eventData, plotTitle = self.get_session_ephys_data(site.sessionList[recordingNumberToPlot], 6)
+
+            eventOnsetTimes = self.get_event_onset_times(eventData)
+
+            subplot(len(possibleClusters), 1, ind+1)
+            self.plot_raster(clusterSpikeTimestamps, eventOnsetTimes, 'Cluster {}'.format(cluster))    
+
+        show()
+
+
+        figure()
+        oneTT.save_multisession_report()
+        
+
 class RecordingSite(object):
+    
+    '''
+    One-off class specifically for the experiments that I have been doing
+    '''
 
     def __init__(self,
                  depth,
@@ -462,7 +519,7 @@ class RecordingSite(object):
                  goodTetrodes):
 
         self.depth = depth
-        self.noiseburstephyssession = noiseburstephyssession
+        self.noiseburstEphysSession = noiseburstEphysSession
         self.laserPulseEphysSession = laserPulseEphysSession
         self.laserTrainEphysSession = laserTrainEphysSession
         self.tuningCurveEphysSession = tuningCurveEphysSession
@@ -472,6 +529,10 @@ class RecordingSite(object):
         self.laserPulseEphysSession3mW = laserPulseEphysSession3mW
         self.laserPulseEphysSession1mW = laserPulseEphysSession1mW
         self.goodTetrodes = goodTetrodes
+        
+        self.sessionList = [self.noiseburstEphysSession, self.laserPulseEphysSession, self.laserTrainEphysSession, self.tuningCurveEphysSession, self.bfEphysSession]
 
 
         
+   
+   
