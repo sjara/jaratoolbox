@@ -452,7 +452,7 @@ class EphysExperiment(object):
         
         ax.set_yticklabels(possibleIntensity)
 
-    def process_site(self, site):
+    def process_site(self, site, sitenum):
 
         '''
         Function to plot a summary report for a site. Will be expanded to plot a report per good cluster
@@ -462,7 +462,7 @@ class EphysExperiment(object):
         - Use the clustered data, along with an EphysExperiment object, to plot a bunch of 
         figures for each of the units, for each of the sites. 
         '''
-        oneTT = MultipleSessionsToCluster(self.animalName,site.sessionList,site.goodTetrodes[0], '20150626site1')
+        oneTT = MultipleSessionsToCluster(self.animalName,site.sessionList,site.goodTetrodes[0], '20150626site{}'.format(sitenum))
 
         oneTT.load_all_waveforms()
 
@@ -470,8 +470,9 @@ class EphysExperiment(object):
         if os.path.isfile(clusterFile):
            oneTT.set_clusters_from_file() 
         else:
-            oneTT.create_multisession_fet_files()
-            oneTT.run_clustering()
+           oneTT.create_multisession_fet_files()
+           oneTT.run_clustering()
+           oneTT.set_clusters_from_file() 
         
         
         figure()

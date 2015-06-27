@@ -58,7 +58,7 @@ site5 = RecordingSite(depth = 3805,
                       laserTrainEphysSession = '2015-06-24_18-06-31',
                       tuningCurveEphysSession  = '2015-06-24_18-10-38',
                       tuningCurveBehavIdentifier  = 'h',
-                      bfEphysSession  = '2015-06-24_17-18-24-47',
+                      bfEphysSession  = '2015-06-24_18-24-47',
                       bfBehavIdentifier = None,
                       laserPulseEphysSession3mW  = '2015-06-24_18-29-24',
                       laserPulseEphysSession1mW = '2015-06-24_18-33-08',
@@ -70,7 +70,7 @@ site6 = RecordingSite(depth = 3855,
                       laserTrainEphysSession = '2015-06-24_18-51-29',
                       tuningCurveEphysSession  = '2015-06-24_18-55-40',
                       tuningCurveBehavIdentifier  = 'i',
-                      bfEphysSession  = '2015-06-24_17-19-10-27',
+                      bfEphysSession  = '2015-06-24_19-10-27',
                       bfBehavIdentifier = None,
                       laserPulseEphysSession3mW  = '2015-06-24_19-13-33',
                       laserPulseEphysSession1mW = '2015-06-24_19-16-41',
@@ -80,4 +80,4 @@ siteList = [site1, site2, site3, site4, site5, site6]
 
 exp = EphysExperiment('pinp003', '2015-06-24')
 
-exp.process_site(site1)
+exp.process_site(site6, 6)
