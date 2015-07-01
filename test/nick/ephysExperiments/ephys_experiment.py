@@ -132,7 +132,7 @@ class EphysExperiment(object):
         
         self.plot_raster(spikeTimestamps, eventOnsetTimes, plotTitle, replace)
         
-    def plot_raster(self, spikeTimestamps, eventOnsetTimes, plotTitle, replace = 0, timeRange = [-0.5, 1]):
+    def plot_raster(self, spikeTimestamps, eventOnsetTimes, plotTitle, sort = None, replace = 0, timeRange = [-0.5, 1]):
         
         #Replace is not working well with this fxn, and may not be needed
         # if replace:
@@ -145,6 +145,11 @@ class EphysExperiment(object):
         axvline(x=0, ymin=0, ymax=1, color='r')
         title(plotTitle)
 
+
+        spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimes,timeRange)
+        plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', ms=1)
+        axvline(x=0, ymin=0, ymax=1, color='r')
+        title(plotTitle)
 
     def plot_array_raster(self, session, replace=0, SAMPLING_RATE = 30000.0, timeRange = [-0.5, 1], numTetrodes=4, tetrodeIDs=[3,4,5,6]):
         
@@ -244,7 +249,6 @@ class EphysExperiment(object):
     
     def plot_tc_raster(self, session, tetrode, behavFileIdentifier, cluster=None):
         '''
-        Watch out - uses spike timestamps in samples and event timestamps in seconds...
         '''
 
         ephysSession = self.get_session_name(session)
@@ -257,6 +261,8 @@ class EphysExperiment(object):
         spike_filename=os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
         
     def plot_tc_psth(self, session, tetrode, behavFileIdentifier, cluster=None):
+
+        #FIXME: This method needs a lot of work
         
         SAMPLING_RATE = 30000.0
         PLOTTING_WINDOW = 0.1 #Window to plot, in seconds
@@ -379,33 +385,87 @@ class EphysExperiment(object):
             
 
     def plot_session_tc_heatmap(self, session, tetrode, behavFileIdentifier, cluster = None, norm=False):
+
+        '''
+        Wrapper to plot a TC heatmap for a single session/tetrode
+
+        Extracts the data from a single tetrode in a recording session, and uses the data to call plot_tc_heatmap. 
+        The session can either be the actual session name as a string, or an integer that will be used the select
+        a session from the sorted list of sessions in the ephys directory for this recording day. Also takes the 
+        unique identifier for the behavior data file. Can select only the spikes belonging to a single cluster 
+        if clustering has been done on an ephys session. 
+
+        Args:
+            session (str or int): Either the session name as a string or an int that will be used to select the session from
+                                  the sorted list of sessions in the current directory. 
+            tetrode (int): The number of the tetrode to plot
+            behavFileIdentifier (str): The unique portion of the behavior data filename used to identify it. 
+            cluster (int): Optional, the number of the cluster to plot. Leave unset to analyze the entire site. 
+            norm (bool): Whether or not to normalize to the maximum spike rate for the color axis
+        
+        Examples:
+        
+        With a specified session and the behavior file 'animal000_behavior_paradigm_20150624a.h5'
+        
+        >>>experiment.plot_session_tc_heatmap('2015-06-24_15-32-16', 6, 'a')
+        
+        To use the last recorded ephys session (the -1 index in the sorted list)
+
+        >>>experiment.plot_session_tc_heatmap(-1, 6, 'a')
+        '''
+        
+        #Get the ephys and event data
         spikeData, eventData, plotTitle = self.get_session_ephys_data(session, tetrode)
+
+        #Get the behavior data and extract the freq and intensity each trial
         bdata = self.get_session_behav_data(session, behavFileIdentifier)
+        freqEachTrial = bdata['currentFreq']
+        intensityEachTrial = bdata['currentIntensity']
+
+        #Calculate event onset times from the event data
         eventOnsetTimes = self.get_event_onset_times(eventData)
 
+        #Extract the timestamps from the spikeData object, limit to a single cluster if needed
         spikeTimestamps = spikeData.timestamps
-        
         if cluster:
             spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
         
-        self.plot_tc_heatmap(spikeTimestamps, eventOnsetTimes, bdata, norm)
+        #Call the plotting code with the data
+        self.plot_tc_heatmap(spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, norm)
 
-    def plot_tc_heatmap(self, spikeTimestamps, eventOnsetTimes, bdata, norm=False):
+    def plot_tc_heatmap(self, spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, norm=False):
+        #TODO: option to replace or make new fig
         
         '''
-        Takes spikeTimestamps in SECONDS, eventOnsetTimes in SECONDS
+        Plot a tuning curve heatmap. 
+
+        Plots a frequency-intensity tuning curve as a 2-D matrix, where color indicates the number of spikes fired
+        after the presentation of the frequency-intensity pair. Accepts arrays of data, so it can be called directly
+        or with a wrapper like plot_session_tc_heatmap, which will extract the data from recording session files and
+        call this method to do the plotting. 
+        
+        Takes spike timestamps in SECONDS, event onset times in SECONDS
+
+        Args:
+            spikeTimestamps (array): A 1D numpy array of all of the spike timestamps in a recording session IN SECONDS
+            eventOnsetTimes (array): A 1D numpy array of the event onset times in a recording session IN SECONDS
+            freqEachTrial (array): A 1D numpy array of the frequency presented each trial, in Hz. Must have the same length as
+                                   eventOnsettimes
+            intensityEachTrial: A 1D numpy array of the intensity presentes each trial, in dB SPL. Must have the same length as 
+                                eventOnsetTimes
+            norm (bool): Whether or not to normalize to the maximum spike rate for the color axis
         '''
         
         SAMPLING_RATE = 30000.0
         
-        PLOTTING_WINDOW = 0.1 #Window to plot, in seconds
+        #Calculating the avg # spikes in this time range after the stim onset
+        PLOTTING_WINDOW = 0.1 
 
-        freqEachTrial = bdata['currentFreq']
-        intensityEachTrial = bdata['currentIntensity']
-
+        #Find the possible frequencies and intensities
         possibleFreq = np.unique(freqEachTrial) 
         possibleIntensity = np.unique(intensityEachTrial)
 
+        #Initialize a matrix to store the TC data in
         allSettingsSpikeCount = np.zeros([len(possibleIntensity), len(possibleFreq)]) 
 
         for indFreq, currentFreq in enumerate(possibleFreq):
@@ -414,19 +474,26 @@ class EphysExperiment(object):
                 #Determine which trials this setting was presented on. 
                 trialsThisSetting = np.flatnonzero((freqEachTrial == currentFreq) & (intensityEachTrial == currentIntensity))
 
+                numTrialsThisSetting = len(trialsThisSetting)
+
                 #Get the onset timestamp for each of the trials of this setting. 
-                timestampsThisSetting = eventOnsetTimes[trialsThisSetting]
+                eventOnsetTimesThisSetting = eventOnsetTimes[trialsThisSetting]
 
                 spikesAfterThisSetting = np.array([])
-                #Loop through all of the trials for this setting, extracting the trace after each presentation
-                for indts, eventTimestamp in enumerate(timestampsThisSetting):
-                    spikes = spikeTimestamps[(spikeTimestamps >= eventTimestamp) & (spikeTimestamps <= eventTimestamp + PLOTTING_WINDOW)]
-                    spikes = spikes - eventTimestamp
-                    spikes = spikes / 30 #Spikes in ms after the stimulus
 
+                #Loop through all of the trials for this setting, extracting the spike timestamps after each presentation
+                for indts, eventTimestamp in enumerate(eventOnsetTimesThisSetting):
+                    spikes = spikeTimestamps[(spikeTimestamps >= eventTimestamp) & (spikeTimestamps <= eventTimestamp + PLOTTING_WINDOW)]
                     spikesAfterThisSetting = np.concatenate((spikesAfterThisSetting, spikes))
-                    spikeCountThisSetting = len(spikesAfterThisSetting)
-                allSettingsSpikeCount[indIntensity, indFreq] = spikeCountThisSetting
+
+                #The number of spikes fired in the window after all of the stims of this type 
+                spikeCountThisSetting = len(spikesAfterThisSetting)
+
+                #Average spikes per stim
+                spikeAverageThisSetting = spikeCountThisSetting/float(numTrialsThisSetting)
+
+                #Save to the matrix
+                allSettingsSpikeCount[indIntensity, indFreq] = spikeAverageThisSetting
                 
         if norm:
             allSettingsSpikeCount = allSettingsSpikeCount/allSettingsSpikeCount.max()
@@ -441,13 +508,13 @@ class EphysExperiment(object):
         if norm:
             cbar.ax.set_ylabel('Proportion of max firing')
         else:
-            cbar.ax.set_ylabel('Spikes in 0.1sec after stim')
+            cbar.ax.set_ylabel('Average spikes in 0.1sec after stim')
         ax.set_xticks(range(len(possibleFreq)))
         xticks = ["%.1f" % freq for freq in possibleFreq/1000.0]
         ax.set_xticklabels(xticks)
         ax.set_yticks([0, 1, 2, 3])
         
-        ax.set_yticklabels(possibleIntensity)
+        ax.set_yticklabels(possibleIntensity[::-1])
 
     def process_site(self, site, sitenum):
 
