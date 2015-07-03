@@ -562,79 +562,81 @@ class EphysExperiment(object):
             for indSession, session in enumerate(site.sessionList): 
             
 
+                if session: #This should make this code work even if some of the sessions are None
+                    clusterSpikeTimestamps = oneTT.timestamps[(oneTT.clusters==cluster) & (oneTT.recordingNumber==indSession)]
+                    clusterSamples = oneTT.samples[(oneTT.clusters==cluster) & (oneTT.recordingNumber==indSession)]
+                    spikeData, eventData, plotTitle = self.get_session_ephys_data(site.sessionList[indSession], 6)
 
-                clusterSpikeTimestamps = oneTT.timestamps[(oneTT.clusters==cluster) & (oneTT.recordingNumber==indSession)]
-                clusterSamples = oneTT.samples[(oneTT.clusters==cluster) & (oneTT.recordingNumber==indSession)]
-                spikeData, eventData, plotTitle = self.get_session_ephys_data(site.sessionList[indSession], 6)
+                    eventOnsetTimes = self.get_event_onset_times(eventData)
 
-                eventOnsetTimes = self.get_event_onset_times(eventData)
+                    if indSession <= 2: #The first 3 raster plots
+                        subplot2grid((4, 6), (indSession, 0), rowspan = 1, colspan = 3)
+                        self.plot_raster(clusterSpikeTimestamps, eventOnsetTimes, session)    
 
-                if indSession <= 2: #The first 3 raster plots
-                    subplot2grid((4, 6), (indSession, 0), rowspan = 1, colspan = 3)
-                    self.plot_raster(clusterSpikeTimestamps, eventOnsetTimes, session)    
+                        if indSession==0:
+                            ylabel('Noise Bursts')
+                        elif indSession==1:
+                            ylabel('Laser Pulse')
+                        elif indSession==2:
+                            ylabel('LaserTrain')
 
-                    if indSession==0:
-                        ylabel('Noise Bursts')
-                    elif indSession==1:
-                        ylabel('Laser Pulse')
-                    elif indSession==2:
-                        ylabel('LaserTrain')
+                    elif indSession == 3: #The tuning curve
+                        bdata = self.get_session_behav_data(session, site.tuningCurveBehavIdentifier)
+                        freqEachTrial = bdata['currentFreq']
+                        intensityEachTrial = bdata['currentIntensity']
+                        subplot2grid((4, 6), (0, 3), rowspan = 3, colspan = 3)
+                        self.plot_tc_heatmap(clusterSpikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial)
+                        title('Cluster {}'.format(cluster))
 
-                elif indSession == 3: #The tuning curve
-                    bdata = self.get_session_behav_data(session, site.tuningCurveBehavIdentifier)
-                    subplot2grid((4, 6), (0, 3), rowspan = 3, colspan = 3)
-                    self.plot_tc_heatmap(clusterSpikeTimestamps, eventOnsetTimes, bdata)
-                    title('Cluster {}'.format(cluster))
+                    elif indSession == 4: #The BF presentaion
+                        subplot2grid((4, 6), (3, 0), rowspan=1, colspan=3)
+                        self.plot_raster(clusterSpikeTimestamps, eventOnsetTimes, session)
+                        ylabel('BF')
 
-                elif indSession == 4: #The BF presentaion
-                    subplot2grid((4, 6), (3, 0), rowspan=1, colspan=3)
-                    self.plot_raster(clusterSpikeTimestamps, eventOnsetTimes, session)
-                    ylabel('BF')
+                    elif indSession == 5: # Laser pulses at 3mW
+                        if site.sessionList[5]:
+                            subplot2grid((4, 6), (3, 3), rowspan = 1, colspan = 3)
+                            hold(True)
 
-                elif indSession == 5: # Laser pulses at 3mW
-                    if site.sessionList[5]:
-                        subplot2grid((4, 6), (3, 3), rowspan = 1, colspan = 3)
-                        hold(True)
+                            #alignedWaveforms = align_waveforms(clusterSamples)
 
-                        #alignedWaveforms = align_waveforms(clusterSamples)
+                            #plot_waveforms(alignedWaveforms)
+                            if shape(clusterSamples)[0]:
+                                #pdb.set_trace()
 
-                        #plot_waveforms(alignedWaveforms)
-                        if shape(clusterSamples)[0]:
-                            #pdb.set_trace()
+                                clusterSamples = reshape(clusterSamples, [len(clusterSamples), 160])
 
-                            clusterSamples = reshape(clusterSamples, [len(clusterSamples), 160])
+                                meanSample  = clusterSamples.mean(axis=0)
 
-                            meanSample  = clusterSamples.mean(axis=0)
-                            
-                            plot(meanSample, 'r')
+                                plot(meanSample, 'r')
 
-                            indsToPlot = np.random.randint(len(clusterSamples), size = 20)
+                                indsToPlot = np.random.randint(len(clusterSamples), size = 20)
 
-                            for indP in indsToPlot:
-                                plot(clusterSamples[indP, :], 'r', alpha = 0.1)
-                    
-                    
-                elif indSession == 6: # Laser pulses at 1mW
-                    if site.sessionList[6]:
-                        #subplot2grid((4, 6), (3, 3), rowspan = 1, colspan = 3)
-                        hold(True)
+                                for indP in indsToPlot:
+                                    plot(clusterSamples[indP, :], 'r', alpha = 0.1)
 
-                        #alignedWaveforms = align_waveforms(clusterSamples)
 
-                        #plot_waveforms(alignedWaveforms)
-                        if shape(clusterSamples)[0]:
-                            #pdb.set_trace()
+                    elif indSession == 6: # Laser pulses at 1mW
+                        if site.sessionList[6]:
+                            #subplot2grid((4, 6), (3, 3), rowspan = 1, colspan = 3)
+                            hold(True)
 
-                            clusterSamples = reshape(clusterSamples, [len(clusterSamples), 160])
+                            #alignedWaveforms = align_waveforms(clusterSamples)
 
-                            meanSample  = clusterSamples.mean(axis=0)
-                            
-                            plot(meanSample, 'b')
+                            #plot_waveforms(alignedWaveforms)
+                            if shape(clusterSamples)[0]:
+                                #pdb.set_trace()
 
-                            indsToPlot = np.random.randint(len(clusterSamples), size = 20)
+                                clusterSamples = reshape(clusterSamples, [len(clusterSamples), 160])
 
-                            for indP in indsToPlot:
-                                plot(clusterSamples[indP, :], 'b', alpha = 0.1)
+                                meanSample  = clusterSamples.mean(axis=0)
+
+                                plot(meanSample, 'b')
+
+                                indsToPlot = np.random.randint(len(clusterSamples), size = 20)
+
+                                for indP in indsToPlot:
+                                    plot(clusterSamples[indP, :], 'b', alpha = 0.1)
 
                             
 
