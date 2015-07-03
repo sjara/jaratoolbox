@@ -43,28 +43,29 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
         
     def load_all_waveforms(self):
         for ind, session in enumerate(self.sessionList):
-            ephysDir = os.path.join(settings.EPHYS_PATH, self.animalName, session)
-            spikeFile = os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(self.tetrode))
-            dataSpkObj = loadopenephys.DataSpikes(spikeFile)
-            numSpikes = dataSpkObj.nRecords
+            if session: #This is a fix for when some sessions are 'None'
+                ephysDir = os.path.join(settings.EPHYS_PATH, self.animalName, session)
+                spikeFile = os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(self.tetrode))
+                dataSpkObj = loadopenephys.DataSpikes(spikeFile)
+                numSpikes = dataSpkObj.nRecords
             
-            #Add the ind to the vector of zeros, indicates which recording this is from. 
-            sessionVector = dataSpkObj.recordingNumber+ind
+                #Add the ind to the vector of zeros, indicates which recording this is from. 
+                sessionVector = dataSpkObj.recordingNumber+ind
 
-            #Have to 
-            samplesThisSession = dataSpkObj.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
-            samplesThisSession = (1000.0/dataSpkObj.gain[0,0]) * samplesThisSession
-            timestampsThisSession = dataSpkObj.timestamps/self.SAMPLING_RATE
+                #Have to 
+                samplesThisSession = dataSpkObj.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
+                samplesThisSession = (1000.0/dataSpkObj.gain[0,0]) * samplesThisSession
+                timestampsThisSession = dataSpkObj.timestamps/self.SAMPLING_RATE
             
-            #Set the values when working with the first session, then append for the other sessions. 
-            if ind==0:
-                self.samples = samplesThisSession
-                self.timestamps = timestampsThisSession
-                self.recordingNumber = sessionVector
-            else:
-                self.samples = np.concatenate([self.samples, samplesThisSession])
-                self.timestamps = np.concatenate([self.timestamps, timestampsThisSession])
-                self.recordingNumber = np.concatenate([self.recordingNumber, sessionVector])
+                #Set the values when working with the first session, then append for the other sessions. 
+                if ind==0:
+                    self.samples = samplesThisSession
+                    self.timestamps = timestampsThisSession
+                    self.recordingNumber = sessionVector
+                else:
+                    self.samples = np.concatenate([self.samples, samplesThisSession])
+                    self.timestamps = np.concatenate([self.timestamps, timestampsThisSession])
+                    self.recordingNumber = np.concatenate([self.recordingNumber, sessionVector])
             
         self.nSpikes = len(self.timestamps)
 
