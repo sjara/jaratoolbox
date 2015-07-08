@@ -53,28 +53,50 @@ class EphysExperiment(object):
 
         return ephysSession
 
-    def get_session_ephys_data(self, session, tetrode, convert_to_seconds=True):
+    def get_session_event_data(self, session):
         '''
-        Method to retrieve the ephys data for a session/tetrode. Automatically loads the 
-        clusters if clustering has been done for the session
+        Gets the event data for a session. Split because there is no need to specify a tetrode for the event data, but
+        a tetrode must be specified for the spike data
+        
+        The event data is not modified. Timestamps are not converted to seconds at this point
 
         '''
         
-        SAMPLING_RATE = 30000.0
-
         ephysSession = self.get_session_name(session)
-
         ephysDir=os.path.join(self.localEphysDir, ephysSession)
-        plotTitle = ephysDir
         event_filename=os.path.join(ephysDir, 'all_channels.events')
-
         eventData=loadopenephys.Events(event_filename)
 
+        return eventData
+
+        
+    def get_session_plot_title(self, session):
+        '''
+        Constructs the full session path for use as a plot title
+        '''
+
+        ephysSession = self.get_session_name(session)
+        ephysDir=os.path.join(self.localEphysDir, ephysSession)
+        plotTitle = ephysDir
+
+        return plotTitle
+
+
+    def get_session_spike_data_one_tetrode(self, session, tetrode, convert_to_seconds=True):
+        '''
+        Method to retrieve the spike data for a session/tetrode. Automatically loads the 
+        clusters if clustering has been done for the session. This method converts the spike 
+        timestamps to seconds by default. 
+
+        '''
+        
+        ephysSession = self.get_session_name(session)
+        ephysDir=os.path.join(self.localEphysDir, ephysSession)
         spikeFilename = os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
         spikeData = loadopenephys.DataSpikes(spikeFilename)
         
         if convert_to_seconds:
-            spikeData.timestamps = spikeData.timestamps/SAMPLING_RATE
+            spikeData.timestamps = spikeData.timestamps/self.SAMPLING_RATE
         
         #If clustering has been done for the tetrode, add the clusters to the spikedata object
         clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,ephysSession))
@@ -82,7 +104,7 @@ class EphysExperiment(object):
         if os.path.isfile(clustersFile):
             spikeData.set_clusters(clustersFile)
 
-        return spikeData, eventData, plotTitle
+        return spikeData
         
     def get_event_onset_times(self, eventData, convert_to_seconds = True):
         '''
@@ -136,7 +158,7 @@ class EphysExperiment(object):
         
         self.plot_raster(spikeTimestamps, eventOnsetTimes, plotTitle, sortArray = sortArray, replace = replace)
         
-    def plot_raster(self, spikeTimestamps, eventOnsetTimes, plotTitle, sortArray = [], replace = 0, timeRange = [-0.5, 1]):
+    def plot_raster(self, spikeTimestamps, eventOnsetTimes, sortArray = [], replace = 0, timeRange = [-0.5, 1]):
         '''
         Plot a raster given spike timestamps and event onset times
         
@@ -156,30 +178,19 @@ class EphysExperiment(object):
         #pdb.set_trace()
 
         extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond)
-        show()
 
-        # plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', ms=1)
-        # axvline(x=0, ymin=0, ymax=1, color='r')
-        # title(plotTitle)
-
-
-    def plot_array_raster(self, session, replace=0, SAMPLING_RATE = 30000.0, timeRange = [-0.5, 1], numTetrodes=4, tetrodeIDs=[3,4,5,6]):
+    def plot_array_raster(self, session, replace=0, timeRange = [-0.5, 1], tetrodeIDs=[3,4,5,6]):
+        '''
+        This is the much-improved version of a function to plot a raster for each tetrode. All rasters
+        will be plotted using standardized plotting code, and we will simply call the functions. 
+        In this case, we get the event data once, and then loop through the tetrodes, getting the 
+        spike data and calling the plotting code for each tetrode. 
+        '''
         
-        ephysSession = self.get_session_name(session)
-
-        ephysDir=os.path.join(self.localEphysDir, ephysSession)
-
-        event_filename=os.path.join(ephysDir, 'all_channels.events')
-
-        #Load event data and convert event timestamps to ms
-        ev=loadopenephys.Events(event_filename)
-        eventTimes=np.array(ev.timestamps)/SAMPLING_RATE
-        evID=np.array(ev.eventID)
-        evChannel = np.array(ev.eventChannel)
-        eventOnsetTimes=eventTimes[(evID==1)&(evChannel==0)]
-
-        evdiff = np.r_[1.0, np.diff(eventOnsetTimes)]
-        eventOnsetTimes=eventOnsetTimes[evdiff>0.5]
+        numTetrodes = len(tetrodeIDs)
+        eventData = self.get_session_event_data(session)
+        eventOnsetTimes = self.get_event_onset_times(eventData)
+        plotTitle = self.get_session_plot_title(session)
 
         if replace:
             clf()
@@ -187,20 +198,19 @@ class EphysExperiment(object):
             figure()
 
         for ind , tetrodeID in enumerate(tetrodeIDs):
-            spike_filename=os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(tetrodeID))
-            sp=loadopenephys.DataSpikes(spike_filename)
+            
+            spikeData = self.get_session_spike_data_one_tetrode(session, tetrodeID)
+
             try:
-                spkTimeStamps=np.array(sp.timestamps)/SAMPLING_RATE
-                (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = spikesanalysis.eventlocked_spiketimes(spkTimeStamps,eventOnsetTimes,timeRange)
-
                 subplot(numTetrodes,1,ind+1)
+                spikeTimestamps = spikeData.timestamps
 
-                plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', ms=1)
-                axvline(x=0, ymin=0, ymax=1, color='r')
+                self.plot_raster(spikeTimestamps, eventOnsetTimes)
                 if ind == 0:
-                    title(ephysDir)
+                    title(plotTitle)
                 #title('Channel {0} spikes'.format(ind+1))
             except AttributeError:  #Spikes files without any spikes will throw an error
+                print "Error - Probably no spikes on TT{}".format(tetrodeID)
                 pass
 
         xlabel('time(sec)')
@@ -209,14 +219,13 @@ class EphysExperiment(object):
         show()
 
 
-    def plot_clustered_raster(self, session, tetrode, clustersToPlot):
+    def plot_clustered_raster(self, session, tetrode, clustersToPlot, timeRange = [-0.5, 1]):
 
 
         ephysSession = self.get_session_name(session)
         
         animalName = self.animalName
-        SAMPLING_RATE = 30000.0
-        timeRange = [-0.5, 1] #FIXME: These should be object methods, not just specific to this function
+        #FIXME: These should be object methods, not just specific to this function
         spike_filename=os.path.join(settings.EPHYS_PATH, animalName, ephysSession, 'Tetrode{0}.spikes'.format(tetrode))
         sp=loadopenephys.DataSpikes(spike_filename)
         clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(animalName,ephysSession))

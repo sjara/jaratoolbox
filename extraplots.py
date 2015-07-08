@@ -115,7 +115,7 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
 
     for indcond in range(nCond):
         pRasterOne, = plt.plot(spikeTimesEachCond[indcond],
-                            trialIndexEachCond[indcond]+firstTrialEachCond[indcond],'.k',
+                            trialIndexEachCond[indcond]+firstTrialEachCond[indcond],'.k', ms=1,
                             rasterized=True)
         pRaster.append(pRasterOne)
         ypos = np.array([firstTrialEachCond[indcond],firstTrialEachCond[indcond],
