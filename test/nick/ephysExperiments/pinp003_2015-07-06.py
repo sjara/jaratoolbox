@@ -62,14 +62,14 @@ There are some problems with the current flow.
 Good: 
 - The document where the sessions are listed can be very concise, seperate from any plotting or processing code. 
 
-- The plotting functions take arrays and bdata dictionaries, so they are easily reusable
+- The plotting functions take arrays and bdata dictionaries, so they are easily reusable. UPDATE: funcs now do not need bdata dicts
 
 - There are helper functions for calling the plotting code with a session input. 
 
 Bad: 
- - The EphysExperiment class should not need to have processing code that is unique to a single expriment. This class should contain methods that are applicable to all experiments. 
+ FIXED - The EphysExperiment class should not need to have processing code that is unique to a single expriment. This class should contain methods that are applicable to all experiments. 
 
-- The Multisession clustering code should make it possible to go back and examine a single session later (loading the appropriate clusters) without needing to assemble another multisession object together. 
+ FIXED - The Multisession clustering code should make it possible to go back and examine a single session later (loading the appropriate clusters) without needing to assemble another multisession object together. 
 
 The Plan: 
 

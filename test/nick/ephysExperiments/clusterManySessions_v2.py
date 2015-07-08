@@ -254,10 +254,11 @@ if __name__=="__main__":
 
     clusterFile = os.path.join(oneTT.clustersDir,'Tetrode%d.clu.1'%oneTT.tetrode)
     if os.path.isfile(clusterFile):
-       oneTT.set_clusters_from_file() 
+        oneTT.set_clusters_from_file() 
     else:
         oneTT.create_multisession_fet_files()
         oneTT.run_clustering()
+        oneTT.set_clusters_from_file() 
     oneTT.save_multisession_report()
     oneTT.save_single_session_clu_files()
     
