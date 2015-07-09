@@ -1,11 +1,11 @@
 import os
 from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
+reload(cms2)
 from jaratoolbox.test.nick.ephysExperiments import ephys_experiment_v2 as ee2
+reload(ee2)
 import matplotlib.pyplot as plt
 plt.ioff() #Turn off interactive plottting, save figs to png instead
 import numpy as np
-reload(cms2)
-reload(ee2)
 
 def laser_tc_analysis(site, sitenum):
 
@@ -17,17 +17,6 @@ def laser_tc_analysis(site, sitenum):
     to load each session, select clusters, plot the appropriate plots, etc. This code is being removed from 
     the EphysExperiment object because that object should be general and apply to any kind of recording 
     experiment. This function does the data analysis for one specific kind of experiment. 
-    
-    Args:
-
-        site (RecordingSite object): An instance of the RecordingSite class from the ephys_experiment_v2 module
-        sitenum (int): The site number for the site, used for constructing directory names
-    
-    Example:
-    
-        from jaratoolbox.test.nick.ephysExperiments import laserTCanalysis
-        for indSite, site in enumerate(today.siteList):
-            laserTCanalysis.laser_tc_analysis(site, indSite+1)
     '''
     #This is where I should incorporate Lan's sorting function
     #Construct a multiple session clustering object with the session list. 
@@ -86,7 +75,7 @@ def laser_tc_analysis(site, sitenum):
             tcSession = site.get_session_filenames()[tcIndex]
             tcBehavID = site.get_session_behavIDs()[tcIndex]
             exp2.plot_session_tc_heatmap(tcSession, tetrode, tcBehavID, replace = 1, cluster = cluster)
-            plt.title("{0}\nBehavFileID = '{1}'".format(tcSession, tcBehavID), fontsize = 10)
+            plt.title('Tetrode {0} Cluster {1}'.format(tetrode, cluster))
 
             #The best freq presentation
             plt.subplot2grid((4, 6), (3, 0), rowspan=1, colspan=3)
