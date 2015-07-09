@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 import os
 import subprocess
 from pylab import *
+import matplotlib.ticker as ticker
+import matplotlib.pyplot as plt
 import numpy as np
 import pdb
 
@@ -53,28 +55,50 @@ class EphysExperiment(object):
 
         return ephysSession
 
-    def get_session_ephys_data(self, session, tetrode, convert_to_seconds=True):
+    def get_session_event_data(self, session):
         '''
-        Method to retrieve the ephys data for a session/tetrode. Automatically loads the 
-        clusters if clustering has been done for the session
+        Gets the event data for a session. Split because there is no need to specify a tetrode for the event data, but
+        a tetrode must be specified for the spike data
+        
+        The event data is not modified. Timestamps are not converted to seconds at this point
 
         '''
         
-        SAMPLING_RATE = 30000.0
-
         ephysSession = self.get_session_name(session)
-
         ephysDir=os.path.join(self.localEphysDir, ephysSession)
-        plotTitle = ephysDir
         event_filename=os.path.join(ephysDir, 'all_channels.events')
-
         eventData=loadopenephys.Events(event_filename)
 
+        return eventData
+
+        
+    def get_session_plot_title(self, session):
+        '''
+        Constructs the full session path for use as a plot title
+        '''
+
+        ephysSession = self.get_session_name(session)
+        ephysDir=os.path.join(self.localEphysDir, ephysSession)
+        plotTitle = ephysDir
+
+        return plotTitle
+
+
+    def get_session_spike_data_one_tetrode(self, session, tetrode, convert_to_seconds=True):
+        '''
+        Method to retrieve the spike data for a session/tetrode. Automatically loads the 
+        clusters if clustering has been done for the session. This method converts the spike 
+        timestamps to seconds by default. 
+
+        '''
+        
+        ephysSession = self.get_session_name(session)
+        ephysDir=os.path.join(self.localEphysDir, ephysSession)
         spikeFilename = os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
         spikeData = loadopenephys.DataSpikes(spikeFilename)
         
         if convert_to_seconds:
-            spikeData.timestamps = spikeData.timestamps/SAMPLING_RATE
+            spikeData.timestamps = spikeData.timestamps/self.SAMPLING_RATE
         
         #If clustering has been done for the tetrode, add the clusters to the spikedata object
         clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,ephysSession))
@@ -82,7 +106,7 @@ class EphysExperiment(object):
         if os.path.isfile(clustersFile):
             spikeData.set_clusters(clustersFile)
 
-        return spikeData, eventData, plotTitle
+        return spikeData
         
     def get_event_onset_times(self, eventData, convert_to_seconds = True):
         '''
@@ -127,16 +151,18 @@ class EphysExperiment(object):
         oneTT.save_report()
 
     def plot_session_raster(self, session, tetrode, cluster = None, sortArray = [], replace=0):
-        spikeData, eventData, plotTitle= self.get_session_ephys_data(session, tetrode)
+        plotTitle = self.get_session_plot_title(session)
+        spikeData= self.get_session_spike_data_one_tetrode(session, tetrode)
+        eventData = self.get_session_event_data(session)
         eventOnsetTimes = self.get_event_onset_times(eventData)
         spikeTimestamps=spikeData.timestamps
         
         if cluster:
             spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
         
-        self.plot_raster(spikeTimestamps, eventOnsetTimes, plotTitle, sortArray = sortArray, replace = replace)
+        self.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, replace = replace)
         
-    def plot_raster(self, spikeTimestamps, eventOnsetTimes, plotTitle, sortArray = [], replace = 0, timeRange = [-0.5, 1]):
+    def plot_raster(self, spikeTimestamps, eventOnsetTimes, sortArray = [], replace = 0, timeRange = [-0.5, 1]):
         '''
         Plot a raster given spike timestamps and event onset times
         
@@ -155,31 +181,25 @@ class EphysExperiment(object):
         spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimes,timeRange)
         #pdb.set_trace()
 
+        if replace: #Now using cla() so that it will work with subplots
+            cla()
+        else:
+            figure()
+
         extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond)
-        show()
 
-        # plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', ms=1)
-        # axvline(x=0, ymin=0, ymax=1, color='r')
-        # title(plotTitle)
-
-
-    def plot_array_raster(self, session, replace=0, SAMPLING_RATE = 30000.0, timeRange = [-0.5, 1], numTetrodes=4, tetrodeIDs=[3,4,5,6]):
+    def plot_array_raster(self, session, replace=0, timeRange = [-0.5, 1], tetrodeIDs=[3,4,5,6]):
+        '''
+        This is the much-improved version of a function to plot a raster for each tetrode. All rasters
+        will be plotted using standardized plotting code, and we will simply call the functions. 
+        In this case, we get the event data once, and then loop through the tetrodes, getting the 
+        spike data and calling the plotting code for each tetrode. 
+        '''
         
-        ephysSession = self.get_session_name(session)
-
-        ephysDir=os.path.join(self.localEphysDir, ephysSession)
-
-        event_filename=os.path.join(ephysDir, 'all_channels.events')
-
-        #Load event data and convert event timestamps to ms
-        ev=loadopenephys.Events(event_filename)
-        eventTimes=np.array(ev.timestamps)/SAMPLING_RATE
-        evID=np.array(ev.eventID)
-        evChannel = np.array(ev.eventChannel)
-        eventOnsetTimes=eventTimes[(evID==1)&(evChannel==0)]
-
-        evdiff = np.r_[1.0, np.diff(eventOnsetTimes)]
-        eventOnsetTimes=eventOnsetTimes[evdiff>0.5]
+        numTetrodes = len(tetrodeIDs)
+        eventData = self.get_session_event_data(session)
+        eventOnsetTimes = self.get_event_onset_times(eventData)
+        plotTitle = self.get_session_plot_title(session)
 
         if replace:
             clf()
@@ -187,20 +207,19 @@ class EphysExperiment(object):
             figure()
 
         for ind , tetrodeID in enumerate(tetrodeIDs):
-            spike_filename=os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(tetrodeID))
-            sp=loadopenephys.DataSpikes(spike_filename)
+            
+            spikeData = self.get_session_spike_data_one_tetrode(session, tetrodeID)
+
             try:
-                spkTimeStamps=np.array(sp.timestamps)/SAMPLING_RATE
-                (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = spikesanalysis.eventlocked_spiketimes(spkTimeStamps,eventOnsetTimes,timeRange)
-
                 subplot(numTetrodes,1,ind+1)
+                spikeTimestamps = spikeData.timestamps
 
-                plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', ms=1)
-                axvline(x=0, ymin=0, ymax=1, color='r')
+                self.plot_raster(spikeTimestamps, eventOnsetTimes)
                 if ind == 0:
-                    title(ephysDir)
+                    title(plotTitle)
                 #title('Channel {0} spikes'.format(ind+1))
             except AttributeError:  #Spikes files without any spikes will throw an error
+                print "Error - Probably no spikes on TT{}".format(tetrodeID)
                 pass
 
         xlabel('time(sec)')
@@ -209,14 +228,13 @@ class EphysExperiment(object):
         show()
 
 
-    def plot_clustered_raster(self, session, tetrode, clustersToPlot):
+    def plot_clustered_raster(self, session, tetrode, clustersToPlot, timeRange = [-0.5, 1]):
 
 
         ephysSession = self.get_session_name(session)
         
         animalName = self.animalName
-        SAMPLING_RATE = 30000.0
-        timeRange = [-0.5, 1] #FIXME: These should be object methods, not just specific to this function
+        #FIXME: These should be object methods, not just specific to this function
         spike_filename=os.path.join(settings.EPHYS_PATH, animalName, ephysSession, 'Tetrode{0}.spikes'.format(tetrode))
         sp=loadopenephys.DataSpikes(spike_filename)
         clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(animalName,ephysSession))
@@ -464,7 +482,7 @@ class EphysExperiment(object):
 
             
 
-    def plot_session_tc_heatmap(self, session, tetrode, behavFileIdentifier, cluster = None, norm=False):
+    def plot_session_tc_heatmap(self, session, tetrode, behavFileIdentifier, replace = 0, cluster = None, norm=False):
 
         '''
         Wrapper to plot a TC heatmap for a single session/tetrode
@@ -495,7 +513,9 @@ class EphysExperiment(object):
         '''
         
         #Get the ephys and event data
-        spikeData, eventData, plotTitle = self.get_session_ephys_data(session, tetrode)
+        spikeData = self.get_session_spike_data_one_tetrode(session, tetrode)
+        eventData = self.get_session_event_data(session)
+        plotTitle = self.get_session_plot_title(session)
 
         #Get the behavior data and extract the freq and intensity each trial
         bdata = self.get_session_behav_data(session, behavFileIdentifier)
@@ -511,10 +531,9 @@ class EphysExperiment(object):
             spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
         
         #Call the plotting code with the data
-        self.plot_tc_heatmap(spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, norm)
+        self.plot_tc_heatmap(spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, replace = replace, norm = norm)
 
-    def plot_tc_heatmap(self, spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, norm=False):
-        #TODO: option to replace or make new fig
+    def plot_tc_heatmap(self, spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, replace = 0, norm=False):
         
         '''
         Plot a tuning curve heatmap. 
@@ -580,195 +599,94 @@ class EphysExperiment(object):
                 
         #fig = figure()
         #ax = fig.add_subplot(111)
-        ax=gca()
+
+        if replace:
+      
+            figure()
+        
+        ax = gca()
         ax.set_ylabel('Intensity (dB SPL)')
         ax.set_xlabel('Frequency (kHz)')
         cax = ax.imshow(np.flipud(allSettingsSpikeCount), interpolation='none', aspect='auto', cmap='Blues')
-        cbar=colorbar(cax)
+        vmin, vmax = cax.get_clim()
+        cbar=colorbar(cax, format = '%.1f')
+        
         if norm:
             cbar.ax.set_ylabel('Proportion of max firing')
         else:
             cbar.ax.set_ylabel('Average spikes in 0.1sec after stim')
         ax.set_xticks(range(len(possibleFreq)))
         xticks = ["%.1f" % freq for freq in possibleFreq/1000.0]
-        ax.set_xticklabels(xticks)
+        ax.set_xticklabels(xticks, rotation = 'vertical')
         ax.set_yticks([0, 1, 2, 3])
         
         ax.set_yticklabels(possibleIntensity[::-1])
 
-    def process_site(self, site, sitenum):
 
-        '''
-        Function to plot a summary report for a site. Will be expanded to plot a report per good cluster
-        Bad method - takes a RecordingSite object. Probably not very scalable though since the plots are specific to this experiment
-        Will: 
-
-        - Put all of the sites together into a container and cluster them together
-        - Use the clustered data, along with an EphysExperiment object, to plot a bunch of 
-        figures for each of the units, for each of the sites. 
-        '''
-        oneTT = MultipleSessionsToCluster(self.animalName,site.sessionList,site.goodTetrodes[0], '{}site{}'.format(self.date, sitenum))
-
-        oneTT.load_all_waveforms()
-
-        clusterFile = os.path.join(oneTT.clustersDir,'Tetrode%d.clu.1'%oneTT.tetrode)
-        if os.path.isfile(clusterFile):
-           oneTT.set_clusters_from_file() 
-        else:
-           oneTT.create_multisession_fet_files()
-           oneTT.run_clustering()
-           oneTT.set_clusters_from_file() 
-        
-        
-        
-        possibleClusters = np.unique(oneTT.clusters)
-        
-        
-        for indClust, cluster in enumerate(possibleClusters):
-
-            #For each cluster, plot the following:
-            #Noise Burst raster
-            #Laser Pulse Raster
-            #Laser Train raster
-            #Tuning curve
-            #Waveform for 1mW and 3mW laser presentations
-
-            #We also need a projection plot for the session - possibly plot all the different projections possible with the dataset?
-
-            ###Start by making a new figure for each cluster
-            figure()
-            title('Cluster {}'.format(indClust+1))
-
-            for indSession, session in enumerate(site.sessionList): 
-            
-
-                if session: #This should make this code work even if some of the sessions are None
-                    clusterSpikeTimestamps = oneTT.timestamps[(oneTT.clusters==cluster) & (oneTT.recordingNumber==indSession)]
-                    clusterSamples = oneTT.samples[(oneTT.clusters==cluster) & (oneTT.recordingNumber==indSession)]
-                    spikeData, eventData, plotTitle = self.get_session_ephys_data(site.sessionList[indSession], 6)
-
-                    eventOnsetTimes = self.get_event_onset_times(eventData)
-
-                    if indSession <= 2: #The first 3 raster plots
-                        subplot2grid((4, 6), (indSession, 0), rowspan = 1, colspan = 3)
-                        self.plot_raster(clusterSpikeTimestamps, eventOnsetTimes, session)    
-
-                        if indSession==0:
-                            ylabel('Noise Bursts')
-                        elif indSession==1:
-                            ylabel('Laser Pulse')
-                        elif indSession==2:
-                            ylabel('LaserTrain')
-
-                    elif indSession == 3: #The tuning curve
-                        bdata = self.get_session_behav_data(session, site.tuningCurveBehavIdentifier)
-                        freqEachTrial = bdata['currentFreq']
-                        intensityEachTrial = bdata['currentIntensity']
-                        subplot2grid((4, 6), (0, 3), rowspan = 3, colspan = 3)
-                        self.plot_tc_heatmap(clusterSpikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial)
-                        title('Cluster {}'.format(cluster))
-
-                    elif indSession == 4: #The BF presentaion
-                        subplot2grid((4, 6), (3, 0), rowspan=1, colspan=3)
-                        self.plot_raster(clusterSpikeTimestamps, eventOnsetTimes, session)
-                        ylabel('BF')
-
-                    elif indSession == 5: # Laser pulses at 3mW
-                        if site.sessionList[5]:
-                            subplot2grid((4, 6), (3, 3), rowspan = 1, colspan = 3)
-                            hold(True)
-
-                            #alignedWaveforms = align_waveforms(clusterSamples)
-
-                            #plot_waveforms(alignedWaveforms)
-                            if shape(clusterSamples)[0]:
-                                #pdb.set_trace()
-
-                                clusterSamples = reshape(clusterSamples, [len(clusterSamples), 160])
-
-                                meanSample  = clusterSamples.mean(axis=0)
-
-                                plot(meanSample, 'r')
-
-                                indsToPlot = np.random.randint(len(clusterSamples), size = 20)
-
-                                for indP in indsToPlot:
-                                    plot(clusterSamples[indP, :], 'r', alpha = 0.1)
-
-
-                    elif indSession == 6: # Laser pulses at 1mW
-                        if site.sessionList[6]:
-                            #subplot2grid((4, 6), (3, 3), rowspan = 1, colspan = 3)
-                            hold(True)
-
-                            #alignedWaveforms = align_waveforms(clusterSamples)
-
-                            #plot_waveforms(alignedWaveforms)
-                            if shape(clusterSamples)[0]:
-                                #pdb.set_trace()
-
-                                clusterSamples = reshape(clusterSamples, [len(clusterSamples), 160])
-
-                                meanSample  = clusterSamples.mean(axis=0)
-
-                                plot(meanSample, 'b')
-
-                                indsToPlot = np.random.randint(len(clusterSamples), size = 20)
-
-                                for indP in indsToPlot:
-                                    plot(clusterSamples[indP, :], 'b', alpha = 0.1)
-
-                            
-
-
-            
-                        
-            fig_path = oneTT.clustersDir
-            fig_name = 'Cluster{}.png'.format(cluster)
-            full_fig_path = os.path.join(fig_path, fig_name)
-            print full_fig_path
-            tight_layout()
-            savefig(full_fig_path, format = 'png')
-            
-
-
-
-        figure()
-        oneTT.save_multisession_report()
+class RecordingDay(object):
+    '''
+    Parent class so that we don't have to re-enter this info for each recording site. 
+    The construction of new recording sites could possible be handled through a
+    method of this class in the future. For now, an instance of this class is a
+    required argument for the RecordingSite class
+    '''
+    def __init__(self, animalName, date, experimenter):
+        self.animalName = animalName
+        self.date = date
+        self.experimenter = experimenter
+        self.siteList = []
         
 
 class RecordingSite(object):
     
     '''
-    One-off class specifically for the experiments that I have been doing
+    Class for holding information about a recording site. Will act as a parent for all of the 
+    RecordingSession objects that hold information about each individual recording session. 
     '''
 
     def __init__(self,
+                 parent, 
                  depth,
-                 noiseburstEphysSession,
-                 laserPulseEphysSession,
-                 laserTrainEphysSession,
-                 tuningCurveEphysSession,
-                 tuningCurveBehavIdentifier,
-                 bfEphysSession,
-                 bfBehavIdentifier,
-                 laserPulseEphysSession3mW,
-                 laserPulseEphysSession1mW,
                  goodTetrodes):
 
+        self.animalName = parent.animalName
+        self.date = parent.date
+        self.experimenter = parent.experimenter
         self.depth = depth
-        self.noiseburstEphysSession = noiseburstEphysSession
-        self.laserPulseEphysSession = laserPulseEphysSession
-        self.laserTrainEphysSession = laserTrainEphysSession
-        self.tuningCurveEphysSession = tuningCurveEphysSession
-        self.tuningCurveBehavIdentifier = tuningCurveBehavIdentifier
-        self.bfEphysSession = bfEphysSession
-        self.bfBehavIdentifier = bfBehavIdentifier
-        self.laserPulseEphysSession3mW = laserPulseEphysSession3mW
-        self.laserPulseEphysSession1mW = laserPulseEphysSession1mW
         self.goodTetrodes = goodTetrodes
+        self.sessionList = []
+        parent.siteList.append(self)
+
         
-        self.sessionList = [self.noiseburstEphysSession, self.laserPulseEphysSession, self.laserTrainEphysSession, self.tuningCurveEphysSession, self.bfEphysSession, self.laserPulseEphysSession3mW, self.laserPulseEphysSession1mW]
+    def add_session(self, sessionID, behavFileIdentifier, sessionType):
+        self.sessionList.append(RecordingSession(sessionID, behavFileIdentifier, sessionType, self.date))
+
+    def get_session_filenames(self):
+        return [s.session for s in self.sessionList]
+
+    def get_session_behavIDs(self):
+        return [s.behavFileIdentifier for s in self.sessionList]
+
+    def get_session_types(self):
+        return [s.sessionType for s in self.sessionList]
+
+
+class RecordingSession(object):
+    '''
+    Class to hold information about a single session. 
+    Includes the session name, the type of session, and any associated behavior data
+    Accepts just the time of the recording (i.e. 11-36-54), and the date, which can 
+    be passed from the parent when this class is called. This keeps us from 
+    having to write it over and over again. 
+    '''
+    def __init__(self, sessionID, behavFileIdentifier, sessionType, date):
+        self.session = '_'.join([date, sessionID]) 
+        self.behavFileIdentifier = behavFileIdentifier
+        self.sessionType = sessionType
+            
+
+        
+        
 
 
         
