@@ -601,7 +601,8 @@ class EphysExperiment(object):
         #ax = fig.add_subplot(111)
 
         if replace:
-      
+            cla()
+        else:
             figure()
         
         ax = gca()

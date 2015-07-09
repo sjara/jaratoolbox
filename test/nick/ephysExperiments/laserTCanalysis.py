@@ -90,6 +90,7 @@ def laser_tc_analysis(site, sitenum):
             print full_fig_path
             plt.tight_layout()
             plt.savefig(full_fig_path, format = 'png')
+            #plt.show()
             plt.close()
 
         plt.figure()

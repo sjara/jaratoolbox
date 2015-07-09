@@ -22,7 +22,7 @@ site1.add_session('11-25-58', 'a', sessionTypes['tc'])
 site1.add_session('11-39-46', None, sessionTypes['bf'])
 site1.add_session('11-42-37', None, sessionTypes['3p'])
 site1.add_session('11-45-22', None, sessionTypes['1p'])
-'''
+
 site2 = ee2.RecordingSite(today, depth = 3550, goodTetrodes = [3, 6])
 site2.add_session('11-51-47', None, sessionTypes['nb'])
 site2.add_session('11-54-51', None, sessionTypes['lp'])
@@ -49,7 +49,6 @@ site4.add_session('13-15-01', 'd', sessionTypes['tc'])
 site4.add_session('13-28-12', None, sessionTypes['bf'])
 site4.add_session('13-30-00', None, sessionTypes['3p'])
 site4.add_session('13-31-58', None, sessionTypes['1p'])
-'''
 
 from jaratoolbox.test.nick.ephysExperiments import laserTCanalysis
 reload(laserTCanalysis)
