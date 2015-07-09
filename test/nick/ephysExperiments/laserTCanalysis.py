@@ -62,6 +62,7 @@ def laser_tc_analysis(site, sitenum):
             nbSession = site.get_session_filenames()[nbIndex]
             exp2.plot_session_raster(nbSession, tetrode, cluster = cluster, replace = 1)
             plt.ylabel('Noise Bursts')
+            plt.title(nbSession, fontsize = 10)
 
             #The laser pulse raster plot
             plt.subplot2grid((4, 6), (1, 0), rowspan = 1, colspan = 3)
@@ -69,6 +70,7 @@ def laser_tc_analysis(site, sitenum):
             lpSession = site.get_session_filenames()[lpIndex]
             exp2.plot_session_raster(lpSession, tetrode, cluster = cluster, replace = 1)
             plt.ylabel('Laser Pulses')
+            plt.title(lpSession, fontsize = 10)
 
             #The laser train raster plot
             plt.subplot2grid((4, 6), (2, 0), rowspan = 1, colspan = 3)
@@ -76,6 +78,7 @@ def laser_tc_analysis(site, sitenum):
             ltSession = site.get_session_filenames()[ltIndex]
             exp2.plot_session_raster(ltSession, tetrode, cluster = cluster, replace = 1)
             plt.ylabel('Laser Trains')
+            plt.title(ltSession, fontsize = 10)
 
             #The tuning curve
             plt.subplot2grid((4, 6), (0, 3), rowspan = 3, colspan = 3)
@@ -83,7 +86,7 @@ def laser_tc_analysis(site, sitenum):
             tcSession = site.get_session_filenames()[tcIndex]
             tcBehavID = site.get_session_behavIDs()[tcIndex]
             exp2.plot_session_tc_heatmap(tcSession, tetrode, tcBehavID, replace = 1, cluster = cluster)
-            plt.title('Cluster {0} Tetrode {1}'.format(cluster, tetrode))
+            plt.title('Tetrode {0} Cluster {1}'.format(tetrode, cluster))
 
             #The best freq presentation
             plt.subplot2grid((4, 6), (3, 0), rowspan=1, colspan=3)
@@ -91,6 +94,7 @@ def laser_tc_analysis(site, sitenum):
             bfSession = site.get_session_filenames()[bfIndex]
             exp2.plot_session_raster(bfSession, tetrode, cluster = cluster, replace = 1)
             plt.ylabel('Best Frequency')
+            plt.title(bfSession, fontsize = 10)
 
             #FIXME: Omitting the laser pulses at different intensities for now
 
