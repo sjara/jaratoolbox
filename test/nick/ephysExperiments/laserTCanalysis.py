@@ -1,10 +1,13 @@
-def laser_tc_analysis(self, site, sitenum):
-    from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
-    reload(cms2)
-    from jaratoolbox.test.nick.ephysExperiments import ephys_experiment_v2 as ee2
-    reload(ee2)
-    import matplotlib.pyplot as plt
-    plt.ioff() #Turn off interactive plottting, save figs to png instead
+import os
+from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
+reload(cms2)
+from jaratoolbox.test.nick.ephysExperiments import ephys_experiment_v2 as ee2
+reload(ee2)
+import matplotlib.pyplot as plt
+plt.ioff() #Turn off interactive plottting, save figs to png instead
+import numpy as np
+
+def laser_tc_analysis(site, sitenum):
 
     '''
     Data analysis function for laser/tuning curve experiments
@@ -43,53 +46,55 @@ def laser_tc_analysis(self, site, sitenum):
             plt.figure()
 
             #The first noise burst raster plot
-            subplot2grid((4, 6), (0, 0), rowspan = 1, colspan = 3)
+            plt.subplot2grid((4, 6), (0, 0), rowspan = 1, colspan = 3)
             nbIndex = site.get_session_types().index('noiseBurst')
             nbSession = site.get_session_filenames()[nbIndex]
             exp2.plot_session_raster(nbSession, tetrode, cluster = cluster, replace = 1)
-            ylabel('Noise Bursts')
+            plt.ylabel('Noise Bursts')
 
             #The laser pulse raster plot
-            subplot2grid((4, 6), (1, 0), rowspan = 1, colspan = 3)
+            plt.subplot2grid((4, 6), (1, 0), rowspan = 1, colspan = 3)
             lpIndex = site.get_session_types().index('laserPulse')
             lpSession = site.get_session_filenames()[lpIndex]
             exp2.plot_session_raster(lpSession, tetrode, cluster = cluster, replace = 1)
-            ylabel'Laser Pulses')
+            plt.ylabel('Laser Pulses')
 
             #The laser train raster plot
-            subplot2grid((4, 6), (2, 0), rowspan = 1, colspan = 3)
+            plt.subplot2grid((4, 6), (2, 0), rowspan = 1, colspan = 3)
             ltIndex = site.get_session_types().index('laserTrain')
             ltSession = site.get_session_filenames()[ltIndex]
             exp2.plot_session_raster(ltSession, tetrode, cluster = cluster, replace = 1)
-            ylabel('Laser Trains')
+            plt.ylabel('Laser Trains')
 
             #The tuning curve
-            subplot2grid((4, 6), (0, 3), rowspan = 3, colspan = 3)
+            plt.subplot2grid((4, 6), (0, 3), rowspan = 3, colspan = 3)
             tcIndex = site.get_session_types().index('tuningCurve')
             tcSession = site.get_session_filenames()[tcIndex]
             tcBehavID = site.get_session_behavIDs()[tcIndex]
-            exp2.plot_session_tc_heatmap(tcSessoin, tetrode, tcBehavID, replace = 1, cluster = cluster)
-            title('Cluster {0} Tetrode {1}'.format(cluster, tetrode))
+            exp2.plot_session_tc_heatmap(tcSession, tetrode, tcBehavID, replace = 1, cluster = cluster)
+            plt.title('Cluster {0} Tetrode {1}'.format(cluster, tetrode))
 
             #The best freq presentation
-            subplot2grid((4, 6), (3, 0), rowspan=1, colspan=3)
+            plt.subplot2grid((4, 6), (3, 0), rowspan=1, colspan=3)
             bfIndex = site.get_session_types().index('bestFreq')
             bfSession = site.get_session_filenames()[bfIndex]
             exp2.plot_session_raster(bfSession, tetrode, cluster = cluster, replace = 1)
-            ylabel('Best Frequency')
+            plt.ylabel('Best Frequency')
 
             #FIXME: Omitting the laser pulses at different intensities for now
 
             #Save the figure in the multisession clustering folder so that it is easy to find
             fig_path = oneTT.clustersDir
-            fig_name = 'Cluster{}.png'.format(cluster)
+            fig_name = 'TT{0}Cluster{1}.png'.format(tetrode, cluster)
             full_fig_path = os.path.join(fig_path, fig_name)
             print full_fig_path
             plt.tight_layout()
             plt.savefig(full_fig_path, format = 'png')
+            plt.close()
 
         plt.figure()
         oneTT.save_multisession_report()
+        plt.close()
 
 '''
 Old code to plot the waveforms - not sure how we are going to change this analysis, so not implementing yet

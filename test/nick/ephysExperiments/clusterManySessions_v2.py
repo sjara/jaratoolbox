@@ -111,7 +111,7 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
                 print 'Creating clusters directory: %s'%(sessionClusterDir)
                 os.makedirs(sessionClusterDir)
 
-            sessionClusterFile = os.path.join(sessionClusterDir,'Tetrode{}.clu.1'.format(tetrode))
+            sessionClusterFile = os.path.join(sessionClusterDir,'Tetrode{}.clu.1'.format(self.tetrode))
 
             fid = open(sessionClusterFile,'w')
             fid.write('{0}\n'.format('12')) #FIXME: I don't know if this number is the number of clusters, SHOULD NOT HARD CODE IT
@@ -138,7 +138,7 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
         self.report = MultiSessionClusterReport(self.samples, self.timestamps, self.clusters,
                                             outputDir=self.clustersDir,
                                             filename=self.reportFileName,figtitle=figTitle,
-                                                showfig=True)
+                                                showfig=False)
 
         
 class MultiSessionClusterReport(object):

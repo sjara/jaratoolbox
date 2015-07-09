@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 import os
 import subprocess
 from pylab import *
+import matplotlib.ticker as ticker
+import matplotlib.pyplot as plt
 import numpy as np
 import pdb
 
@@ -158,7 +160,7 @@ class EphysExperiment(object):
         if cluster:
             spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
         
-        self.plot_raster(spikeTimestamps, eventOnsetTimes, plotTitle, sortArray = sortArray, replace = replace)
+        self.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, replace = replace)
         
     def plot_raster(self, spikeTimestamps, eventOnsetTimes, sortArray = [], replace = 0, timeRange = [-0.5, 1]):
         '''
@@ -511,7 +513,9 @@ class EphysExperiment(object):
         '''
         
         #Get the ephys and event data
-        spikeData, eventData, plotTitle = self.get_session_ephys_data(session, tetrode)
+        spikeData = self.get_session_spike_data_one_tetrode(session, tetrode)
+        eventData = self.get_session_event_data(session)
+        plotTitle = self.get_session_plot_title(session)
 
         #Get the behavior data and extract the freq and intensity each trial
         bdata = self.get_session_behav_data(session, behavFileIdentifier)
@@ -597,22 +601,23 @@ class EphysExperiment(object):
         #ax = fig.add_subplot(111)
 
         if replace:
-            cla()
-        else:
+      
             figure()
         
         ax = gca()
         ax.set_ylabel('Intensity (dB SPL)')
         ax.set_xlabel('Frequency (kHz)')
         cax = ax.imshow(np.flipud(allSettingsSpikeCount), interpolation='none', aspect='auto', cmap='Blues')
-        cbar=colorbar(cax)
+        vmin, vmax = cax.get_clim()
+        cbar=colorbar(cax, format = '%.1f')
+        
         if norm:
             cbar.ax.set_ylabel('Proportion of max firing')
         else:
             cbar.ax.set_ylabel('Average spikes in 0.1sec after stim')
         ax.set_xticks(range(len(possibleFreq)))
         xticks = ["%.1f" % freq for freq in possibleFreq/1000.0]
-        ax.set_xticklabels(xticks)
+        ax.set_xticklabels(xticks, rotation = 'vertical')
         ax.set_yticks([0, 1, 2, 3])
         
         ax.set_yticklabels(possibleIntensity[::-1])
@@ -635,11 +640,8 @@ class RecordingDay(object):
 class RecordingSite(object):
     
     '''
-    One-off class specifically for the experiments that I have been doing.
-    This method should change so that it is useful for any kind of experiment. 
-    For instance, it could hold a bunch of child objects, each of which is a session
-    collected at this site. They could have attributes like what kind of session it is
-    and the kind of plot that we want for the session. 
+    Class for holding information about a recording site. Will act as a parent for all of the 
+    RecordingSession objects that hold information about each individual recording session. 
     '''
 
     def __init__(self,
