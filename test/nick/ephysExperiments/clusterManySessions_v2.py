@@ -23,7 +23,7 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
 
     def __init__(self, animalName, sessionList, tetrode, analysisDate):
         self.animalName = animalName
-        self.sessionList = sessionList
+        self.sessionList = sorted(sessionList) #Sort the list of sessions so that there will not be any negative ISIs
         self.SAMPLING_RATE = 30000.0
         self.tetrode = tetrode
         self.dataTT = None
