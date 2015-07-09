@@ -35,9 +35,11 @@ class OverlayGrid(object):
         self.fig = plt.gcf()
         self.cid = None  # Connection ID for mouse clicks
         self.show_image(self.origImg)
+        self.nRows = nRows
+        self.nCols = nCols
     def show_image(self,img):
         self.fig.clf()
-        plt.imshow(img)
+        plt.imshow(img, cmap = 'gray')
         plt.axis('equal')
         plt.show()
     def onclick(self,event):
@@ -47,7 +49,7 @@ class OverlayGrid(object):
         self.coords.append((event.xdata, event.ydata))
         if len(self.coords) == 2:
             self.fig.canvas.mpl_disconnect(self.cid)
-            draw_grid(self.coords)
+            draw_grid(self.coords, nRows = self.nRows, nCols = self.nCols)
             print 'Done. Now you can apply this grid to another image using apply_grid()'
             print 'Press enter to continue'
     def set_grid(self):
@@ -57,10 +59,11 @@ class OverlayGrid(object):
     def apply_grid(self,imgfile):
         newImg = mpimg.imread(imgfile)
         self.show_image(newImg)
-        draw_grid(self.coords)
+        #FIXME: Not able to pass non-default numbers of rows and columns
+        draw_grid(self.coords, nRows = self.nRows, nCols = self.nCols)
 
 if __name__=='__main__':
-    imgfile = '/data/brainmix_data/test043_TL/p1-D1-01b.jpg'
+    imgfile = '/mnt/jarahubdata/histology/anat002_MGB_jpg/b4-C1-01tdT_mirror_correct.jpg'
     ogrid = OverlayGrid(imgfile,nRows=3,nCols=2)
     ogrid.set_grid()
 
