@@ -46,7 +46,7 @@ def laser_tc_analysis(site, sitenum):
             oneTT.run_clustering()
             oneTT.set_clusters_from_file() 
 
-        #oneTT.save_single_session_clu_files()
+        oneTT.save_single_session_clu_files()
         '''
         0710: Ran into problems while saving single session clu file:
         ipdb> can't invoke "event" command: application has been destroyed
@@ -55,22 +55,33 @@ def laser_tc_analysis(site, sitenum):
         (procedure "ttk::ThemeChanged" line 6)
         invoked from within
         "ttk::ThemeChanged"
+        Fixed by commenting out this line. 
+        0712: This seemed to be a warning instead of actual error, still generated reports and save        ed files.
+        0712: if not saving single session clu files, ran into another problem when ploting single         cluster raster plots. so have to save them and fix the
+        ValueError:too many boolean indices
+        > /home/languo/src/jaratoolbox/test/nick/ephysExperiments/clusterManySessions_v2.py(119)sav        e_single_session_clu_files()
+        118 
+        --> 119             clusterNumsThisSession = self.clusters[self.recordingNumber == indSessi        on]
+        120             print "Writing .clu.1 file for session {}".format(session)
+        This is fixed: old clu files from last clustering is messing me up, making self.clusters an        d self.RecordingNumber be different size.
         '''
+
         possibleClusters = np.unique(oneTT.clusters)
 
         #We also need to initialize an EphysExperiment object to get the sessions
         exp2 = ee2.EphysExperiment(site.animalName, site.date, experimenter = site.experimenter)
 
         #Iterate through the clusters, making a new figure for each cluster. 
-        for indClust, cluster in enumerate(possibleClusters):
-
-            plt.figure()
+        for indClust, cluster in enumerate(possibleClusters): #Using possibleClusters[1:] was a hack to omit cluster 1 which usually contains noise and sometimes don't have spikes in the range for raster plot to run properlyl
+            plt.figure(figsize = (8.5,11))
 
             #The first noise burst raster plot
             plt.subplot2grid((5, 6), (0, 0), rowspan = 1, colspan = 3)
             nbIndex = site.get_session_types().index('noiseBurst')
             nbSession = site.get_session_filenames()[nbIndex]
+            
             exp2.plot_session_raster(nbSession, tetrode, cluster = cluster, replace = 1)
+            
             plt.ylabel('Noise Bursts')
             plt.title(nbSession, fontsize = 10)
 
