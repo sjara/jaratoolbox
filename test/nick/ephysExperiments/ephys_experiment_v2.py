@@ -97,9 +97,11 @@ class EphysExperiment(object):
         spikeFilename = os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
         spikeData = loadopenephys.DataSpikes(spikeFilename)
         
-        if convert_to_seconds:
+        if convert_to_seconds and hasattr(spikeData, 'timestamps'):
             spikeData.timestamps = spikeData.timestamps/self.SAMPLING_RATE
-        
+        else:
+            spikeData.timestamps = np.array([])
+
         #If clustering has been done for the tetrode, add the clusters to the spikedata object
         clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,ephysSession))
         clustersFile = os.path.join(clustersDir,'Tetrode%d.clu.1'%tetrode)
@@ -150,7 +152,7 @@ class EphysExperiment(object):
         T.run_clustering()
         oneTT.save_report()
 
-    def plot_session_raster(self, session, tetrode, cluster = None, sortArray = [], replace=0):
+    def plot_session_raster(self, session, tetrode, cluster = None, sortArray = [], replace=0, ms=4):
         plotTitle = self.get_session_plot_title(session)
         spikeData= self.get_session_spike_data_one_tetrode(session, tetrode)
         eventData = self.get_session_event_data(session)
@@ -160,9 +162,9 @@ class EphysExperiment(object):
         if cluster:
             spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
         
-        self.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, replace = replace)
+        self.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, replace = replace, ms=ms)
         
-    def plot_raster(self, spikeTimestamps, eventOnsetTimes, sortArray = [], replace = 0, timeRange = [-0.5, 1]):
+    def plot_raster(self, spikeTimestamps, eventOnsetTimes, sortArray = [], replace = 0, timeRange = [-0.5, 1], ms = 4):
         '''
         Plot a raster given spike timestamps and event onset times
         
@@ -183,12 +185,13 @@ class EphysExperiment(object):
 
         if replace: #Now using cla() so that it will work with subplots
             cla()
-        else:
-            figure()
+        #else:
+        #    figure()
 
-        extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond)
+        pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond)
+        setp(pRaster,ms=ms)
 
-    def plot_array_raster(self, session, replace=0, timeRange = [-0.5, 1], tetrodeIDs=[3,4,5,6]):
+    def plot_array_raster(self, session, replace=0, timeRange = [-0.5, 1], tetrodeIDs=[3,4,5,6], ms=4):
         '''
         This is the much-improved version of a function to plot a raster for each tetrode. All rasters
         will be plotted using standardized plotting code, and we will simply call the functions. 
@@ -205,23 +208,18 @@ class EphysExperiment(object):
             clf()
         else:
             figure()
+            
 
         for ind , tetrodeID in enumerate(tetrodeIDs):
             
             spikeData = self.get_session_spike_data_one_tetrode(session, tetrodeID)
-
-            try:
-                subplot(numTetrodes,1,ind+1)
-                spikeTimestamps = spikeData.timestamps
-
-                self.plot_raster(spikeTimestamps, eventOnsetTimes)
-                if ind == 0:
-                    title(plotTitle)
-                #title('Channel {0} spikes'.format(ind+1))
-            except AttributeError:  #Spikes files without any spikes will throw an error
-                print "Error - Probably no spikes on TT{}".format(tetrodeID)
-                pass
-
+            subplot(numTetrodes,1,ind+1)
+            spikeTimestamps = spikeData.timestamps
+            self.plot_raster(spikeTimestamps, eventOnsetTimes, replace = replace, ms=ms)
+            if ind == 0:
+                title(plotTitle)
+            #title('Channel {0} spikes'.format(ind+1))
+            
         xlabel('time(sec)')
         #tight_layout()
         draw()
@@ -229,6 +227,8 @@ class EphysExperiment(object):
 
 
     def plot_clustered_raster(self, session, tetrode, clustersToPlot, timeRange = [-0.5, 1]):
+        '''FIXME: UPDATE THIS TO USE THE NEW RASTER PLOTTING METHOD
+        '''
 
 
         ephysSession = self.get_session_name(session)
@@ -296,8 +296,10 @@ class EphysExperiment(object):
         '''
    
         #Calling method to get the ephys and event data
-        spikeData, eventData, plotTitle = self.get_session_ephys_data(session, tetrode)
-        
+        spikeData = self.get_session_spike_data_one_tetrode(session, tetrode)
+        eventData = self.get_session_event_data(session)
+        plotTitle = self.get_session_plot_title(session)
+
         #Calling method to get the behavior data and extract the freq and intensity each trial
         bdata = self.get_session_behav_data(session, behavFileIdentifier)
         freqEachTrial = bdata['currentFreq']
