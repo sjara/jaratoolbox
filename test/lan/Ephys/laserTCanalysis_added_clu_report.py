@@ -109,15 +109,17 @@ def laser_tc_analysis(site, sitenum):
             exp2.plot_session_tc_heatmap(tcSession, tetrode, tcBehavID, replace = 1, cluster = cluster)
             plt.title("{0}\nBehavFileID = '{1}'".format(tcSession, tcBehavID), fontsize = 10)
 
-            #The best freq presentation, if a session is not initialized, it gives an error when using the get_ methods of ee2.RecordingSite
-           # plt.subplot2grid((6, 6), (3, 0), rowspan=1, colspan=3)
-           # bfIndex = site.get_session_types().index('bestFreq')
-           # bfSession = site.get_session_filenames()[bfIndex]
-           # exp2.plot_session_raster(bfSession, tetrode, cluster = cluster, replace = 1)
-            #plt.ylabel('Best Frequency')
-            #plt.title(bfSession, fontsize = 10)
+            '''
+            The best freq presentation, if a session is not initialized, a Value            Error is raised  when indexing the list returned by the get_ methods            of ee2.RecordingSite. Could use Try Except ValueError?
+            '''
+           #plt.subplot2grid((6, 6), (3, 0), rowspan=1, colspan=3)
+           #bfIndex = site.get_session_types().index('bestFreq')
+           #bfSession = site.get_session_filenames()[bfIndex]
+           #exp2.plot_session_raster(bfSession, tetrode, cluster = cluster, replace = 1)
+           #plt.ylabel('Best Frequency')
+           #plt.title(bfSession, fontsize = 10)
 
-            #FIXME: Omitting the laser pulses at different intensities for now
+           #FIXME: Omitting the laser pulses at different intensities for now
 
             '''LG0710: Added reports (ISI, waveform, events in time, projections) for each cluster to its sessions summary graph. The MultiSessionClusterReport class initializer calls plot_report automatically... it's hard to get around doing repeated work (i.e. getting bits and pieces of necessary functionality out of this class manually) here without rewriting this class'''
 
