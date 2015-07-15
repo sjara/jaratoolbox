@@ -61,18 +61,23 @@ The laser-evoked spike seems to be followed by a powerful silencing effect. I wi
 '''
 
 site1 = ee2.RecordingSite(today, depth = 3203, goodTetrodes = [6])
-site1.add_session('19-05-32', None, sessionTypes['lp'])
-site1.add_session('19-05-32', 'a', sessionTypes['nb']) #amp = 0.4
+s1s1 = site1.add_session('19-05-32', None, sessionTypes['lp']).set_plot_type('raster', report = 'main')
+
+#The below ephys session is incorrectly named
+s1s2 = site1.add_session('19-05-32', 'a', sessionTypes['nb']).set_plot_type('raster', report = 'main') #amp = 0.4
+
+#Experimental, not going to work yet
+site1.generate_reports(cluster = True)
 
 '''
 THe sound response here is so weak/possibly not there that I am going to keep moving. 
 '''
 site2 = ee2.RecordingSite(today, depth = 3700, goodTetrodes = [5, 6])
-site2.add_session('20-26-48', None, sessionTypes['lp']) #Laser at 1mW
-site2.add_session('20-21-34', None, sessionTypes['lp']) #Laser at 3mW
-site2.add_session('20-11-35', None, sessionTypes['nb']) 
-site2.add_session('20-32-21', None, sessionTypes['lt']) 
-site2.add_session('20-37-10', 'b', sessionTypes['tc']) 
+site2.add_session('20-26-48', None, sessionTypes['lp']).set_plot_type('raster') #Laser at 1mW
+site2.add_session('20-21-34', None, sessionTypes['lp']).set_plot_type('raster') #Laser at 3mW
+site2.add_session('20-11-35', None, sessionTypes['nb']).set_plot_type('raster')
+site2.add_session('20-32-21', None, sessionTypes['lt']).set_plot_type('raster')
+site2.add_session('20-37-10', 'b', sessionTypes['tc']).set_plot_type('tc_heatmap')
 
 '''
 I am going to keep moving. 

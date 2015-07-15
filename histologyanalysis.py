@@ -5,6 +5,7 @@ Tools for analyzing anatomical/histological data.
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 
 GRIDCOLOR = [0,0.5,0.5]
 
@@ -24,17 +25,18 @@ def draw_grid(corners,nRows=3,nCols=2):
     plt.hold(holdStatus)
 
 class OverlayGrid(object):
-    def __init__(self,imgfile,nRows=3,nCols=2):
+    def __init__(self,nRows=3,nCols=2):
         '''
         This class allows defining a grid over an image using the mouse,
         and show that grid overlaid on another image.
         '''
-        self.origImg = mpimg.imread(imgfile)
-        #self.otherimg = None
+        self.origImg = []#mpimg.imread(imgfile)
         self.coords = []
-        self.fig = plt.gcf()
+        self.fig = None
         self.cid = None  # Connection ID for mouse clicks
-        self.show_image(self.origImg)
+        self.nRows = nRows
+        self.nCols = nCols
+    def set_shape(self,nRows,nCols):
         self.nRows = nRows
         self.nCols = nCols
     def show_image(self,img):
@@ -52,20 +54,32 @@ class OverlayGrid(object):
             draw_grid(self.coords, nRows = self.nRows, nCols = self.nCols)
             print 'Done. Now you can apply this grid to another image using apply_grid()'
             print 'Press enter to continue'
-    def set_grid(self):
+    def set_grid(self,imgfile):
         self.coords = []
+        self.origImg = mpimg.imread(imgfile)
+        self.fig = plt.gcf()
+        self.show_image(self.origImg)
         print 'Click two points to define corners of grid.'
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.onclick)
+        # FIXME: find if waiting for click can block execution of the rest.
     def apply_grid(self,imgfile):
+        self.fig = plt.gcf()
         newImg = mpimg.imread(imgfile)
         self.show_image(newImg)
-        #FIXME: Not able to pass non-default numbers of rows and columns
-        draw_grid(self.coords, nRows = self.nRows, nCols = self.nCols)
+        draw_grid(self.coords, self.nRows, self.nCols)
+    def load_coords(self, filename):
+        with open(filename, 'r') as f:
+            self.coords = json.load(f)
+    def save_coords(self, filename):
+        with open(filename, 'w') as f:
+            json.dump(self.coords, f)
 
-if __name__=='__main__':
-    imgfile = '/mnt/jarahubdata/histology/anat002_MGB_jpg/b4-C1-01tdT_mirror_correct.jpg'
-    ogrid = OverlayGrid(imgfile,nRows=3,nCols=2)
-    ogrid.set_grid()
+
+#if __name__=='__main__':
+   # imgfile = '/mnt/jarahubdata/histology/anat002_MGB_jpg/b4-C1-01tdT_mirror_correct.jpg'
+   # ogrid = OverlayGrid(nRows=3,nCols=2)
+   # ogrid.set_grid(imgfile)
+    
 
 '''
 imgfile2 = '/data/brainmix_data/test043_TL/p1-D4-01b.jpg'
