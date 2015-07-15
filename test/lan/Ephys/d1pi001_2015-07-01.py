@@ -14,7 +14,7 @@ site1 = RecordingSite(depth = 2612,
                       laserPulseEphysSession3mW  = '2015-07-01_18-36-00',
                       laserPulseEphysSession1mW = None,
                       goodTetrodes = [6])
-
+site1.sessionList = ['2015-07-01_18-06-54', '2015-07-01_18-12-05', None, '2015-07-01_18-18-47', None, '2015-07-01_18-36-00', None] #site1's noiseburst and laserPulse sessions are reversed
         
 site2 = RecordingSite(depth = 2660,
                       noiseburstEphysSession  = '2015-07-01_18-42-37',
@@ -24,9 +24,11 @@ site2 = RecordingSite(depth = 2660,
                       tuningCurveBehavIdentifier  = 'b',
                       bfEphysSession  = None,
                       bfBehavIdentifier = None,
-                      laserPulseEphysSession3mW  = '2015-07-01_18-51-53',
+                      #laserPulseEphysSession3mW  = '2015-07-01_18-51-53',
+                      laserPulseEphysSession3mW  = None,
                       laserPulseEphysSession1mW = None,
                       goodTetrodes = [6])
+
 
 site3 = RecordingSite(depth = 2710,
                       noiseburstEphysSession  = '2015-07-01_19-09-42',
@@ -37,8 +39,10 @@ site3 = RecordingSite(depth = 2710,
                       bfEphysSession  = None,
                       bfBehavIdentifier = None,
                       laserPulseEphysSession3mW  = None,
-                      laserPulseEphysSession1mW = '2015-07-01_19-23-35',
+                      #laserPulseEphysSession1mW = '2015-07-01_19-23-35',
+                      laserPulseEphysSession1mW  = None,
                       goodTetrodes = [6])
+
 
 site4 = RecordingSite(depth = 2800,
                       noiseburstEphysSession  = '2015-07-01_19-52-08',
@@ -51,6 +55,7 @@ site4 = RecordingSite(depth = 2800,
                       laserPulseEphysSession3mW  = '2015-07-01_20-11-17',
                       laserPulseEphysSession1mW = '2015-07-01_20-14-20',
                       goodTetrodes = [3, 6])
+site4.sessionList = ['2015-07-01_19-49-07', '2015-07-01_19-52-08', '2015-07-01_19-54-43', '2015-07-01_19-58-34', None,  '2015-07-01_20-11-17', '2015-07-01_20-14-20']  #site4's noiseburst and laserPulse sessions are reversed
 
 site5 = RecordingSite(depth = 2900,
                       noiseburstEphysSession  = '2015-07-01_20-31-44',
@@ -63,6 +68,8 @@ site5 = RecordingSite(depth = 2900,
                       laserPulseEphysSession3mW  = '2015-07-01_20-34-08',
                       laserPulseEphysSession1mW = None,
                       goodTetrodes = [3, 6])
+site5.sessionList = ['2015-07-01_20-25-09', '2015-07-01_20-28-03',  '2015-07-01_20-31-44', 
+ '2015-07-01_20-39-59', None, None, None] #site5's noiseburst and laserPulse sessions are reversed
 
 site6 = RecordingSite(depth = 3025,
                       noiseburstEphysSession  = '2015-07-01_21-01-24',
@@ -75,12 +82,13 @@ site6 = RecordingSite(depth = 3025,
                       laserPulseEphysSession3mW  = None,
                       laserPulseEphysSession1mW = '2015-07-01_21-09-42',
                       goodTetrodes = [6])
+site6.sessionList = ['2015-07-01_21-01-24', '2015-07-01_21-03-51',  '2015-07-01_21-06-10', '2015-07-01_21-12-07', '2015-07-01_21-24-44', None, None]
 
 siteList = [site1, site2, site3, site4, site5, site6]
 
 exp0701 = EphysExperiment('d1pi001', '2015-07-01', experimenter = 'lan')
 
-exp0701.process_site(site6, 6)
+exp0701.process_site(site5, 5)
 
 '''
 There are some problems with the current flow.
