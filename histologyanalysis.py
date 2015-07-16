@@ -18,6 +18,7 @@ def draw_grid(corners,nRows=3,nCols=2):
     yvals = np.linspace(topleft[1],bottomright[1],nRows+1)
     holdStatus = plt.ishold()
     plt.hold(True)
+    plt.autoscale(False)
     for yval in yvals:
         plt.plot(xvals[[0,-1]],[yval,yval],color=GRIDCOLOR)
     for xval in xvals:
@@ -25,6 +26,7 @@ def draw_grid(corners,nRows=3,nCols=2):
     plt.hold(holdStatus)
 
 class OverlayGrid(object):
+
     def __init__(self,nRows=3,nCols=2):
         '''
         This class allows defining a grid over an image using the mouse,
@@ -36,13 +38,19 @@ class OverlayGrid(object):
         self.cid = None  # Connection ID for mouse clicks
         self.nRows = nRows
         self.nCols = nCols
+        self.sliceNumber = []
+        self.maxSliceInd = []
+        self.stack = []
+
     def set_shape(self,nRows,nCols):
         self.nRows = nRows
         self.nCols = nCols
+
     def show_image(self,img):
         self.fig.clf()
         plt.imshow(img, cmap = 'gray')
-        plt.axis('equal')
+        plt.gca().set_aspect('equal', 'box')
+        #plt.axis('equal')
         plt.show()
     def onclick(self,event):
         #ix, iy = event.xdata, event.ydata
@@ -54,6 +62,37 @@ class OverlayGrid(object):
             draw_grid(self.coords, nRows = self.nRows, nCols = self.nCols)
             print 'Done. Now you can apply this grid to another image using apply_grid()'
             print 'Press enter to continue'
+
+    def on_key_press(self, event):
+        '''
+        Method to listen for keypresses and take action
+        '''
+
+        #Functions to cycle through the dimensions
+        if event.key=="<":
+            if self.sliceNumber>0:
+                self.sliceNumber-=1
+            else:
+                self.sliceNumber=self.maxSliceInd
+
+            self.apply_grid(self.stack[self.sliceNumber])
+            self.title_stack_slice()
+            #plt.gca().set_aspect('equal', 'box')
+                
+
+        elif event.key=='>':
+            if self.sliceNumber<self.maxSliceInd:
+                self.sliceNumber+=1
+            else:
+                self.sliceNumber=0
+
+            self.apply_grid(self.stack[self.sliceNumber])
+            self.title_stack_slice()
+            #plt.gca().set_aspect('equal', 'box')
+
+    def title_stack_slice(self):
+        plt.title("Slice {}\nPress < or > to navigate".format(self.sliceNumber))
+        
     def set_grid(self,imgfile):
         self.coords = []
         self.origImg = mpimg.imread(imgfile)
@@ -62,17 +101,30 @@ class OverlayGrid(object):
         print 'Click two points to define corners of grid.'
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.onclick)
         # FIXME: find if waiting for click can block execution of the rest.
+
     def apply_grid(self,imgfile):
-        self.fig = plt.gcf()
         newImg = mpimg.imread(imgfile)
         self.show_image(newImg)
         draw_grid(self.coords, self.nRows, self.nCols)
+
+    def apply_to_stack(self, fnList):
+        self.fig = plt.gcf()
+        self.stack = fnList
+        self.maxSliceInd = len(fnList)-1
+        self.sliceNumber = 0
+        self.apply_grid(self.stack[self.sliceNumber])
+        #plt.gca().set_aspect('equal', 'box')
+        self.title_stack_slice()
+        self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+
     def load_coords(self, filename):
         with open(filename, 'r') as f:
             self.coords = json.load(f)
+            
     def save_coords(self, filename):
         with open(filename, 'w') as f:
             json.dump(self.coords, f)
+    
 
 
 #if __name__=='__main__':
