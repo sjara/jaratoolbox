@@ -41,6 +41,8 @@ class OverlayGrid(object):
         self.sliceNumber = []
         self.maxSliceInd = []
         self.stack = []
+        self.kpid = None
+        self.cid = None
 
     def set_shape(self,nRows,nCols):
         self.nRows = nRows
@@ -52,6 +54,7 @@ class OverlayGrid(object):
         plt.gca().set_aspect('equal', 'box')
         #plt.axis('equal')
         plt.show()
+
     def onclick(self,event):
         #ix, iy = event.xdata, event.ydata
         print '({0},{1})'.format(int(event.xdata), int(event.ydata))
@@ -65,10 +68,9 @@ class OverlayGrid(object):
 
     def on_key_press(self, event):
         '''
-        Method to listen for keypresses and take action
+        Method to listen for keypresses and change the slice
         '''
 
-        #Functions to cycle through the dimensions
         if event.key=="<":
             if self.sliceNumber>0:
                 self.sliceNumber-=1
@@ -109,12 +111,19 @@ class OverlayGrid(object):
 
     def apply_to_stack(self, fnList):
         self.fig = plt.gcf()
+        
+        #Disconnect the event listener if one exists
+        if self.kpid:
+            self.fig.canvas.mpl_disconnect(self.kpid)
+        
         self.stack = fnList
         self.maxSliceInd = len(fnList)-1
         self.sliceNumber = 0
         self.apply_grid(self.stack[self.sliceNumber])
         #plt.gca().set_aspect('equal', 'box')
         self.title_stack_slice()
+        
+        #Connect the event listener
         self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
 
     def load_coords(self, filename):
