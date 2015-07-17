@@ -181,12 +181,12 @@ class EphysExperiment(object):
         #pdb.set_trace()
 
         if replace: #Now using cla() so that it will work with subplots
-            cla()
+            plt.cla()
         #else:
         #    figure()
 
         pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond)
-        setp(pRaster,ms=ms)
+        plt.setp(pRaster,ms=ms)
 
     def plot_array_raster(self, session, replace=0, timeRange = [-0.5, 1], tetrodeIDs=[3,4,5,6], ms=4):
         '''
@@ -600,16 +600,16 @@ class EphysExperiment(object):
         #ax = fig.add_subplot(111)
 
         if replace:
-            cla()
+            plt.cla()
         else:
-            figure()
+            plt.figure()
         
-        ax = gca()
+        ax = plt.gca()
         ax.set_ylabel('Intensity (dB SPL)')
         ax.set_xlabel('Frequency (kHz)')
         cax = ax.imshow(np.flipud(allSettingsSpikeCount), interpolation='none', aspect='auto', cmap='Blues')
         vmin, vmax = cax.get_clim()
-        cbar=colorbar(cax, format = '%.1f')
+        cbar=plt.colorbar(cax, format = '%.1f')
         
         if norm:
             cbar.ax.set_ylabel('Proportion of max firing')
@@ -637,7 +637,7 @@ class RecordingDay(object):
         self.experimenter = experimenter
         self.siteList = []
         #An internal instance of the ephys experiment class for easy plotting? 
-        self.ee2 = EphysExperiment(animalName, date, experimenter = experimenter, kwargs)
+        self.ee2 = EphysExperiment(animalName, date, experimenter = experimenter, **kwargs)
         
 
 class RecordingSite(object):
@@ -708,52 +708,58 @@ class RecordingSite(object):
             oneTT.save_single_session_clu_files()
             possibleClusters = np.unique(oneTT.clusters)
             
-            exp2 = ee2.EphysExperiment(self.animalName, self.date, experimenter = self.experimenter)
+            exp2 = EphysExperiment(self.animalName, self.date, experimenter = self.experimenter)
 
             #Iterate through the clusters, making a new figure for each cluster. 
+            #for indClust, cluster in enumerate([3]):
             for indClust, cluster in enumerate(possibleClusters):
 
-                plt.figure() #The main report for this cluster/tetrode/session
+
+                ################ Main Report ##################
                 
                 mainRasterInds = self.get_session_inds_one_type(plotType='raster', report='main')
-                mainRasterSessions = self.get_session_filenames()[mainRasterInds]
-                mainRasterTypes = self.get_session_types()[mainRasterInds]
+                import ipdb; ipdb.set_trace()
+                mainRasterSessions = [self.get_session_filenames()[i] for i in mainRasterInds]
+                mainRasterTypes = [self.get_session_types()[i] for i in mainRasterInds]
                 
                 mainTCinds = self.get_session_inds_one_type(plotType='tc_heatmap', report='main')
-                mainTCsessions = self.get_session_filenames()[mainTCinds]
-                mainTCbehavIDs = self.get_session_behavIDs()[mainTCinds]
-                mainTCtypes = self.get_session_types()[mainTCinds]
+                mainTCsessions = [self.get_session_filenames()[i] for i in mainTCinds]
+
+                mainTCbehavIDs = [self.get_session_behavIDs()[i] for i in mainTCinds]
+                mainTCtypes = [self.get_session_types()[i] for i in mainTCinds]
                 
+                plt.figure() #The main report for this cluster/tetrode/session
+
                 for indRaster, rasterSession in enumerate(mainRasterSessions):
                     plt.subplot2grid((6, 6), (indRaster, 0), rowspan = 1, colspan = 3)
-                    exp2.plot_session_raster(rasterSession, tetrode, cluster = cluster, replace = 1)
-                    plt.ylabel(mainRasterTypes[indRaster])
-                    plt.title(rasterSession, fontsize = 10)
-                
+                    exp2.plot_session_raster(rasterSession, tetrode, cluster = cluster, replace = 1, ms=1)
+                    plt.ylabel('{}\n{}'.format(mainRasterTypes[indRaster], rasterSession.split('_')[1]), fontsize = 10)
+                    ax=plt.gca()
+                    extraplots.set_ticks_fontsize(ax,6)
 
                 #We can only do one main TC for now. 
                 plt.subplot2grid((6, 6), (0, 3), rowspan = 3, colspan = 3)
-                tcIndex = site.get_session_types().index('tuningCurve')
+                #tcIndex = site.get_session_types().index('tuningCurve')
                 tcSession = mainTCsessions[0]
                 tcBehavID = mainTCbehavIDs[0]
                 exp2.plot_session_tc_heatmap(tcSession, tetrode, tcBehavID, replace = 1, cluster = cluster)
                 plt.title("{0}\nBehavFileID = '{1}'".format(tcSession, tcBehavID), fontsize = 10)
 
-
                 nSpikes = len(oneTT.timestamps) 
                 nClusters = len(possibleClusters)
-                spikesEachCluster = np.empty((nClusters, nSpikes),dtype = bool)
-                if oneTT.clusters == None:
-                    oneTT.set_clusters_from_file()
-                for indc, clusterID in enumerate (possibleClusters):
-                    spikesEachCluster[indc, :] = (oneTT.clusters==clusterID)
+                #spikesEachCluster = np.empty((nClusters, nSpikes),dtype = bool)
+                #if oneTT.clusters == None:
+                    #oneTT.set_clusters_from_file()
+                #for indc, clusterID in enumerate (possibleClusters):
+                    #spikesEachCluster[indc, :] = (oneTT.clusters==clusterID)
 
-                tsThisCluster = oneTT.timestamps[spikesEachCluster[indClust,:]]
-                wavesThisCluster = oneTT.samples[spikesEachCluster[indClust,:],:,:]
+                tsThisCluster = oneTT.timestamps[oneTT.clusters==cluster]
+                wavesThisCluster = oneTT.samples[oneTT.clusters==cluster]
                 # -- Plot ISI histogram --
                 plt.subplot2grid((6,6), (4,0), rowspan=1, colspan=3)
                 spikesorting.plot_isi_loghist(tsThisCluster)
-                plt.ylabel('c%d'%clusterID,rotation=0,va='center',ha='center')
+                plt.ylabel('c%d'%cluster,rotation=0,va='center',ha='center')
+                plt.xlabel('')
 
                 # -- Plot waveforms --
                 plt.subplot2grid((6,6), (5,0), rowspan=1, colspan=3)
@@ -771,10 +777,16 @@ class RecordingSite(object):
                 fig_name = 'TT{0}Cluster{1}.png'.format(tetrode, cluster)
                 full_fig_path = os.path.join(fig_path, fig_name)
                 print full_fig_path
-                plt.tight_layout()
+                #plt.tight_layout()
                 plt.savefig(full_fig_path, format = 'png')
                 #plt.show()
                 plt.close()
+
+                ##################  Main Report  ###############
+
+                ##################  Extra Rasters ##############
+
+                
 
             plt.figure()
             oneTT.save_multisession_report()
