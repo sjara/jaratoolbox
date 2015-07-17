@@ -3,42 +3,40 @@ reload(histologyanalysis)
 import os
 from jaratoolbox import settings
 
-BASENAME1_25x = 'regwhole'
-BASENAME2_5x = 'regMGN' #FIXME: This should change
-#LOCAL_HISTOLOGY_DIR = '/mnt/jarahubdata/histology' #Use settings for this since it will change with each person
-
-def dir_structure_1_25x(animalName, channel):
-    '''
-    Returns the image folder for the 1.25x images, given a mouse name and channel
-    '''
-    return os.path.join(settings.HISTOLOGY_PATH, animalName, '1.25', 'registered', '{}Channel'.format(channel))
-
-def dir_structure_2_5x(animalName, channel, side):
-    '''
-    Returns the image folder for the 2.5x images, given a mouse name and channel
-    '''
-    return os.path.join(settings.HISTOLOGY_PATH, animalName, '2.5', side, 'registered', '{}Channel'.format(channel))
-
-def coord_file(animalName, magnification, side):
-    '''
-    Returns the full path to the coords file for a given animal, magnification, and grid side
-    '''
-    coordDir = os.path.join(settings.HISTOLOGY_PATH, animalName, 'coords')
-    coordFile = os.path.join(coordDir, 'coords_{}_{}.json'.format(magnification, side))
-    return coordFile, coordDir
-
-
 class BrainGrid(histologyanalysis.OverlayGrid):
+    '''
+    FIXME: After update, the docstrings are all wrong
+    '''
 
-    def __init__(self, animalName, nRows = 3, nCols = 2):
+    def __init__(self, animalName, stackLabel, side='', nRows = 3, nCols = 2, processedDirName = 'registered'):
 
         super(BrainGrid, self).__init__(nRows, nCols)
         
         self.animalName = animalName
-        self.baseName1_25x = '-'.join([self.animalName, BASENAME1_25x]) #The names of the images, without the channel, number, or file extension
-        self.baseName2_5x = '-'.join([self.animalName, BASENAME2_5x])
+        self.stackLabel = stackLabel
+        self.side = side
+        self.processedDirName = processedDirName
 
-    def reference_slice_filename(self, magnification, channel, refSliceInd, side = None):
+    def change_stack(self, stackLabel, side):
+        self.stackLabel = stackLabel
+        self.side = side
+
+    def dir_structure(self, channelLabel):
+
+        return os.path.join(settings.HISTOLOGY_PATH, self.animalName, self.stackLabel, self.side, self.processedDirName, channelLabel)
+
+    def coord_file(coordFileName=None):
+        '''
+        Returns the full path to the coords file for a given animal, magnification, and grid side
+        '''
+        coordDir = os.path.join(settings.HISTOLOGY_PATH, self.animalName, 'coords')
+        if not coordFileName:
+            coordFile = os.path.join(coordDir, 'coords_{}{}.json'.format(self.stackLabel, self.side))
+        else:
+            coordFile = coordFileName
+        return coordFile, coordDir
+
+    def reference_slice_filename(self, refSliceInd):
         '''
         Return the full file path for a specified slice number
         
@@ -69,11 +67,11 @@ class BrainGrid(histologyanalysis.OverlayGrid):
             bg.set_grid(refslice)
         '''
 
-        stack = self.filename_stack(magnification, channel, side)
+        stack = self.filename_stack('b')
         refSlicePath = stack[refSliceInd]
         return refSlicePath
 
-    def filename_stack(self, magnification, channel, side = None):
+    def filename_stack(self, channelLabel):
         '''
         Return a list of image file paths to use as an image stack
         
@@ -104,21 +102,13 @@ class BrainGrid(histologyanalysis.OverlayGrid):
             bg.apply_to_stack(stack)
         '''
         
-        if magnification=='1_25x':
-            directory = dir_structure_1_25x(self.animalName, channel)
-            stack = [os.path.join(directory, f) for f in sorted(os.listdir(directory)) if f.startswith(self.baseName1_25x)]
-            return stack
-
-        elif magnification=='2_5x':
-            directory = dir_structure_2_5x(self.animalName, channel, side)
-            files = [os.path.join(directory, f) for f in sorted(os.listdir(directory)) if f.startswith(self.baseName2_5x)]
-            return stack
-
-        else:
-            print "The only currently supported magnification vals are '1_25x' and '2_5x'"
-            pass
         
-    def define_grid(self, magnification, refSliceInd, side=None):
+        directory = self.dir_structure(channelLabel)
+        stack = [os.path.join(directory, f) for f in sorted(os.listdir(directory)) if os.path.isfile(os.path.join(directory, f))]
+        return stack
+        
+        
+    def define_grid(self, refSliceInd):
         '''
         Define the grid coordinates by clicking on a reference slice
         
@@ -143,9 +133,9 @@ class BrainGrid(histologyanalysis.OverlayGrid):
             bg.define_grid('2_5x', 2, 'left')
 
         '''
-        self.set_grid(self.reference_slice_filename(magnification, 'b', refSliceInd, side))
+        self.set_grid(self.reference_slice_filename(refSliceInd))
         
-    def stack_grid(self, magnification, channel, side = None):
+    def stack_grid(self, channelLabel):
         '''
         Apply the grid coordinates to all of the images for one condition
         
@@ -172,9 +162,9 @@ class BrainGrid(histologyanalysis.OverlayGrid):
             #Apply the grid to all of the red channel images
             bg.stack_grid('1_25x', 'r')
         '''
-        self.apply_to_stack(self.filename_stack(magnification, channel, side))
+        self.apply_to_stack(self.filename_stack(channelLabel))
         
-    def save_mouse_coords(self, magnification, side):
+    def save_mouse_coords(self, coordFileName=None):
         '''
         Save the coordinates for one magnification, one side
         
@@ -199,12 +189,12 @@ class BrainGrid(histologyanalysis.OverlayGrid):
             #Save the coords file with the side that you put the grid on
             bg.save_mouse_coords('1_25x', 'left')
         '''
-        coordFile, coordDir = coord_file(self.animalName, magnification, side)
+        coordFile, coordDir = coord_file(coordFileName)
         if not os.path.exists(coordDir):
             os.makedirs(coordDir)
         self.save_coords(coordFile)
         
-    def load_mouse_coords(self, magnification, side):
+    def load_mouse_coords(self, coordFileName=None):
         '''
         Load the coordinates for one magnification, one side
         
@@ -226,7 +216,7 @@ class BrainGrid(histologyanalysis.OverlayGrid):
             #Apply the loaded coords to all of the green channel images
             bg.stack_grid('1_25x', 'g')
         '''
-        coordFile, coordDir = coord_file(self.animalName, magnification, side)
+        coordFile, coordDir = coord_file(coordFileName)
         if not os.path.exists(coordFile):
             print "No coords for this set of images"
             pass
@@ -241,3 +231,15 @@ class BrainGrid(histologyanalysis.OverlayGrid):
         
 
         
+
+#def dir_structure_1_25x(animalName, channel):
+#    '''
+#    Returns the image folder for the 1.25x images, given a mouse name and channel
+#    '''
+#    return os.path.join(settings.HISTOLOGY_PATH, animalName, '1.25', 'registered', '{}Channel'.format(channel))
+#
+#def dir_structure_2_5x(animalName, channel, side):
+#    '''
+#    Returns the image folder for the 2.5x images, given a mouse name and channel
+#    '''
+#    return os.path.join(settings.HISTOLOGY_PATH, animalName, '2.5', side, 'registered', '{}Channel'.format(channel))

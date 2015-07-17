@@ -13,12 +13,10 @@ import matplotlib.pyplot as plt
 import os
 import subprocess
 import numpy as np
-import pdb
+import ipdb
 
 from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
 reload(cms2)
-#from jaratoolbox.test.nick.ephysExperiments.clusterManySessions import MultipleSessionsToCluster
-#from jaratoolbox.test.nick.ephysExperiments.clusterManySessions import MultiSessionClusterReport
 
 class EphysExperiment(object):
 
@@ -119,7 +117,7 @@ class EphysExperiment(object):
         if convert_to_seconds:
             eventTimes=np.array(eventData.timestamps)/self.SAMPLING_RATE
         else:
-            eventTimes = eventData.timestamps
+            eventTimes = np.array(eventData.timestamps)
         eventOnsetTimes=eventTimes[(evID==1)&(evChannel==0)]
         evdiff = np.r_[1.0, np.diff(eventOnsetTimes)]
         eventOnsetTimes=eventOnsetTimes[evdiff>0.5]
@@ -358,128 +356,9 @@ class EphysExperiment(object):
             #return(spikeTimesFromEventOnset, trialIndexForEachSpike)
 
     def plot_tc_psth(self, session, tetrode, behavFileIdentifier, cluster=None):
-
-        #FIXME: This method needs a lot of work
-        
-        SAMPLING_RATE = 30000.0
-        PLOTTING_WINDOW = 0.1 #Window to plot, in seconds
-        
-        ephysSession = self.get_session_name(session)
-
-        ephysDir=os.path.join(self.localEphysDir, ephysSession)
-        event_filename=os.path.join(ephysDir, 'all_channels.events')
-
-        behaviorDir=os.path.join(self.localBehavPath, self.animalName)
-        fullBehavFilename = ''.join([self.behavFileBaseName, behavFileIdentifier, '.h5'])
-        behavDataFileName=os.path.join(behaviorDir, fullBehavFilename)
-
-        #Extract the frequency presented each trial from the behavior data
-        bdata = loadbehavior.BehaviorData(behavDataFileName,readmode='full')
-        freqEachTrial = bdata['currentFreq']
-        intensityEachTrial = bdata['currentIntensity']
-
-        possibleFreq = np.unique(freqEachTrial) 
-        possibleIntensity = np.unique(intensityEachTrial)
-
-        #Get the event timestamps from openEphys
-        ev=loadopenephys.Events(event_filename)
-        evID=np.array(ev.eventID)
-        eventOnsetTimes=ev.timestamps[evID==1] #The timestamps of all of the stimulus onsets
-
-        tetrode = 6 #The tetrode to plot
-        spikeFilename = os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
-        spikeData = loadopenephys.DataSpikes(spikeFilename)
-        
-        if cluster:
-            clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,ephysSession))
-            clustersFile = os.path.join(clustersDir,'Tetrode%d.clu.1'%tetrode)
-            spikeData.set_clusters(clustersFile)
-
-            spikeTimestamps = spikeData.timestamps[spikeData.clusters==cluster]
-        else:
-            spikeTimestamps = spikeData.timestamps
-            
-
-
-        allSettingsSpikes = defaultdict(dict) #2D dictionary to hold the spiketimes arrays organized by frequency and intensity
-
-        for indFreq, currentFreq in enumerate(possibleFreq):
-            for indIntensity, currentIntensity in enumerate(possibleIntensity):
-
-                #Determine which trials this setting was presented on. 
-                trialsThisSetting = np.flatnonzero((freqEachTrial == currentFreq) & (intensityEachTrial == currentIntensity))
-
-                #Get the onset timestamp for each of the trials of this setting. 
-                timestampsThisSetting = eventOnsetTimes[trialsThisSetting]
-
-                spikesAfterThisSetting = np.array([])
-                #Loop through all of the trials for this setting, extracting the trace after each presentation
-                for indts, eventTimestamp in enumerate(timestampsThisSetting):
-                    spikes = spikeTimestamps[(spikeTimestamps >= eventTimestamp) & (spikeTimestamps <= eventTimestamp + SAMPLING_RATE * PLOTTING_WINDOW)]
-                    spikes = spikes - eventTimestamp
-                    spikes = spikes / 30 #Spikes in ms after the stimulus
-
-                    spikesAfterThisSetting = np.concatenate((spikesAfterThisSetting, spikes))
-                allSettingsSpikes[indFreq][indIntensity] = spikesAfterThisSetting #Put the spikes into the 2d dict
-        figure()
-
-        maxBinCount = []
-        for indI, intensity in enumerate(possibleIntensity):
-            for indF, frequency in enumerate(possibleFreq):
-                h, bin_edges = histogram(allSettingsSpikes[indF][indI]) #Dict is ordered by freq and then by Int.
-                maxBinCount.append(max(h))
-
-        maxNumSpikesperBin = max(maxBinCount)
-
-        for intensity in range(len(possibleIntensity)):
-            #Subplot2grid plots from top to bottom, but we need to plot from bottom to top
-            #on the intensity scale. So we make an array of reversed intensity indices.
-            intensPlottingInds = range(len(possibleIntensity))[::-1]
-            for frequency in range(len(possibleFreq)):
-                if (intensity == len(possibleIntensity) - 1) & (frequency == len(possibleFreq) -1):
-                    ax2 = subplot2grid((len(possibleIntensity), len(possibleFreq)), (intensPlottingInds[intensity], frequency))
-                    if len(allSettingsSpikes[frequency][intensity]) is not 0:
-                        ax2.hist(allSettingsSpikes[frequency][intensity])
-                    else:
-                        pass
-
-                    ax2.set_ylim([0, maxNumSpikesperBin])
-                    ax2.get_xaxis().set_ticks([])
-                else:
-                    ax = subplot2grid((len(possibleIntensity), len(possibleFreq)), (intensPlottingInds[intensity], frequency))
-                    if len(allSettingsSpikes[frequency][intensity]) is not 0:
-                        ax.hist(allSettingsSpikes[frequency][intensity])
-                    else:
-                        pass
-                    ax.set_ylim([0, maxNumSpikesperBin])
-                    ax.set_axis_off()
-
-        def getXlabelpoints(n):
-            rawArray = array(range(1, n+1))/float(n+1) #The positions in a perfect (0,1) world
-            diffFromCenter = rawArray - 0.6
-            partialDiffFromCenter = diffFromCenter * 0.175 #Percent change has to be determined empirically
-            finalArray = rawArray - partialDiffFromCenter
-            return finalArray
-
-        #Not sure yet if similar modification to the locations will be necessary. 
-        def getYlabelpoints(n):
-            rawArray = array(range(1, n+1))/float(n+1) #The positions in a perfect (0,1) world
-            return rawArray
-
-        freqLabelPositions = getXlabelpoints(len(possibleFreq))
-        for indp, position in enumerate(freqLabelPositions):
-            figtext(position, 0.065, "%.1f"% (possibleFreq[indp]/1000), ha = 'center')
-
-        intensLabelPositions = getYlabelpoints(len(possibleIntensity))
-        for indp, position in enumerate(intensLabelPositions):
-            figtext(0.075, position, "%d"% possibleIntensity[indp])
-
-        figtext(0.525, 0.025, "Frequency (kHz)", ha = 'center')
-        figtext(0.025, 0.5, "Intensity (dB SPL)", va = 'center', rotation = 'vertical')
-        show()
-        
-
-            
+        # I removed this method because it does not seem like we want to use it.
+        # The code is still in my test dir. 
+        pass
 
     def plot_session_tc_heatmap(self, session, tetrode, behavFileIdentifier, replace = 0, cluster = None, norm=False):
 
@@ -600,16 +479,16 @@ class EphysExperiment(object):
         #ax = fig.add_subplot(111)
 
         if replace:
-            cla()
+            plt.cla()
         else:
-            figure()
+            plt.figure()
         
-        ax = gca()
+        ax = plt.gca()
         ax.set_ylabel('Intensity (dB SPL)')
         ax.set_xlabel('Frequency (kHz)')
         cax = ax.imshow(np.flipud(allSettingsSpikeCount), interpolation='none', aspect='auto', cmap='Blues')
         vmin, vmax = cax.get_clim()
-        cbar=colorbar(cax, format = '%.1f')
+        cbar=plt.colorbar(cax, format = '%.1f')
         
         if norm:
             cbar.ax.set_ylabel('Proportion of max firing')
