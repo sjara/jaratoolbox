@@ -43,10 +43,21 @@ class EphysExperiment(object):
     def get_session_name(self, session):
             
         if isinstance(session, str):
-            ephysSession = session
-        else:
+            if len(session.split('_'))==2: #Has the date already
+                ephysSession = session
+            elif len(session.split('_'))==1: #Does not have the date already, assume to be the stored date
+                ephysSession = '_'.join([self.date, session])
+            else:
+                print "Unrecognized session format"
+                pass
+                
+        elif isinstance(session, int): #use the passed int as an index to get the session name from the current directory
             filesFromToday = [f for f in os.listdir(self.localEphysDir) if (f.startswith(self.date) & ('_kk' not in f))]
-            ephysSession = sort(filesFromToday)[session]
+            ephysSession = sorted(filesFromToday)[session]
+
+        else:
+            print "Unrecognized session format"
+            pass
 
         return ephysSession
 
@@ -143,11 +154,11 @@ class EphysExperiment(object):
 
         oneTT.load_waveforms()
         oneTT.create_fet_files()
-        oneT
-        T.run_clustering()
+        oneTT.run_clustering()
         oneTT.save_report()
 
     def plot_session_raster(self, session, tetrode, cluster = None, sortArray = [], replace=0, ms=4):
+
         plotTitle = self.get_session_plot_title(session)
         spikeData= self.get_session_spike_data_one_tetrode(session, tetrode)
         eventData = self.get_session_event_data(session)
@@ -156,7 +167,12 @@ class EphysExperiment(object):
         
         if cluster:
             spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
-        
+
+        if replace:
+            plt.clf()
+        else:
+            plt.figure()
+
         self.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, replace = replace, ms=ms)
         
     def plot_raster(self, spikeTimestamps, eventOnsetTimes, sortArray = [], replace = 0, timeRange = [-0.5, 1], ms = 4):
@@ -176,11 +192,10 @@ class EphysExperiment(object):
             trialsEachCond = []
         
         spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimes,timeRange)
-        #pdb.set_trace()
 
-        if replace: #Now using cla() so that it will work with subplots
+        if replace:
             plt.cla()
-        #else:
+        #else: #FIXME: I don't know why this is commented out
         #    figure()
 
         pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond)
@@ -200,91 +215,33 @@ class EphysExperiment(object):
         plotTitle = self.get_session_plot_title(session)
 
         if replace:
-            clf()
+            plt.clf()
         else:
-            figure()
+            plt.figure()
             
 
         for ind , tetrodeID in enumerate(tetrodeIDs):
             
             spikeData = self.get_session_spike_data_one_tetrode(session, tetrodeID)
-            subplot(numTetrodes,1,ind+1)
+            plt.subplot(numTetrodes,1,ind+1)
             spikeTimestamps = spikeData.timestamps
-            self.plot_raster(spikeTimestamps, eventOnsetTimes, replace = replace, ms=ms)
+            self.plot_raster(spikeTimestamps, eventOnsetTimes, replace = replace, ms=ms, timeRange = timeRange)
             if ind == 0:
-                title(plotTitle)
+                plt.title(plotTitle)
             #title('Channel {0} spikes'.format(ind+1))
             
-        xlabel('time(sec)')
+        plt.xlabel('time(sec)')
         #tight_layout()
-        draw()
-        show()
+        plt.draw()
+        plt.show()
 
 
-    def plot_clustered_raster(self, session, tetrode, clustersToPlot, timeRange = [-0.5, 1]):
-        '''FIXME: UPDATE THIS TO USE THE NEW RASTER PLOTTING METHOD
+    def plot_sorted_session_raster(self, session, tetrode, timeRange = [-0.5, 1]):
         '''
-
-
-        ephysSession = self.get_session_name(session)
-        
-        animalName = self.animalName
-        #FIXME: These should be object methods, not just specific to this function
-        spike_filename=os.path.join(settings.EPHYS_PATH, animalName, ephysSession, 'Tetrode{0}.spikes'.format(tetrode))
-        sp=loadopenephys.DataSpikes(spike_filename)
-        clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(animalName,ephysSession))
-        clustersFile = os.path.join(clustersDir,'Tetrode%d.clu.1'%tetrode)
-        sp.set_clusters(clustersFile)
-        event_filename=os.path.join(settings.EPHYS_PATH, animalName, ephysSession, 'all_channels.events')
-        ev=loadopenephys.Events(event_filename)
-
-        eventTimes=np.array(ev.timestamps)/SAMPLING_RATE
-        evID=np.array(ev.eventID)
-        evChannel = np.array(ev.eventChannel)
-        eventOnsetTimes=eventTimes[(evID==1)&(evChannel==0)]
-
-
-        evdiff = np.r_[1.0, np.diff(eventOnsetTimes)]
-        eventOnsetTimes=eventOnsetTimes[evdiff>0.5]
-
-        #Already divided by the sampling rate in spikesorting
-        allSpkTimestamps = np.array(sp.timestamps)/SAMPLING_RATE
-        #allSpkTimestamps = np.array(oneTT.dataTT.timestamps)
-        spkClusters = sp.clusters
-
-        figure()
-        for ind, clusterNum in enumerate(clustersToPlot):
-            clusterspikes = allSpkTimestamps[spkClusters==clusterNum]
-
-            spkTimeStamps = clusterspikes
-
-
-            (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = spikesanalysis.eventlocked_spiketimes(spkTimeStamps,eventOnsetTimes,timeRange)
-
-            subplot(len(clustersToPlot), 1, ind+1)
-
-            plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', ms=1)
-            title('Cluster {}'.format(clusterNum))
-            axvline(x=0, ymin=0, ymax=1, color='r')
-
-        xlabel('Time (sec)')
-        #tight_layout()
-        draw()
-        show()
-    
-    def plot_tc_raster(self, session, tetrode, behavFileIdentifier, cluster=None):
+        A method that can 
         '''
-        '''
+        pass
 
-        ephysSession = self.get_session_name(session)
-
-        ephysDir=os.path.join(self.localEphysDir, ephysSession)
-        behaviorDir=os.path.join(self.localBehavPath, self.animalName)
-        fullBehavFilename = ''.join([self.behavFileBaseName, behavFileIdentifier, '.h5'])
-        behavDataFileName=os.path.join(behaviorDir, fullBehavFilename)
-        event_filename=os.path.join(ephysDir, 'all_channels.events')
-        spike_filename=os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
-        
     def sorted_tuning_raster(self, session, tetrode, behavFileIdentifier, cluster = None, replace=0, timeRange = [-0.5, 1]):
         '''
         FIXME: Refactor this into two methods so that I can pass it spiketimes, eventtimes, etc. 
@@ -334,9 +291,9 @@ class EphysExperiment(object):
                 nTrialsEachFreq_thisIntensity.append(len(trialsThisSetting))
 
             #Each intensity gets a subplot of all frequencies presented in this intensity
-            subplot(len(possibleIntensity),1,len(possibleIntensity)-indIntensity) #Plot with highest intensity on the top
+            plt.subplot(len(possibleIntensity),1,len(possibleIntensity)-indIntensity) #Plot with highest intensity on the top
 
-            plot(spikeTimesFromEventOnset_thisIntensity, trialIndexForEachSpike_thisIntensity, '.', ms=1)  #here plotting trialIndexForEachSpike on y-axis may be less informative, can substitute with frequency?
+            plt.plot(spikeTimesFromEventOnset_thisIntensity, trialIndexForEachSpike_thisIntensity, '.', ms=1)  #here plotting trialIndexForEachSpike on y-axis may be less informative, can substitute with frequency?
             #pdb.set_trace()
             
             #For plotting the frequencies
@@ -345,13 +302,14 @@ class EphysExperiment(object):
             #The frequency list for labeling the switchpoints
             freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0]
 
-            ax=gca()
+            ax=plt.gca()
             ax.set_yticks(freqSwitchpoints)
             ax.set_yticklabels(freqLabels)
+            plt.axis('tight')
 
-            axvline(x=0, ymin=0, ymax=1, color='r') #Plot a vertical line where the stimulus onset occurs
+            plt.axvline(x=0, ymin=0, ymax=1, color='r') #Plot a vertical line where the stimulus onset occurs
             if indIntensity == 3: #Label the top plot with the ephys session name
-                title(plotTitle)
+                plt.title(plotTitle)
             #return(spikeTimesFromEventOnset_thisIntensity, trialIndexForEachSpike_thisIntensity)
             #return(spikeTimesFromEventOnset, trialIndexForEachSpike)
 
@@ -526,10 +484,7 @@ class RecordingSite(object):
     RecordingSession objects that hold information about each individual recording session. 
     '''
 
-    def __init__(self,
-                 parent, 
-                 depth,
-                 goodTetrodes):
+    def __init__(self, parent, depth, goodTetrodes):
 
         self.animalName = parent.animalName
         self.date = parent.date
@@ -557,7 +512,7 @@ class RecordingSite(object):
     def get_session_inds_one_type(self, plotType, report):
         return [index for index, s in enumerate(self.sessionList) if ((s.plotType==plotType) & (s.report==report))]
         
-    def generate_reports(self):
+    def generate_main_report(self):
         '''
         Generate the reports for all of the sessions in this site. This is where we should interface with
         the multiunit clustering code, since all of the sessions that need to be clustered together have
@@ -594,10 +549,7 @@ class RecordingSite(object):
             for indClust, cluster in enumerate(possibleClusters):
 
 
-                ################ Main Report ##################
-                
                 mainRasterInds = self.get_session_inds_one_type(plotType='raster', report='main')
-                import ipdb; ipdb.set_trace()
                 mainRasterSessions = [self.get_session_filenames()[i] for i in mainRasterInds]
                 mainRasterTypes = [self.get_session_types()[i] for i in mainRasterInds]
                 
@@ -661,11 +613,6 @@ class RecordingSite(object):
                 #plt.show()
                 plt.close()
 
-                ##################  Main Report  ###############
-
-                ##################  Extra Rasters ##############
-
-                
 
             plt.figure()
             oneTT.save_multisession_report()

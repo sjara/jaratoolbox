@@ -15,12 +15,14 @@ sessionTypes = {'nb':'noiseBurst',
 today = ee3.RecordingDay(animalName = 'pinp003', date = '2015-06-24', experimenter = 'nick')
 
 site1 = ee3.RecordingSite(today, depth = 3543, goodTetrodes = [6])
-site1.add_session('15-22-29', None, sessionTypes['nb']).set_plot_type('raster')
+s1s1 = site1.add_session('15-22-29', None, sessionTypes['nb'])
+s1s1.set_plot_type('raster')
+
 site1.add_session('15-25-08', None, sessionTypes['lp']).set_plot_type('raster')
 site1.add_session('15-27-37', None, sessionTypes['lt']).set_plot_type('raster')
 site1.add_session('15-31-48', 'a', sessionTypes['tc']).set_plot_type('tc_heatmap')
 site1.add_session('15-45-22', 'b', sessionTypes['bf']).set_plot_type('raster')
-site1.generate_reports()
+#site1.generate_main_report()
 
 site2 = ee3.RecordingSite(today, depth = 3623, goodTetrodes = [6])
 site2.add_session('15-54-56', None, sessionTypes['nb']).set_plot_type('raster')
