@@ -7,16 +7,16 @@ reload(ee3)
 
 ex0624 = ee3.EphysExperiment('pinp003', '2015-06-24', experimenter = 'nick')
 
-#ex0624.plot_array_raster('15-27-37', replace = 0, ms = 1, timeRange = [-0.5, 1.5])
+ex0624.plot_array_raster('15-27-37', replace = 0, ms = 1, timeRange = [-0.5, 1.5])
 #ex0624.plot_session_tc_heatmap('15-31-48', 6, 'a')
 
 
 '''
 TODO
 
-Add tetrode labels to the array raster plot
-also space in xlabel between time and seconds
-sharex between the tetrodes
+DONE Add tetrode labels to the array raster plot
+DONE also space in xlabel between time and seconds
+DONE sharex between the tetrodes
 
 Pass spikes already aligned to the tc heatmap code, 
 using the code to find trials each condition

@@ -215,22 +215,27 @@ class EphysExperiment(object):
         plotTitle = self.get_session_plot_title(session)
 
         if replace:
+            fig = plt.gcf()
             plt.clf()
         else:
-            plt.figure()
+            fig = plt.figure()
             
 
         for ind , tetrodeID in enumerate(tetrodeIDs):
             
             spikeData = self.get_session_spike_data_one_tetrode(session, tetrodeID)
-            plt.subplot(numTetrodes,1,ind+1)
+            if ind == 0:
+                ax = fig.add_subplot(numTetrodes,1,ind+1)
+            else:
+                ax = fig.add_subplot(numTetrodes,1,ind+1, sharex = fig.axes[0], sharey = fig.axes[0])
             spikeTimestamps = spikeData.timestamps
             self.plot_raster(spikeTimestamps, eventOnsetTimes, replace = replace, ms=ms, timeRange = timeRange)
             if ind == 0:
                 plt.title(plotTitle)
             #title('Channel {0} spikes'.format(ind+1))
+            plt.ylabel('TT {}'.format(tetrodeID))
             
-        plt.xlabel('time(sec)')
+        plt.xlabel('time (sec)')
         #tight_layout()
         plt.draw()
         plt.show()
