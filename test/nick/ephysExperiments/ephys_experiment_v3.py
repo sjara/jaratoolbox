@@ -195,8 +195,6 @@ class EphysExperiment(object):
 
         if replace:
             plt.cla()
-        #else: #FIXME: I don't know why this is commented out
-        #    figure()
 
         pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond)
         plt.setp(pRaster,ms=ms)
@@ -243,80 +241,57 @@ class EphysExperiment(object):
 
     def plot_sorted_session_raster(self, session, tetrode, timeRange = [-0.5, 1]):
         '''
-        A method that can 
+        A method that can sort by any vector and plot the sorted vals. 
         '''
         pass
 
-    def sorted_tuning_raster(self, session, tetrode, behavFileIdentifier, cluster = None, replace=0, timeRange = [-0.5, 1]):
+    def plot_sorted_tuning_raster(self, session, tetrode, behavFileIdentifier, cluster = None, replace=0, timeRange = [-0.5, 1], ms = 1):
         '''
-        FIXME: Refactor this into two methods so that I can pass it spiketimes, eventtimes, etc. 
+        FIXME: Refactor this into two methods so that it uses the standard methods for plotting sorted rasters
         '''
-   
-        #Calling method to get the ephys and event data
-        spikeData = self.get_session_spike_data_one_tetrode(session, tetrode)
-        eventData = self.get_session_event_data(session)
-        plotTitle = self.get_session_plot_title(session)
+        bdata = self.get_session_behav_data(session,behavFileIdentifier)
 
-        #Calling method to get the behavior data and extract the freq and intensity each trial
-        bdata = self.get_session_behav_data(session, behavFileIdentifier)
         freqEachTrial = bdata['currentFreq']
+        possibleFreq = np.unique(freqEachTrial)
+
         intensityEachTrial = bdata['currentIntensity']
-        
-        #Caling method to calculate event onset times from the event data
-        eventOnsetTimes = self.get_event_onset_times(eventData)
-        
-        #Extract the timestamps from the spikeData object, limit to a single cluster if needed
-        spikeTimestamps = spikeData.timestamps  #This is already in seconds
-        if cluster:
-            spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
-            
-        #Get all possible frequencies and intensities presented
-        possibleFreq = np.unique(freqEachTrial) 
         possibleIntensity = np.unique(intensityEachTrial)
 
-        #Interate through all possible intensities and frequencies, get trial numbers selected  by specific frequency and intensity
 
-        for indIntensity, currentIntensity in enumerate(possibleIntensity):
-            spikeTimesFromEventOnset_thisIntensity = np.array([])
-            trialIndexForEachSpike_thisIntensity = np.array([])
-            nTrialsThisCondition = 0
-            nTrialsEachFreq_thisIntensity = []
-            for indFrequency, currentFreq in enumerate(possibleFreq):
-                #Determine which trials this setting was presented on. 
-                trialsThisSetting = np.flatnonzero((freqEachTrial == currentFreq) & (intensityEachTrial == currentIntensity))
-                eventOnsetTimesThisSetting = eventOnsetTimes[trialsThisSetting]
+        trialsEachCond = behavioranalysis.find_trials_each_combination(freqEachTrial, possibleFreq, intensityEachTrial, possibleIntensity)
 
-                #Loop through all of the trials for this setting, extracting the spike timestamps after each presentation
-                # for indts, eventTimestamp in enumerate(eventOnsetTimesThisSetting):
-                (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimesThisSetting,timeRange)#??
+        spikeData = self.get_session_spike_data_one_tetrode(session, tetrode)
 
-                spikeTimesFromEventOnset_thisIntensity = np.concatenate((spikeTimesFromEventOnset_thisIntensity, spikeTimesFromEventOnset))
-                trialIndexForEachSpike_thisIntensity = np.concatenate((trialIndexForEachSpike_thisIntensity, trialIndexForEachSpike+nTrialsThisCondition))
-                nTrialsThisCondition += len(eventOnsetTimesThisSetting)
-                nTrialsEachFreq_thisIntensity.append(len(trialsThisSetting))
+        eventData = self.get_session_event_data(session)
+        eventOnsetTimes = self.get_event_onset_times(eventData)
+        spikeTimestamps=spikeData.timestamps
 
-            #Each intensity gets a subplot of all frequencies presented in this intensity
-            plt.subplot(len(possibleIntensity),1,len(possibleIntensity)-indIntensity) #Plot with highest intensity on the top
 
-            plt.plot(spikeTimesFromEventOnset_thisIntensity, trialIndexForEachSpike_thisIntensity, '.', ms=1)  #here plotting trialIndexForEachSpike on y-axis may be less informative, can substitute with frequency?
-            #pdb.set_trace()
-            
-            #For plotting the frequencies
-            #The trial numbers where we switched to a new frequency
-            freqSwitchpoints = np.cumsum(nTrialsEachFreq_thisIntensity)
-            #The frequency list for labeling the switchpoints
-            freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0]
+        spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimes,timeRange)
 
-            ax=plt.gca()
-            ax.set_yticks(freqSwitchpoints)
-            ax.set_yticklabels(freqLabels)
-            plt.axis('tight')
+        freqLabels = ['{0:.1f}'.format(freq/1000.0) for freq in possibleFreq]
+        plotTitle = self.get_session_plot_title(session)
 
-            plt.axvline(x=0, ymin=0, ymax=1, color='r') #Plot a vertical line where the stimulus onset occurs
-            if indIntensity == 3: #Label the top plot with the ephys session name
+        fig = plt.figure()
+        for indIntensity, intensity in enumerate(possibleIntensity[::-1]):
+
+            if indIntensity == 0:
+                fig.add_subplot(len(possibleIntensity), 1, indIntensity+1)
                 plt.title(plotTitle)
-            #return(spikeTimesFromEventOnset_thisIntensity, trialIndexForEachSpike_thisIntensity)
-            #return(spikeTimesFromEventOnset, trialIndexForEachSpike)
+            else:
+                fig.add_subplot(len(possibleIntensity), 1, indIntensity+1, sharex=fig.axes[0], sharey=fig.axes[0])
+
+            trialsThisIntensity = trialsEachCond[:, :, len(possibleIntensity)-indIntensity-1] #FIXME: There must be a better way to flip so high intensity is on top 
+
+            pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsThisIntensity, labels = freqLabels)
+            plt.setp(pRaster,ms=ms)
+            plt.ylabel('{:.0f} dB'.format(intensity))
+
+            if indIntensity == len(possibleIntensity)-1:
+                plt.xlabel("time (sec)")
+
+        fig.show()
+   
 
     def plot_tc_psth(self, session, tetrode, behavFileIdentifier, cluster=None):
         # I removed this method because it does not seem like we want to use it.
