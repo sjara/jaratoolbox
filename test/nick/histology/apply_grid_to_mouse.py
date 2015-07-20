@@ -216,7 +216,7 @@ class BrainGrid(histologyanalysis.OverlayGrid):
             #Apply the loaded coords to all of the green channel images
             bg.stack_grid('1_25x', 'g')
         '''
-        coordFile, coordDir = coord_file(coordFileName)
+        coordFile, coordDir = self.coord_file(coordFileName)
         if not os.path.exists(coordFile):
             print "No coords for this set of images"
             pass
