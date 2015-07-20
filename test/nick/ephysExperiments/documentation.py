@@ -55,7 +55,7 @@ def avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCond):
     avgSpikesArray = np.sum(spikesFilteredByTrialType, 0)/np.sum(trialsEachCond, 0).astype('float')
     return avgSpikesArray
 
-def no_loops_event_locked_timerange(spikeTimestamps, trialsEachCond, timeRange):
+def avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, timeRange):
     spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,
                                                                                                                     eventOnsetTimes,
                                                                                                                     timeRange)

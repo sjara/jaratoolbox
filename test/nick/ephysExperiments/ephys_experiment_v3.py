@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import os
 import subprocess
 import numpy as np
-import ipdb
+
 
 from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
 reload(cms2)
@@ -336,7 +336,9 @@ class EphysExperiment(object):
         #Get the behavior data and extract the freq and intensity each trial
         bdata = self.get_session_behav_data(session, behavFileIdentifier)
         freqEachTrial = bdata['currentFreq']
+        possibleFreq = np.unique(freqEachTrial)
         intensityEachTrial = bdata['currentIntensity']
+        possibleIntensity = np.unique(intensityEachTrial)
 
         #Calculate event onset times from the event data
         eventOnsetTimes = self.get_event_onset_times(eventData)
@@ -347,9 +349,82 @@ class EphysExperiment(object):
             spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
         
         #Call the plotting code with the data
-        self.plot_tc_heatmap(spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, replace = replace, norm = norm)
+        #self.plot_tc_heatmap_old(spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, replace = replace, norm = norm)
 
-    def plot_tc_heatmap(self, spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, replace = 0, norm=False):
+        print "Ephys events: {}".format(len(eventOnsetTimes))
+        print "Behavior trials: {}".format(len(freqEachTrial))
+
+        trialsEachCond = behavioranalysis.find_trials_each_combination(intensityEachTrial, possibleIntensity, freqEachTrial, possibleFreq)
+
+        timeRange = [0, 0.1]
+        spikeArray = self.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
+
+        self.plot_TCarray_as_heatmap(spikeArray, possibleFreq, possibleIntensity, timeRange)
+
+
+    def plot_TCarray_as_heatmap(self, heatmapArray, xlabels=None, ylabels=None, timeRange = None, flipy=True, flipylabels=True, cmap='Blues'):
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.set_ylabel('Intensity (dB SPL)')
+        ax.set_xlabel('Frequency (kHz)') #FIXME: This should be outside this function and does not appear to work anyway
+
+        if flipy:
+            heatmapArray = np.flipud(heatmapArray)
+
+        cax = ax.imshow(heatmapArray, interpolation='none', aspect='auto', cmap=cmap)
+        vmin, vmax = cax.get_clim()
+        cbar=plt.colorbar(cax, format = '%.1f')
+         
+        if timeRange is not None:
+       
+            cbar.ax.set_ylabel('Avg spikes in time range: {}'.format(timeRange))
+
+        if xlabels is not None:
+            ax.set_xticks(range(len(xlabels)))
+            xticks = ["%.1f" % freq for freq in xlabels/1000.0] #FIXME: This should be outside this function
+            ax.set_xticklabels(xticks, rotation = 'vertical')
+
+        ax.set_yticks(range(np.shape(heatmapArray)[0]))
+
+
+        if ylabels is not None:
+            if flipylabels:
+                ax.set_yticklabels(ylabels[::-1])
+            else:
+                ax.set_yticklabels(ylabels)
+
+        plt.show()
+
+
+
+    def avg_spikes_in_event_locked_timerange_each_cond(self, spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
+        
+        if len(eventOnsetTimes)!=np.shape(trialsEachCond)[0]:
+            eventOnsetTimes=eventOnsetTimes[:-1]
+
+        spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,
+                                                                                                                     eventOnsetTimes,
+                                                                                                                     timeRange)
+        spikeArray = self.avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCond)
+
+        return spikeArray
+  
+
+    def avg_locked_spikes_per_condition(self, indexLimitsEachTrial, trialsEachCond):
+    
+        numSpikesInTimeRangeEachTrial = np.squeeze(np.diff(indexLimitsEachTrial, axis=0))
+        conditionMatShape = np.shape(trialsEachCond)
+        numRepeats = np.product(conditionMatShape[1:])
+        nSpikesMat = np.reshape(numSpikesInTimeRangeEachTrial.repeat(numRepeats), conditionMatShape)
+        spikesFilteredByTrialType = nSpikesMat*trialsEachCond
+        avgSpikesArray = np.sum(spikesFilteredByTrialType, 0)/np.sum(trialsEachCond, 0).astype('float')
+        return avgSpikesArray
+
+
+
+
+    def plot_tc_heatmap_old(self, spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, replace = 0, norm=False):
         
         '''
         Plot a tuning curve heatmap. 
