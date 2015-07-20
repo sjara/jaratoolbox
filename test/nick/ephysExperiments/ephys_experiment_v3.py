@@ -169,7 +169,7 @@ class EphysExperiment(object):
             spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
 
         if replace:
-            plt.clf()
+            plt.cla()
         else:
             plt.figure()
 
@@ -193,8 +193,8 @@ class EphysExperiment(object):
         
         spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimes,timeRange)
 
-        if replace:
-            plt.cla()
+        #if replace:
+            #plt.cla()
 
         pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond)
         plt.setp(pRaster,ms=ms)
@@ -298,7 +298,7 @@ class EphysExperiment(object):
         # The code is still in my test dir. 
         pass
 
-    def plot_session_tc_heatmap(self, session, tetrode, behavFileIdentifier, replace = 0, cluster = None, norm=False):
+    def plot_session_tc_heatmap(self, session, tetrode, behavFileIdentifier, replace = 0, cluster = None, norm=False, clim = None):
 
         '''
         Wrapper to plot a TC heatmap for a single session/tetrode
@@ -349,7 +349,7 @@ class EphysExperiment(object):
             spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
         
         #Call the plotting code with the data
-        #self.plot_tc_heatmap_old(spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, replace = replace, norm = norm)
+        #self.plot_tc_heatmap_old(spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, replace = replace, norm = norm, clim=clim)
 
         print "Ephys events: {}".format(len(eventOnsetTimes))
         print "Behavior trials: {}".format(len(freqEachTrial))
@@ -360,12 +360,14 @@ class EphysExperiment(object):
         spikeArray = self.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
 
         self.plot_TCarray_as_heatmap(spikeArray, possibleFreq, possibleIntensity, timeRange)
+        
 
 
     def plot_TCarray_as_heatmap(self, heatmapArray, xlabels=None, ylabels=None, timeRange = None, flipy=True, flipylabels=True, cmap='Blues'):
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
+        #fig = plt.gcf()
+        ax = plt.gca()
+        #ax = fig.add_subplot(111)
         ax.set_ylabel('Intensity (dB SPL)')
         ax.set_xlabel('Frequency (kHz)') #FIXME: This should be outside this function and does not appear to work anyway
 
@@ -394,7 +396,7 @@ class EphysExperiment(object):
             else:
                 ax.set_yticklabels(ylabels)
 
-        plt.show()
+        #plt.show()
 
 
 
@@ -424,7 +426,7 @@ class EphysExperiment(object):
 
 
 
-    def plot_tc_heatmap_old(self, spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, replace = 0, norm=False):
+    def plot_tc_heatmap_old(self, spikeTimestamps, eventOnsetTimes, freqEachTrial, intensityEachTrial, replace = 0, norm=False, clim = None):
         
         '''
         Plot a tuning curve heatmap. 
@@ -502,6 +504,9 @@ class EphysExperiment(object):
         cax = ax.imshow(np.flipud(allSettingsSpikeCount), interpolation='none', aspect='auto', cmap='Blues')
         vmin, vmax = cax.get_clim()
         cbar=plt.colorbar(cax, format = '%.1f')
+        
+        if clim is not None:
+            cbar.set_clim(clim)
         
         if norm:
             cbar.ax.set_ylabel('Proportion of max firing')
@@ -597,7 +602,7 @@ class RecordingSite(object):
             oneTT.save_single_session_clu_files()
             possibleClusters = np.unique(oneTT.clusters)
             
-            exp2 = EphysExperiment(self.animalName, self.date, experimenter = self.experimenter)
+            ee = EphysExperiment(self.animalName, self.date, experimenter = self.experimenter)
 
             #Iterate through the clusters, making a new figure for each cluster. 
             #for indClust, cluster in enumerate([3]):
@@ -618,7 +623,7 @@ class RecordingSite(object):
 
                 for indRaster, rasterSession in enumerate(mainRasterSessions):
                     plt.subplot2grid((6, 6), (indRaster, 0), rowspan = 1, colspan = 3)
-                    exp2.plot_session_raster(rasterSession, tetrode, cluster = cluster, replace = 1, ms=1)
+                    ee.plot_session_raster(rasterSession, tetrode, cluster = cluster, replace = 1, ms=1)
                     plt.ylabel('{}\n{}'.format(mainRasterTypes[indRaster], rasterSession.split('_')[1]), fontsize = 10)
                     ax=plt.gca()
                     extraplots.set_ticks_fontsize(ax,6)
@@ -628,7 +633,7 @@ class RecordingSite(object):
                 #tcIndex = site.get_session_types().index('tuningCurve')
                 tcSession = mainTCsessions[0]
                 tcBehavID = mainTCbehavIDs[0]
-                exp2.plot_session_tc_heatmap(tcSession, tetrode, tcBehavID, replace = 1, cluster = cluster)
+                ee.plot_session_tc_heatmap(tcSession, tetrode, tcBehavID, replace = 1, cluster = cluster)
                 plt.title("{0}\nBehavFileID = '{1}'".format(tcSession, tcBehavID), fontsize = 10)
 
                 nSpikes = len(oneTT.timestamps) 
@@ -659,6 +664,7 @@ class RecordingSite(object):
                 plt.subplot2grid((6,6), (5,3), rowspan=1, colspan=3)
                 spikesorting.plot_events_in_time(tsThisCluster)
 
+                plt.subplots_adjust(wspace = 0.7)
                 fig_path = oneTT.clustersDir
                 fig_name = 'TT{0}Cluster{1}.png'.format(tetrode, cluster)
                 full_fig_path = os.path.join(fig_path, fig_name)

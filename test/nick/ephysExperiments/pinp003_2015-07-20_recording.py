@@ -1,5 +1,5 @@
 from jaratoolbox.test.nick.ephysExperiments import ephys_experiment_v3 as ee3
-reload(ee2)
+reload(ee3)
 
 #The session types to use for this kind of experiment
 #Can use a dict like this or simply write the sesison types directly
@@ -7,7 +7,7 @@ reload(ee2)
 sessionTypes = {'nb':'noiseBurst',
                 'lp':'laserPulse',
                 'lt':'laserTrain',
-                'tc':'tuningCurve',
+                'tc':'tc_heatmap',
                 'bf':'bestFreq',
                 '3p':'3mWpulse',
                 '1p':'1mWpulse'} 
@@ -39,25 +39,27 @@ comments.append('0936hrs - tetrodes are at 3004um, holding for 5 mins. No spikes
 comments.append('0958hrs - there are tiny spikes at 3206um that appear to be responsive to the laser, not much response to 0.4amp noise. Re-testing with 0.5amp and more trials.  - Not obviously responsive, moving on')
 
 site1 = ee3.RecordingSite(today, depth = 3425, goodTetrodes = [4, 5, 6])
-site1.add_session('10-21-34', None, 'NoiseBurst0.5').plot_type('raster', report='main')
-site1.add_session('10-24-16', None, 'LaserPulse2.5').plot_type('raster', report='main')
-site1.add_session('10-26-57', None, 'LaserTrain2.5').plot_type('raster', report='main')
-site1.add_session('10-30-48', 'a', 'TC_2k-40k_16f_40-70_4ints').plot_type('tc', report='main')
+site1.add_session('10-21-34', None, 'NB0.5').set_plot_type('raster', report='main')
+site1.add_session('10-24-16', None, 'LP2.5').set_plot_type('raster', report='main')
+site1.add_session('10-26-57', None, 'LT2.5').set_plot_type('raster', report='main')
+site1.add_session('10-30-48', 'a', 'TC_2k-40k_16f_40-70_4ints').set_plot_type('tc_heatmap', report='main')
+#site1.generate_main_report()
 
 
 comments.append('site 2 has a reference for the spikes as well as the LFPs. spikes = channel 14, lfp = channel 11')
 site2 = ee3.RecordingSite(today, depth = 3451, goodTetrodes = [5, 6])
-site2.add_session('10-58-42', None, 'LaserPulse2.5').plot_type('raster', report='main')
-site2.add_session('11-01-08', None, 'LaserTrain2.5').plot_type('raster', report='main')
-site2.add_session('11-05-29', None, 'NoiseBurst0.3').plot_type('raster', report='main')
-site2.add_session('11-08-42', 'b', 'TC_2k-40k_16f_40-70_4ints').plot_type('tc', report='main')
-site2.add_session('11-23-51', 'c', 'TC_3k-13k_16f_20-50_4ints').plot_type('tc', report='extraTCs')
+site2.add_session('10-58-42', None, 'LP2.5').set_plot_type('raster', report='main')
+site2.add_session('11-01-08', None, 'LT2.5').set_plot_type('raster', report='main')
+site2.add_session('11-05-29', None, 'NB0.3').set_plot_type('raster', report='main')
+site2.add_session('11-08-42', 'b', 'TC_2k-40k_16f_40-70_4ints').set_plot_type('tc_heatmap', report='main')
+#site2.add_session('11-08-42', 'b', 'TC_2k-40k_16f_40-70_4ints').set_plot_type('tc_heatmap', report='tcComparison')
+site2.add_session('11-23-51', 'c', 'TC_3k-13k_16f_20-50_4ints').set_plot_type('tc_heatmap', report='tcComparison')
+#site2.generate_main_report()
 
 site3 = ee3.RecordingSite(today, depth = 3602, goodTetrodes = [5, 6])
-
-site3.add_session('11-51-31', None, 'NoiseBurst0.3').plot_type('raster', report='main')
-site3.add_session('11-54-05', None, 'LaserPulse2.5').plot_type('raster', report='main')
-site3.add_session('11-56-36', None, 'LaserTrain2.5').plot_type('raster', report='main')
+site3.add_session('11-51-31', None, 'NB0.3').set_plot_type('raster', report='main')
+site3.add_session('11-54-05', None, 'LP2.5').set_plot_type('raster', report='main')
+site3.add_session('11-56-36', None, 'LT2.5').set_plot_type('raster', report='main')
 #synaptic excitation if anything at all, moving on
 
 comments.append('1230hrs - no more sound responses at 4000um. I am removing the electrodes')

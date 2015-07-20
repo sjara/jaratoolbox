@@ -7,7 +7,7 @@ reload(ee3)
 sessionTypes = {'nb':'noiseBurst',
                 'lp':'laserPulse',
                 'lt':'laserTrain',
-                'tc':'tuningCurve',
+                'tc':'tc_heatmap',
                 'bf':'bestFreq',
                 '3p':'3mWpulse',
                 '1p':'1mWpulse'} 
@@ -22,7 +22,7 @@ site1.add_session('15-25-08', None, sessionTypes['lp']).set_plot_type('raster')
 site1.add_session('15-27-37', None, sessionTypes['lt']).set_plot_type('raster')
 site1.add_session('15-31-48', 'a', sessionTypes['tc']).set_plot_type('tc_heatmap')
 site1.add_session('15-45-22', 'b', sessionTypes['bf']).set_plot_type('raster')
-#site1.generate_main_report()
+site1.generate_main_report()
 
 site2 = ee3.RecordingSite(today, depth = 3623, goodTetrodes = [6])
 site2.add_session('15-54-56', None, sessionTypes['nb']).set_plot_type('raster')

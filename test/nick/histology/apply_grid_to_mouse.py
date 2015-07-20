@@ -25,7 +25,7 @@ class BrainGrid(histologyanalysis.OverlayGrid):
 
         return os.path.join(settings.HISTOLOGY_PATH, self.animalName, self.stackLabel, self.side, self.processedDirName, channelLabel)
 
-    def coord_file(coordFileName=None):
+    def coord_file(self, coordFileName=None):
         '''
         Returns the full path to the coords file for a given animal, magnification, and grid side
         '''
