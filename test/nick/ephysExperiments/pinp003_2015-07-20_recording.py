@@ -56,6 +56,7 @@ site2.add_session('11-08-42', 'b', 'TC_2k-40k_16f_40-70_4ints').set_plot_type('t
 site2.add_session('11-23-51', 'c', 'TC_3k-13k_16f_20-50_4ints').set_plot_type('tc_heatmap', report='tcComparison')
 #site2.generate_main_report()
 
+
 site3 = ee3.RecordingSite(today, depth = 3602, goodTetrodes = [5, 6])
 site3.add_session('11-51-31', None, 'NB0.3').set_plot_type('raster', report='main')
 site3.add_session('11-54-05', None, 'LP2.5').set_plot_type('raster', report='main')

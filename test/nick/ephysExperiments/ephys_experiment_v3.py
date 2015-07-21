@@ -572,6 +572,14 @@ class RecordingSite(object):
     def get_session_inds_one_type(self, plotType, report):
         return [index for index, s in enumerate(self.sessionList) if ((s.plotType==plotType) & (s.report==report))]
         
+    def add_cluster(self, cluster):
+
+        pass
+
+    def push_clusters_to_database(self):
+        
+        pass
+
     def generate_main_report(self):
         '''
         Generate the reports for all of the sessions in this site. This is where we should interface with
@@ -585,6 +593,9 @@ class RecordingSite(object):
         Incorporated lan's code for plotting the cluster reports directly on the main report
         '''
         #FIXME: import another piece of code to do this?
+        #FIXME: OR, break into two functions: one that will do the multisite clustering, and one that 
+        #knows the type of report that we want. The first one can probably be a method of MSTC, the other 
+        #should either live in extraplots or should go in someone's directory
 
         for tetrode in self.goodTetrodes:
             oneTT = cms2.MultipleSessionsToCluster(self.animalName, self.get_session_filenames(), tetrode, '{}at{}um'.format(self.date, self.depth))
@@ -698,6 +709,9 @@ class RecordingSession(object):
         self.report = report
             
 
+class Cluster(object):
+
+    def __init__(self, animalName, date, experimenter, clusterNumber, ephysSessionList, behavFileList, sessionTypes, soundResponsive, laserPulseResponse, laserTrainResponse):
         
         
 
