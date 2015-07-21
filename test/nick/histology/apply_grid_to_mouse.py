@@ -33,7 +33,7 @@ class BrainGrid(histologyanalysis.OverlayGrid):
         if not coordFileName:
             coordFile = os.path.join(coordDir, 'coords_{}{}.json'.format(self.stackLabel, self.side))
         else:
-            coordFile = coordFileName
+            coordFile = os.path.join(coordDir, '{}.json'.format(coordFileName))
         return coordFile, coordDir
 
     def reference_slice_filename(self, refSliceInd):
