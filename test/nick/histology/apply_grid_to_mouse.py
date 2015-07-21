@@ -189,7 +189,7 @@ class BrainGrid(histologyanalysis.OverlayGrid):
             #Save the coords file with the side that you put the grid on
             bg.save_mouse_coords('1_25x', 'left')
         '''
-        coordFile, coordDir = coord_file(coordFileName)
+        coordFile, coordDir = self.coord_file(coordFileName)
         if not os.path.exists(coordDir):
             os.makedirs(coordDir)
         self.save_coords(coordFile)
