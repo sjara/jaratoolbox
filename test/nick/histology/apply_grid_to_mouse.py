@@ -30,6 +30,11 @@ class BrainGrid(histologyanalysis.OverlayGrid):
         Returns the full path to the coords file for a given animal, magnification, and grid side
         '''
         coordDir = os.path.join(settings.HISTOLOGY_PATH, self.animalName, 'coords')
+        
+        if self.side == '':
+            sideInput = raw_input("Enter the side if necessary: ")
+            coordFile = os.path.join(coordDir, 'coords_{}{}.json'.format(self.stackLabel, sideInput))
+
         if not coordFileName:
             coordFile = os.path.join(coordDir, 'coords_{}{}.json'.format(self.stackLabel, self.side))
         else:
