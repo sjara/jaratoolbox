@@ -34,11 +34,13 @@ class BrainGrid(histologyanalysis.OverlayGrid):
         if self.side == '':
             sideInput = raw_input("Enter the side if necessary: ")
             coordFile = os.path.join(coordDir, 'coords_{}{}.json'.format(self.stackLabel, sideInput))
-
-        if not coordFileName:
+        else: 
             coordFile = os.path.join(coordDir, 'coords_{}{}.json'.format(self.stackLabel, self.side))
-        else:
-            coordFile = os.path.join(coordDir, '{}.json'.format(coordFileName))
+
+        #if not coordFileName: #FIXME: This was here to allow people to enter their own coord file name but was breaking things
+            #coordFile = os.path.join(coordDir, 'coords_{}{}.json'.format(self.stackLabel, self.side))
+        #else:
+            #coordFile = os.path.join(coordDir, '{}.json'.format(coordFileName))
         return coordFile, coordDir
 
     def reference_slice_filename(self, refSliceInd):
