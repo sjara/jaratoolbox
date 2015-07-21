@@ -14,6 +14,7 @@ import os
 import subprocess
 import numpy as np
 
+from jaratoolbox.test.nick.ephysExperiments import recordingday as rd
 
 from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
 reload(cms2)
@@ -50,16 +51,27 @@ class EphysExperiment(object):
             else:
                 print "Unrecognized session format"
                 pass
+
+            return ephysSession
                 
         elif isinstance(session, int): #use the passed int as an index to get the session name from the current directory
             filesFromToday = [f for f in os.listdir(self.localEphysDir) if (f.startswith(self.date) & ('_kk' not in f))]
             ephysSession = sorted(filesFromToday)[session]
 
+            return ephysSession
+
+        elif isinstance(session, rd.RecordingSession):
+            ephysSession = session.session
+            behavFileIdentifier = session.behavFileIdentifier
+            if behavFileIdentifier:
+                return ephysSession, behavFileIdentifier
+            else:
+                return ephysSession
+
         else:
             print "Unrecognized session format"
             pass
 
-        return ephysSession
 
     def get_session_event_data(self, session):
         '''
@@ -70,7 +82,11 @@ class EphysExperiment(object):
 
         '''
         
+        
         ephysSession = self.get_session_name(session)
+        if isinstance(ephysSession, tuple):
+            ephysSession = ephysSession[0]
+
         ephysDir=os.path.join(self.localEphysDir, ephysSession)
         event_filename=os.path.join(ephysDir, 'all_channels.events')
         eventData=loadopenephys.Events(event_filename)
@@ -84,6 +100,9 @@ class EphysExperiment(object):
         '''
 
         ephysSession = self.get_session_name(session)
+        if isinstance(ephysSession, tuple):
+            ephysSession = ephysSession[0]
+
         ephysDir=os.path.join(self.localEphysDir, ephysSession)
         plotTitle = ephysDir
 
@@ -99,6 +118,9 @@ class EphysExperiment(object):
         '''
         
         ephysSession = self.get_session_name(session)
+        if isinstance(ephysSession, tuple):
+            ephysSession = ephysSession[0]
+
         ephysDir=os.path.join(self.localEphysDir, ephysSession)
         spikeFilename = os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
         spikeData = loadopenephys.DataSpikes(spikeFilename)
@@ -247,7 +269,6 @@ class EphysExperiment(object):
 
     def plot_sorted_tuning_raster(self, session, tetrode, behavFileIdentifier, cluster = None, replace=0, timeRange = [-0.5, 1], ms = 1):
         '''
-        FIXME: Refactor this into two methods so that it uses the standard methods for plotting sorted rasters
         '''
         bdata = self.get_session_behav_data(session,behavFileIdentifier)
 
@@ -709,13 +730,3 @@ class RecordingSession(object):
         self.report = report
             
 
-class Cluster(object):
-
-    def __init__(self, animalName, date, experimenter, clusterNumber, ephysSessionList, behavFileList, sessionTypes, soundResponsive, laserPulseResponse, laserTrainResponse):
-        
-        
-
-
-        
-   
-   

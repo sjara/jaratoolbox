@@ -1,3 +1,33 @@
+import os
+import json
+import itertools
+from jaratoolbox.test.nick.ephysExperiments import ephys_experiment_v3 as ee3
+reload(ee3)
+
+def convert_to_builtin_type(obj):
+    d = { '__class__':obj.__class__.__name__, 
+          '__module__':obj.__module__,
+          }
+    d.update(obj.__dict__)
+    return d
+
+
+def load_cluster_database(dbFilename):
+    with open(dbFilename, 'r') as f:
+
+        clusterDB = json.load(f)
+        return clusterDB
+
+#def load_cluster_database(dbFilename):
+    #cellDB = []
+    #with open(dbFilename, 'r') as f:
+        #for line in f:
+            ## slice the next 6 lines from the iterable, as a list.
+            #lines = [line] + list(itertools.islice(f, 64))
+            #jfile = json.loads(''.join(lines))
+#
+            #cellDB.append(LoadedCluster(jfile)) #Append a loaded cluster object from the data
+        #return cellDB
 
 class RecordingDay(object):
     
@@ -13,12 +43,16 @@ class RecordingDay(object):
         self.experimenter = experimenter
         self.siteList = []
         #An internal instance of the ephys experiment class for easy plotting? 
-        self.ee2 = EphysExperiment(animalName, date, experimenter = experimenter, **kwargs)
+        self.ee = ee3.EphysExperiment(animalName, date, experimenter = experimenter, **kwargs)
         
-        def add_site(self, depth, goodTetrodes):
-            site = RecordingSite(depth, goodTetrodes)
-            self.siteList.append(site)
-            return site
+    def add_site(self, depth, goodTetrodes):
+        site = RecordingSite(depth,
+                             goodTetrodes,
+                             animalName=self.animalName,
+                             date=self.date,
+                             experimenter=self.experimenter)
+        self.siteList.append(site)
+        return site
             
         
 
@@ -29,21 +63,60 @@ class RecordingSite(object):
     RecordingSession objects that hold information about each individual recording session. 
     '''
 
-    def __init__(self, depth, goodTetrodes):
+    def __init__(self, depth, goodTetrodes, animalName, date, experimenter):
 
-        self.animalName = parent.animalName
-        self.date = parent.date
-        self.experimenter = parent.experimenter
+        self.animalName = animalName
+        self.date = date
+        self.experimenter = experimenter
         self.depth = depth
         self.goodTetrodes = goodTetrodes
         self.sessionList = []
-        parent.siteList.append(self)
-
+        self.clusterList = []
         
     def add_session(self, sessionID, behavFileIdentifier, sessionType):
         session = RecordingSession(sessionID, behavFileIdentifier, sessionType, self.date)
         self.sessionList.append(session)
         return session
+
+    def add_cluster(self, clusterNumber, soundResponsive=False, laserPulseResponse=False, followsLaserTrain=False, comments=''):
+            cluster = Cluster(self.animalName, self.date, self.depth, self.experimenter,
+                                            clusterNumber=clusterNumber,
+                                            ephysSessionList=self.get_session_filenames(),
+                                            behavFileList=self.get_session_behavIDs(),
+                                            sessionTypes=self.get_session_types(),
+                                            soundResponsive=soundResponsive,
+                                            laserPulseResponse=laserPulseResponse,
+                                            followsLaserTrain=followsLaserTrain, 
+                                            comments=comments)
+            self.clusterList.append(cluster)
+            return cluster
+
+    def write_database(self, dbFilename):
+
+        '''
+        This is the wrong way to do this. I should instead read the entire database and then re-write each entry. 
+        This method would provide greater control over the elements that go into the list, and would allow me to use
+        a JSON array more easily
+        '''
+        
+        #currentCellIDs = []
+        #if os.path.isfile(dbFilename):
+            #with open(dbFilename, 'r') as f:
+                #for line in f:
+                    ## slice the next 6 lines from the iterable, as a list.
+                    #lines = [line] + list(itertools.islice(f, 64))#FIXME: HArdcoded number of lines per entry
+                    #jfile = json.loads(''.join(lines))
+                    #currentCellIDs.append(LoadedCluster(jfile))
+        #currentClusterIDs = [c.clusterID.encode('ascii', 'ignore') for c in currentCellIDs]
+
+        with open(dbFilename, 'w') as f:
+            f.write('[\n')
+            for indClust, clusterFile in enumerate(self.clusterList):
+                #if clusterFile.clusterID not in currentClusterIDs:
+                f.write(json.dumps(clusterFile, indent=4, sort_keys=True, default=convert_to_builtin_type))
+                if indClust < len(self.clusterList)-1:
+                    f.write(',\n')
+            f.write('\n]')
 
     def get_session_filenames(self):
         return [s.session for s in self.sessionList]
@@ -173,10 +246,41 @@ class RecordingSession(object):
     having to write it over and over again. 
     '''
     def __init__(self, sessionID, behavFileIdentifier, sessionType, date):
-        self.session = '_'.join([date, sessionID]) 
-        self.behavFileIdentifier = behavFileIdentifier
-        self.sessionType = sessionType
+        self.session = '_'.join([date, sessionID]) ,
+        self.behavFileIdentifier = behavFileIdentifier,
+        self.sessionType = sessionType,
+        self.plotType = ''
+        self.report = ''
+                                            
         
     def set_plot_type(self, plotTypeStr, report = 'main'):
         self.plotType = plotTypeStr
         self.report = report
+
+
+class Cluster(object):
+
+    def __init__(self, animalName, date, depth, experimenter, clusterNumber, ephysSessionList, behavFileList, sessionTypes, soundResponsive, laserPulseResponse, followsLaserTrain, comments = ''):
+        
+        self.animalName = animalName
+        self.date = date
+        self.depth = depth
+        self.experimenter = experimenter
+        self.clusterNumber = clusterNumber
+        self.ephysSessionList = ephysSessionList
+        self.behavFileList = behavFileList
+        self.sessionTypes = sessionTypes
+        self.soundResponsive = soundResponsive
+        self.laserPulseResponse = laserPulseResponse
+        self.followsLaserTrain = followsLaserTrain
+        self.comments = comments
+
+        self.clusterID = '_'.join([animalName,date,str(depth),str(clusterNumber)]) 
+
+        
+class LoadedCluster(Cluster):
+
+    def __init__(self, decodedDict):
+        for key in decodedDict:
+            if key not in ['__class__', '__module__']:
+                setattr(self, key, decodedDict[key])
