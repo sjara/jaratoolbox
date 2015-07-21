@@ -4,19 +4,14 @@ import itertools
 from jaratoolbox.test.nick.ephysExperiments import ephys_experiment_v3 as ee3
 reload(ee3)
 
+
 def convert_to_builtin_type(obj):
     d = { '__class__':obj.__class__.__name__, 
-          '__module__':obj.__module__,
-          }
+        '__module__':obj.__module__,
+        }
     d.update(obj.__dict__)
     return d
 
-
-def load_cluster_database(dbFilename):
-    with open(dbFilename, 'r') as f:
-
-        clusterDB = json.load(f)
-        return clusterDB
 
 #def load_cluster_database(dbFilename):
     #cellDB = []
@@ -91,32 +86,6 @@ class RecordingSite(object):
             self.clusterList.append(cluster)
             return cluster
 
-    def write_database(self, dbFilename):
-
-        '''
-        This is the wrong way to do this. I should instead read the entire database and then re-write each entry. 
-        This method would provide greater control over the elements that go into the list, and would allow me to use
-        a JSON array more easily
-        '''
-        
-        #currentCellIDs = []
-        #if os.path.isfile(dbFilename):
-            #with open(dbFilename, 'r') as f:
-                #for line in f:
-                    ## slice the next 6 lines from the iterable, as a list.
-                    #lines = [line] + list(itertools.islice(f, 64))#FIXME: HArdcoded number of lines per entry
-                    #jfile = json.loads(''.join(lines))
-                    #currentCellIDs.append(LoadedCluster(jfile))
-        #currentClusterIDs = [c.clusterID.encode('ascii', 'ignore') for c in currentCellIDs]
-
-        with open(dbFilename, 'w') as f:
-            f.write('[\n')
-            for indClust, clusterFile in enumerate(self.clusterList):
-                #if clusterFile.clusterID not in currentClusterIDs:
-                f.write(json.dumps(clusterFile, indent=4, sort_keys=True, default=convert_to_builtin_type))
-                if indClust < len(self.clusterList)-1:
-                    f.write(',\n')
-            f.write('\n]')
 
     def get_session_filenames(self):
         return [s.session for s in self.sessionList]
@@ -282,5 +251,48 @@ class LoadedCluster(Cluster):
 
     def __init__(self, decodedDict):
         for key in decodedDict:
-            if key not in ['__class__', '__module__']:
+            if key not in ['__class__', '__module__']: #FIXME: get rid of this, it does not seem useful
                 setattr(self, key, decodedDict[key])
+
+
+class JSONCellDB(object):
+
+    def __init__(self, dbFilename):
+        self.dbFilename = dbFilename
+        clusterDB = self.connect(dbFilename)
+        self.clusterList = self.build_clusters(clusterDB)
+        self.clusterIDList = self.get_cluster_IDs(self.clusterList)
+
+    def connect(self, dbFilename):
+        if os.path.isfile(dbFilename):
+            with open(dbFilename, 'r+') as f: #This should open a new file if the file does not exist
+                clusterDB = json.load(f)
+        else: #No file to load - create it?
+            clusterDB = []
+        return clusterDB
+
+    def build_clusters(self, clusterDB):
+        loadedClusters = [LoadedCluster(d) for d in clusterDB]
+        return loadedClusters
+
+    def get_cluster_IDs(self, clusterList):
+        clusterIDList = [c.clusterID.encode('utf8', 'ignore') for c in self.clusterList]
+        return clusterIDList
+
+    def add_clusters(self, clusterObjList):
+        for clusterObj in clusterObjList:
+            if clusterObj.clusterID not in self.clusterIDList:
+                self.clusterList.append(clusterObj)
+                self.clusterIDList = self.get_cluster_IDs(self.clusterList)
+            else:
+                print "Attempted to add duplicate cluster: {}".format(clusterObj.clusterID)
+        
+    def write_database(self):
+        with open(self.dbFilename, 'w') as f:
+            f.write('[\n')
+            for indClust, clusterFile in enumerate(self.clusterList):
+                f.write(json.dumps(clusterFile, indent=4, sort_keys=True, default=convert_to_builtin_type))
+                if indClust < len(self.clusterList)-1:
+                    f.write(',\n')
+            f.write('\n]')
+

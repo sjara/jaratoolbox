@@ -15,6 +15,10 @@ cluster1 = site1.add_cluster(2, soundResponsive=True, laserPulseResponse=True, f
 cluster2 = site1.add_cluster(5, soundResponsive=True, laserPulseResponse=True, comments='probably synaptic')
 cluster3 = site1.add_cluster(5, soundResponsive=True, laserPulseResponse=True, comments='probably synaptic') #A repeat cluster
 
-site1.write_database('/tmp/celldb7.json')
 
-cellDB = rd.load_cluster_database('/tmp/celldb7.json')
+cluster4 = site1.add_cluster(7, soundResponsive=True, comments='sound responsive only')
+
+
+cellDB = rd.JSONCellDB('/tmp/celldb1.json')
+cellDB.add_clusters([cluster1, cluster2, cluster3, cluster4])
+cellDB.write_database()
