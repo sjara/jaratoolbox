@@ -2,7 +2,7 @@ import os
 import json
 import itertools
 from jaratoolbox.test.nick.ephysExperiments import ephys_experiment_v3 as ee3
-reload(ee3)
+#reload(ee3)
 
 
 def convert_to_builtin_type(obj):

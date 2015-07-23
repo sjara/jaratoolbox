@@ -2,6 +2,7 @@ from jaratoolbox import histologyanalysis
 reload(histologyanalysis)
 import os
 from jaratoolbox import settings
+import numpy as np
 
 class BrainGrid(histologyanalysis.OverlayGrid):
     '''
@@ -142,6 +143,22 @@ class BrainGrid(histologyanalysis.OverlayGrid):
         '''
         self.set_grid(self.reference_slice_filename(refSliceInd))
         
+    def convert_grid_coords(self):
+        coordArray = np.array(self.coords)
+        topright = coordArray[coordArray[:,0].argmax(), :] #Greater X
+        bottomleft = coordArray[coordArray[:,1].argmax(), :] #Greater Y
+
+        transform = np.array([ [348, -374], [146, -419] ]) # Hardcoded, determined empirically
+
+        if self.side == 'left':
+            topright = topright - transform[0, :]
+            bottomleft = bottomleft - transform[1, :]
+        elif self.side == 'right':
+            pass #FIXME: implement this. 
+    
+        self.coords = np.array([topright, bottomleft])
+        #self.draw_grid()
+       
     def stack_grid(self, channelLabel):
         '''
         Apply the grid coordinates to all of the images for one condition

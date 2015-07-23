@@ -14,7 +14,7 @@ import os
 import subprocess
 import numpy as np
 
-from jaratoolbox.test.nick.ephysExperiments import recordingday as rd
+#from jaratoolbox.test.nick.ephysExperiments import recordingday as rd
 
 from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
 reload(cms2)
