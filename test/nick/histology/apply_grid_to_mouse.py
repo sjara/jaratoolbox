@@ -145,16 +145,17 @@ class BrainGrid(histologyanalysis.OverlayGrid):
         
     def convert_grid_coords(self):
         coordArray = np.array(self.coords)
+        transform = np.array([ [348, -374], [146, -419] ]) # Hardcoded, determined empirically
+
         topright = coordArray[coordArray[:,0].argmax(), :] #Greater X
         bottomleft = coordArray[coordArray[:,1].argmax(), :] #Greater Y
 
-        transform = np.array([ [348, -374], [146, -419] ]) # Hardcoded, determined empirically
 
         if self.side == 'left':
             topright = topright - transform[0, :]
             bottomleft = bottomleft - transform[1, :]
         elif self.side == 'right':
-            pass #FIXME: implement this. 
+            pass #FIXME: implement this. Opposite sign for X? X should mirror but Y should not
     
         self.coords = np.array([topright, bottomleft])
         #self.draw_grid()
