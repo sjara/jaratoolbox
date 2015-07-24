@@ -63,31 +63,6 @@ def avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCo
 
     return spikeArray
 
-
-def avg_spikes_in_event_locked_timerange_each_combination(spikeTimestamps, trialsEachCond, timeRange):
-
-    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,
-                                                                                                                 eventOnsetTimes,
-                                                                                                                 timeRange)
-
-    numSpikesInTimeRangeEachTrial = indexLimitsEachTrial[1,:]-indexLimitsEachTrial[0,:]
-    numInts = np.shape(trialsEachCond)[2]
-    numFreqs = np.shape(trialsEachCond)[1]
-    avgSpikesEachCombination = np.zeros([numInts, numFreqs])
-
-    for intensity in range(numInts):
-        for frequency in range(numFreqs):
-            trialsThisFreqThisIntensity = trialsEachCond[:,frequency, intensity]
-            spikesEachTrialThisCombination = numSpikesInTimeRangeEachTrial[trialsThisFreqThisIntensity]
-            avgSpikesThisCombination = spikesEachTrialThisCombination.mean()
-            avgSpikesEachCombination[intensity, frequency]=avgSpikesThisCombination
-
-    return avgSpikesEachCombination
-
-import cProfile
-cProfile.run('avg_spikes_in_event_locked_timerange_each_combination(spikeTimestamps, trialsEachCond, [0, 0.1])')
-cProfile.run('no_loops_event_locked_timerange(spikeTimestamps, trialsEachCond, [0, 0.1])')
-
 def plot_array_as_heatmap(heatmapArray, xlabels=None, ylabels=None, flipy=True, flipylabels=True, cmap='Blues'):
 
     fig = plt.figure()
@@ -118,26 +93,10 @@ def plot_array_as_heatmap(heatmapArray, xlabels=None, ylabels=None, flipy=True, 
             
     plt.show()
 
-evokedTR = [0, 0.1]
-evokedHeatmap = avg_spikes_in_event_locked_timerange_each_combination(spikeTimestamps, trialsEachCond, evokedTR)
 
-baselineTR = [-0.05, 0]
-baselineHeatmap = avg_spikes_in_event_locked_timerange_each_combination(spikeTimestamps, trialsEachCond, baselineTR)
-
-possibleFreq = np.unique(freqEachTrial)
-possibleIntensity = np.unique(intensityEachTrial)
-
-tcHeatmap = evokedHeatmap - baselineHeatmap
-
-#plot_array_as_heatmap(evokedHeatmap, cmap='Blues')
-#
-#plot_array_as_heatmap(heatMap, cmap = 'Blues')
-
-#plot_array_as_heatmap(evokedHeatmap, cmap='bone')
-
-#spikesFI = avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCond)
-#spikesF = avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCondFreq)
-#spikesI = avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCondInt)
+spikesFI = avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCond)
+spikesF = avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCondFreq)
+spikesI = avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCondInt)
 
 '''
 TODO
@@ -145,6 +104,9 @@ TODO
 DONE Add tetrode labels to the array raster plot
 DONE also space in xlabel between time and seconds
 DONE sharex between the tetrodes
+
+### Could be solved by using the new code for generating TC heatmap arrays, 
+although there would be some additional work needed on the plotting code ###
 
 Pass spikes already aligned to the tc heatmap code, 
 using the code to find trials each condition
@@ -159,6 +121,8 @@ also pass the clim param.
 also possibly a smart scale parameter? That would set the color limits intelligently?
 use a diverging colormap with the zero point set at the baseline firing rate? 
 
+###########
+
 DONE Use the other raster plotting code to plot the sorted tuning curve rasters. 
 these axes should be shared as well
 
@@ -168,7 +132,6 @@ responsive to the sound and the laser
 move this to the repo as ephysexperiment
 
 find a better name for RecordingDay - this will be the top class and have a method to add new sites
-
 we also need a module name for this. 
 
 The behavFileIdentifier needs to be well documented. Currently it relies on an EphysExperiment object
@@ -187,3 +150,40 @@ Use rsync to automatically send the behavior data to jarahub when the user saves
 
 
 '''
+
+# def avg_spikes_in_event_locked_timerange_each_combination(spikeTimestamps, trialsEachCond, timeRange):
+
+#     spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,
+#                                                                                                                  eventOnsetTimes,
+#                                                                                                                  timeRange)
+
+#     numSpikesInTimeRangeEachTrial = indexLimitsEachTrial[1,:]-indexLimitsEachTrial[0,:]
+#     numInts = np.shape(trialsEachCond)[2]
+#     numFreqs = np.shape(trialsEachCond)[1]
+#     avgSpikesEachCombination = np.zeros([numInts, numFreqs])
+
+#     for intensity in range(numInts):
+#         for frequency in range(numFreqs):
+#             trialsThisFreqThisIntensity = trialsEachCond[:,frequency, intensity]
+#             spikesEachTrialThisCombination = numSpikesInTimeRangeEachTrial[trialsThisFreqThisIntensity]
+#             avgSpikesThisCombination = spikesEachTrialThisCombination.mean()
+#             avgSpikesEachCombination[intensity, frequency]=avgSpikesThisCombination
+
+#    return avgSpikesEachCombination
+
+# evokedTR = [0, 0.1]
+# evokedHeatmap = avg_spikes_in_event_locked_timerange_each_combination(spikeTimestamps, trialsEachCond, evokedTR)
+
+# baselineTR = [-0.05, 0]
+# baselineHeatmap = avg_spikes_in_event_locked_timerange_each_combination(spikeTimestamps, trialsEachCond, baselineTR)
+
+# possibleFreq = np.unique(freqEachTrial)
+# possibleIntensity = np.unique(intensityEachTrial)
+
+# tcHeatmap = evokedHeatmap - baselineHeatmap
+
+#plot_array_as_heatmap(evokedHeatmap, cmap='Blues')
+#
+#plot_array_as_heatmap(heatMap, cmap = 'Blues')
+
+#plot_array_as_heatmap(evokedHeatmap, cmap='bone')
