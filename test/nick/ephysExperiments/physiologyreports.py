@@ -7,9 +7,6 @@ import os
 import numpy as np
 
 def nick_lan_main_report(siteObj, show=False, save=True, saveClusterReport=True):
-    print "show={}".format(show)
-    print "save={}".format(save)
-    print "saveClusterReport={}".format(saveClusterReport)
     for tetrode in siteObj.goodTetrodes:
         oneTT = cms2.MultipleSessionsToCluster(
             siteObj.animalName,
@@ -139,9 +136,10 @@ def nick_lan_main_report(siteObj, show=False, save=True, saveClusterReport=True)
 
             if save: 
                 plt.savefig(full_fig_path, format='png')
-                #plt.close()
             if show:
                 plt.show()
+            if not show:
+                plt.close()
 
         if saveClusterReport:
             plt.figure()

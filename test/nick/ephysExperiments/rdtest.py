@@ -23,18 +23,28 @@ s1TC.set_plot_type('tc_heatmap', report='main')
 s1BF = site1.add_session('15-45-22', 'b', 'BestFreq')
 s1BF.set_plot_type('raster', report='main')
 
-site1.generate_main_report(show=True, save=False, saveClusterReport=False)
 
-cluster1 = site1.add_cluster(clusterNumber=2, tetrode=6, soundResponsive=True, laserPulseResponse=True, followsLaserTrain=True, comments='good cell')
-cluster2 = site1.add_cluster(clusterNumber=5, tetrode=6, soundResponsive=True, laserPulseResponse=True, comments='probably synaptic')
-cluster3 = site1.add_cluster(clusterNumber=5, tetrode=6, soundResponsive=True, laserPulseResponse=True, comments='probably synaptic') #A repeat cluster
+#site1.generate_main_report(show=False, save=False, saveClusterReport=False)
+
+site2 = today.add_site(depth = 3600, goodTetrodes = [4, 5, 6])
+s2NB = site2.add_session('16-00-00', None, 'NoiseBurst')
+s2LP = site2.add_session('16-00-01', None, 'LaserPulse')
+s2LT = site2.add_session('16-00-02', None, 'LaserTrain')
+
+#site2.generate_main_report(show=False, save=False, saveClusterReport=False)
 
 
-cluster4 = site1.add_cluster(clusterNumber=7, tetrode=6, soundResponsive=True, comments='sound responsive only')
+site1.add_cluster(clusterNumber=2, tetrode=6, soundResponsive=True, laserPulseResponse=True, followsLaserTrain=True, comments='good cell')
+site1.add_cluster(clusterNumber=5, tetrode=6, soundResponsive=True, laserPulseResponse=True, comments='probably synaptic') 
+site1.add_cluster(clusterNumber=5, tetrode=6, soundResponsive=True, laserPulseResponse=True, comments='probably synaptic') #A repeat cluster
+site1.add_cluster(clusterNumber=7, tetrode=6, soundResponsive=True, comments='sound responsive only')
 
+site2.add_cluster(clusterNumber=2, tetrode=6, soundResponsive=True, laserPulseResponse=True, followsLaserTrain=True, comments='good cell')
+site2.add_cluster(clusterNumber=5, tetrode=6, soundResponsive=True, laserPulseResponse=True, comments='probably synaptic')
 
-cellDB = rd.JSONCellDB('/tmp/celldb1.json')
-cellDB.add_clusters([cluster1, cluster2, cluster3, cluster4])
+cellDB = rd.JSONCellDB('/tmp/celldb2.json')
+cellDB.add_clusters(site1.clusterList)
+cellDB.add_clusters(site2.clusterList)
 cellDB.write_database()
 
 
