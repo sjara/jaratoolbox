@@ -24,8 +24,8 @@ def define_grid(corners, nRows=3, nCols=2):
     Find coordinates of corners for each square in a grid.
     '''
     topleft,bottomright = corners
-    xvals = np.linspace(topleft[0],bottomright[0],nCols+1)
-    yvals = np.linspace(topleft[1],bottomright[1],nRows+1)
+    xvals = np.sort(np.linspace(topleft[0],bottomright[0],nCols+1))
+    yvals = np.sort(np.linspace(topleft[1],bottomright[1],nRows+1))
     return (xvals,yvals)
 
 def draw_grid(corners,nRows=3,nCols=2):
@@ -70,7 +70,8 @@ class OverlayGrid(object):
     def show_image(self,img):
         self.fig = plt.gcf()
         self.fig.clf()
-        plt.imshow(img, cmap = 'gray')
+	cLims = [0,255]  # FIXME: color values are hard-coded
+        plt.imshow(img, cmap = 'gray',vmin=cLims[0], vmax=cLims[1])
         plt.gca().set_aspect('equal', 'box')
         #plt.axis('equal')
         plt.show()
@@ -82,6 +83,7 @@ class OverlayGrid(object):
         self.corners.append((event.xdata, event.ydata))
         if len(self.corners) == 2:
             self.fig.canvas.mpl_disconnect(self.cid)
+            self.set_grid(self.corners)
             draw_grid(self.corners, nRows = self.nRows, nCols = self.nCols)
             print 'Done. Now you can apply this grid to another image using apply_grid()'
             print 'Press enter to continue'
@@ -284,7 +286,7 @@ class BrainGrid(OverlayGrid):
         Args:
             refSliceInd (int): The index of the slice to return. Starts from zero. 
         '''
-        self.set_grid(self.reference_slice_filename(refSliceInd))
+        self.enter_grid(self.reference_slice_filename(refSliceInd))
         
     def convert_grid_coords(self):
         coordArray = np.array(self.corners)
