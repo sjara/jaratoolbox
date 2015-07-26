@@ -9,13 +9,20 @@ import json
 
 GRIDCOLOR = [0,0.5,0.5]
 
-def draw_grid(corners,nRows=3,nCols=2):
+def define_grid(corners, nRows=3, nCols=2):
     '''
-    Draw a grid of nRows and nCols starting at the coordinates specified in 'corners'.
+    Find coordinates of corners for each square in a grid.
     '''
     topleft,bottomright = corners
     xvals = np.linspace(topleft[0],bottomright[0],nCols+1)
     yvals = np.linspace(topleft[1],bottomright[1],nRows+1)
+    return (xvals,yvals)
+
+def draw_grid(corners,nRows=3,nCols=2):
+    '''
+    Draw a grid of nRows and nCols starting at the coordinates specified in 'corners'.
+    '''
+    (xvals,yvals) = define_grid(corners,nRows,nCols)
     holdStatus = plt.ishold()
     plt.hold(True)
     plt.autoscale(False)
@@ -24,6 +31,155 @@ def draw_grid(corners,nRows=3,nCols=2):
     for xval in xvals:
         plt.plot([xval,xval],yvals[[0,-1]],color=GRIDCOLOR)
     plt.hold(holdStatus)
+    plt.draw()
+
+class OverlayGridNew(object):
+
+    def __init__(self,nRows=3,nCols=2):
+        '''
+        This class allows defining a grid over an image using the mouse,
+        and show that grid overlaid on another image.
+        '''
+        self.image = np.array([]) #mpimg.imread(imgfile)
+        self.corners = []
+        self.coords = []
+        self.fig = None
+        self.cid = None  # Connection ID for mouse clicks
+        self.nRows = nRows
+        self.nCols = nCols
+        self.sliceNumber = []
+        self.maxSliceInd = []
+        self.stack = []
+        self.kpid = None
+        self.cid = None
+
+    def set_shape(self,nRows,nCols):
+        self.nRows = nRows
+        self.nCols = nCols
+
+    def show_image(self,img):
+        self.fig = plt.gcf()
+        self.fig.clf()
+        plt.imshow(img, cmap = 'gray')
+        plt.gca().set_aspect('equal', 'box')
+        #plt.axis('equal')
+        plt.show()
+
+    def onclick(self,event):
+        #ix, iy = event.xdata, event.ydata
+        print '({0},{1})'.format(int(event.xdata), int(event.ydata))
+        #global corners
+        self.corners.append((event.xdata, event.ydata))
+        if len(self.corners) == 2:
+            self.fig.canvas.mpl_disconnect(self.cid)
+            draw_grid(self.corners, nRows = self.nRows, nCols = self.nCols)
+            print 'Done. Now you can apply this grid to another image using apply_grid()'
+            print 'Press enter to continue'
+
+    def on_key_press(self, event):
+        '''
+        Method to listen for keypresses and change the slice
+        '''
+        if event.key=="<":
+            if self.sliceNumber>0:
+                self.sliceNumber-=1
+            else:
+                self.sliceNumber=self.maxSliceInd
+
+            self.apply_grid(self.stack[self.sliceNumber])
+            self.title_stack_slice()
+        elif event.key=='>':
+            if self.sliceNumber<self.maxSliceInd:
+                self.sliceNumber+=1
+            else:
+                self.sliceNumber=0
+
+            self.apply_grid(self.stack[self.sliceNumber])
+            self.title_stack_slice()
+
+    def title_stack_slice(self):
+        plt.title("Slice {}\nPress < or > to navigate".format(self.sliceNumber))
+        
+    def enter_grid(self,imgfile):
+        self.corners = []
+        self.image = mpimg.imread(imgfile)
+        self.fig = plt.gcf()
+        self.show_image(self.image)
+        print 'Click two points to define corners of grid.'
+        self.cid = self.fig.canvas.mpl_connect('button_press_event', self.onclick)
+        # FIXME: find if waiting for click can block execution of the rest.
+
+    def set_grid(self,corners):
+        self.corners = corners
+        self.coords = define_grid(corners, self.nRows, self.nCols)
+
+    def apply_grid(self,imgfile):
+        self.image = mpimg.imread(imgfile)
+        self.show_image(self.image)
+        draw_grid(self.corners, self.nRows, self.nCols)
+
+    def apply_to_stack(self, fnList):
+        self.fig = plt.gcf()
+        
+        #Disconnect the event listener if one exists
+        if self.kpid:
+            self.fig.canvas.mpl_disconnect(self.kpid)
+        
+        self.stack = fnList
+        self.maxSliceInd = len(fnList)-1
+        self.sliceNumber = 0
+        self.apply_grid(self.stack[self.sliceNumber])
+        #plt.gca().set_aspect('equal', 'box')
+        self.title_stack_slice()
+        
+        #Connect the event listener
+        self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+
+    def load_corners(self, filename):
+        with open(filename, 'r') as f:
+            self.corners = json.load(f)
+            
+    def save_corners(self, filename):
+        with open(filename, 'w') as f:
+            json.dump(self.corners, f)
+
+    def quantify(self,image):
+        imShape = image.shape
+        assert len(imShape)<3
+        xvals,yvals = self.coords
+        measured = np.empty((self.nRows,self.nCols))
+        for indr in range(self.nRows):
+            rowCoords = yvals[indr:indr+2].astype(int)
+            for indc in range(self.nCols):
+                colCoords = xvals[indc:indc+2].astype(int)
+                imChunk = image[rowCoords[0]:rowCoords[1],
+                                colCoords[0]:colCoords[1]]
+                measured[indr,indc] = imChunk.mean()
+        return measured
+
+    def load_stack(self,fnList):
+        stackList = []
+        for imgFile in fnList:
+            image = mpimg.imread(imgFile)
+            if len(image.shape)>2:
+                image = image[:,:,0]   # FIXME: I'm taking only first channel
+            stackList.append(image)
+        return np.array(stackList)
+
+    def quantify_stack(self,imgStack):
+        '''
+        ARGS:
+            stack: (nImages, height, width)
+        '''
+        nImages = imgStack.shape[0]
+        measuredStack = np.empty((nImages, self.nRows, self.nCols))
+        for indImg, oneImg in enumerate(imgStack):
+            measuredStack[indImg] = self.quantify(oneImg)
+        return measuredStack
+
+
+# ------------------------------------------------------------------
+
 
 class OverlayGrid(object):
 
@@ -49,6 +205,7 @@ class OverlayGrid(object):
         self.nCols = nCols
 
     def show_image(self,img):
+        self.fig = plt.gcf()
         self.fig.clf()
         plt.imshow(img, cmap = 'gray')
         plt.gca().set_aspect('equal', 'box')
@@ -134,7 +291,6 @@ class OverlayGrid(object):
         with open(filename, 'w') as f:
             json.dump(self.coords, f)
     
-
 
 #if __name__=='__main__':
    # imgfile = '/mnt/jarahubdata/histology/anat002_MGB_jpg/b4-C1-01tdT_mirror_correct.jpg'
