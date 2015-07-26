@@ -25,7 +25,10 @@ for CASE in [1]:
         fname=loadbehavior.path_to_behavior_data(animalName,'santiago','2afc',session)
         try:
             bdata=loadbehavior.BehaviorData(fname)
-            print '{0} (rew/valid): {1} / {2}'.format(animalName,bdata['nValid'][-1],bdata['nRewarded'][-1])
+            nReward = bdata['nRewarded'][-1]
+            nValid = bdata['nValid'][-1]
+            correct = nReward/float(nValid)
+            print '{0} (rew/valid): {1} / {2} = {3:0.0%}'.format(animalName,nReward,nValid,correct)
         except:
             print 'Something is wrong with this session'
             pass

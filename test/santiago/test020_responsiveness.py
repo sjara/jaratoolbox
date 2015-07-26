@@ -26,7 +26,7 @@ ephysRootDir = settings.EPHYS_PATH
 experimenter = 'santiago'
 paradigm = '2afc'
 
-CASE = 1
+CASE = 2
 if CASE==1:
     import allcells_test055 as allcells
     cellID = allcells.cellDB.findcell('test055','20150228a',3,11)
