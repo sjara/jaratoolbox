@@ -39,7 +39,7 @@ ephysRootDir = settings.EPHYS_PATH
 experimenter = 'santiago'
 paradigm = '2afc'
 
-CASE = 2
+CASE = 1
 if CASE==1:
     import allcells_test055 as allcells
     cellID = allcells.cellDB.findcell('test055','20150228a',3,11)
@@ -82,6 +82,7 @@ correct = bdata['outcome']==bdata.labels['outcome']['correct']
 #oneFreq = bdata['targetFrequency']==12233
 possibleFreq = np.unique(bdata['targetFrequency'])
 oneFreq = bdata['targetFrequency'] == possibleFreq[1]
+#oneFreq = np.ones(len(bdata['targetFrequency']),dtype=bool)
 
 rightward = (bdata['choice']==bdata.labels['choice']['right']) & oneFreq
 leftward = (bdata['choice']==bdata.labels['choice']['left']) & oneFreq
