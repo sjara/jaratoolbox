@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import jaccard_similarity_score
 from sklearn import manifold
 
-basePath = '/home/nick/src/jaratoolbox/test/nick/histology/'
+basePath = '/home/nick/Programming/jaratoolbox/test/nick/histology/'
 
 anat030_str = read_csv(os.path.join(basePath, 'Anat030_str_red_left.csv'), header=None)
 anat030_mgn = read_csv(os.path.join(basePath, 'Anat030_mgn_red_left.csv'), header=None)
@@ -30,8 +30,12 @@ mouse_mgns = [anat030_mgn, anat024_mgn]
 results_by_thal_vox = []
 results_array = np.zeros((13, 3, 3, 16, 3, 3), dtype=bool)
 
-# for indThalVox in [7]: #testing
-for voxelInd in itertools.product(*map(xrange, np.shape(mouse_mgns[0]))): #Iterate through the thalamus voxels
+ravel_array_shape = (len(anat030_mgn.ravel()), len(anat030_str.ravel()))
+init_ravel_array = np.zeros(ravel_array_shape)
+
+results_rav_array = init_ravel_array.copy()
+
+for voxelNumber, voxelInd in enumerate(itertools.product(*map(xrange, np.shape(mouse_mgns[0])))): #Iterate through the thalamus voxels
     positives = np.zeros((16, 3, 3), dtype = bool)
     negatives = np.zeros((16, 3, 3), dtype = bool) #Init arrays to hold pos and neg. data 
     for indmouse, mgn in enumerate( mouse_mgns ): #Iterate through the mgn data
@@ -40,62 +44,242 @@ for voxelInd in itertools.product(*map(xrange, np.shape(mouse_mgns[0]))): #Itera
         elif mgn[voxelInd]==0: #Negative Injection
             negatives = negatives + (mouse_strs[indmouse]>0)
 
-        all_mouse_results = positives * np.logical_not(negatives) #take pos. list, flip to false any that are true in the negative list
+    all_mouse_results = positives * np.logical_not(negatives) #take pos. list, flip to false any that are true in the negative list
 
+    all_mouse_ravel = all_mouse_results.ravel()
        
+    results_rav_array[voxelNumber, :] = all_mouse_ravel
     results_by_thal_vox.append(all_mouse_results)
     results_array[voxelInd[0], voxelInd[1], voxelInd[2], :, :, :] = all_mouse_results
 
+    
+mgn_shape = np.shape(anat030_mgn)
+mgn_rav_len = len(np.zeros(mgn_shape).ravel())
+mgn_coord_array = np.reshape(np.array(range(mgn_rav_len)), mgn_shape)
+
+#Coordinates for different 'ravelings' - to use, ravel normally (A-P) and then slice with these. 
+mgn_ap_ravel = mgn_coord_array.ravel()
+mgn_ap_str_ap_heatmap = init_ravel_array.copy()
+heatmap_by_cluster = init_ravel_array.copy()
+
+#AP mgn, AP str Actually, P-A
+for indRavelMgn in mgn_ap_ravel:
+    str_this_mgn = results_by_thal_vox[indRavelMgn]
+    mgn_ap_str_ap_heatmap[indRavelMgn, :] = str_this_mgn.ravel()
+
+
+###Sorting the raveled results using DBSCAN
+#from sklearn.metrics.pairwise import euclidean_distances
+#from sklearn.cluster import DBSCAN
+#
+#D = euclidean_distances(results_rav_array)
+#
+#db = DBSCAN(metric = 'precomputed').fit(D)
+#
+##The cluster labels
+#unique_labels = np.unique(db.labels_)
+#
+#sorted_rav_array = init_ravel_array.copy()
+#count = 0
+#for label in unique_labels:
+    #indsThisLabel = np.flatnonzero(db.labels_ == label)
+    #for ind in indsThisLabel:
+        #striatum = results_rav_array[ind]
+        #sorted_rav_array[count, :] = striatum
+        #count += 1
+       # 
+#plt.imshow(sorted_rav_array, cmap = 'Blues')
+#plt.xlabel('All Possible Striatum Voxels')
+#plt.ylabel('All Possible Thalamus Voxels')
+#plt.show()
+###
+    
+##Code to plot projections of the voxels - not working yet
+
+#holder01 = np.zeros((13, 3, 3))
+#indsThisLabel = np.flatnonzero(db.labels_ == -1)
+#for ind in indsThisLabel:
+    #position = np.unravel_index(ind, (13, 3, 3))
+    #print position
+    #holder[position] = 1
+#
+#holder0 = np.zeros((13, 3, 3))
+#indsThisLabel = np.flatnonzero(db.labels_ == 0)
+#for ind in indsThisLabel:
+    #position = np.unravel_index(ind, (13, 3, 3))
+    #print position
+    #holder[position] = 1
+       # 
+#holder1 = np.zeros((13, 3, 3))
+#indsThisLabel = np.flatnonzero(db.labels_ == 1)
+#for ind in indsThisLabel:
+    #position = np.unravel_index(ind, (13, 3, 3))
+    #print position
+    #holder[position] = 1
+#
+#holder2 = np.zeros((13, 3, 3))
+#indsThisLabel = np.flatnonzero(db.labels_ == 2)
+#for ind in indsThisLabel:
+    #position = np.unravel_index(ind, (13, 3, 3))
+    #print position
+    #holder[position] = 1
+   # 
+#
+#subplot2grid(
+
+
+ #Testing code, not producing very interpretable results yet. 
 
 ravel_array_shape = (len(anat030_mgn.ravel()), len(anat030_str.ravel()))
+
+mgn_shape = np.shape(anat030_mgn)
+
+mgn_rav_len = len(np.zeros(mgn_shape).ravel())
+mgn_coord_array = np.reshape(np.array(range(mgn_rav_len)), mgn_shape)
+
+#Coordinates for different 'ravelings' - to use, ravel normally (A-P) and then slice with these. 
+mgn_ap_ravel = mgn_coord_array.ravel()
+mgn_dv_ravel = np.swapaxes(mgn_coord_array, 0, 1).ravel()
+mgn_ml_ravel = np.swapaxes(mgn_coord_array, 0, 2).ravel()
     
-str_ap_heatmap = np.zeros(ravel_array_shape)
-str_dv_heatmap = np.zeros(ravel_array_shape)
-str_ml_heatmap = np.zeros(ravel_array_shape)
+init_ravel_array = np.zeros(ravel_array_shape)
+#Initialize 9 arrays to hold the raveled data
 
+mgn_ap_str_ap_heatmap = init_ravel_array.copy()
+mgn_ap_str_dv_heatmap = init_ravel_array.copy()
+mgn_ap_str_ml_heatmap = init_ravel_array.copy()
 
-for indRavelMgn in range(len(anat030_mgn.ravel())):
+mgn_dv_str_ap_heatmap = init_ravel_array.copy()
+mgn_dv_str_dv_heatmap = init_ravel_array.copy()
+mgn_dv_str_ml_heatmap = init_ravel_array.copy()
+
+mgn_ml_str_ap_heatmap = init_ravel_array.copy()
+mgn_ml_str_dv_heatmap = init_ravel_array.copy()
+mgn_ml_str_ml_heatmap = init_ravel_array.copy()
+
+#AP mgn, AP str Actually, P-A
+for indEnum, indRavelMgn in enumerate(mgn_ap_ravel):
     str_this_mgn = results_by_thal_vox[indRavelMgn]
-    str_ap_heatmap[indRavelMgn, :] = str_this_mgn.ravel()
+    mgn_ap_str_ap_heatmap[indEnum, :] = str_this_mgn.ravel()
 
 
-for indRavelMgn in range(len(anat030_mgn.ravel())):
+#AP mgn, dv str Actually, P-A
+count = 0
+for indEnum, indRavelMgn in enumerate(mgn_ap_ravel):
     str_this_mgn = results_by_thal_vox[indRavelMgn]
-    str_dv_heatmap[indRavelMgn, :] = np.swapaxes(str_this_mgn, 0, 1).ravel()
+    mgn_ap_str_dv_heatmap[indEnum, :] = np.swapaxes(str_this_mgn, 0, 1).ravel()
 
 
-for indRavelMgn in range(len(anat030_mgn.ravel())):
+#AP mgn, ml str Actually, P-A
+for indEnum, indRavelMgn in enumerate(mgn_ap_ravel):
     str_this_mgn = results_by_thal_vox[indRavelMgn]
-    str_ml_heatmap[indRavelMgn, :] = np.swapaxes(str_this_mgn, 0, 2).ravel()
+    mgn_ap_str_ml_heatmap[indEnum, :] = np.swapaxes(str_this_mgn, 0, 2).ravel()
+
+#DV MGN, PA STR    
+for indEnum, indRavelMgn in enumerate(mgn_dv_ravel):
+    str_this_mgn = results_by_thal_vox[indRavelMgn]
+    mgn_dv_str_ap_heatmap[indEnum, :] = str_this_mgn.ravel()
 
 
-import sklearn
-from sklearn import neighbors
+#DV MGN, DV Str
+for indEnum, indRavelMgn in enumerate(mgn_dv_ravel):
+    str_this_mgn = results_by_thal_vox[indRavelMgn]
+    mgn_dv_str_dv_heatmap[indEnum, :] = np.swapaxes(str_this_mgn, 0, 1).ravel()
+
+
+#DV MGN, ML Str
+for indEnum, indRavelMgn in enumerate(mgn_dv_ravel):
+    str_this_mgn = results_by_thal_vox[indRavelMgn]
+    mgn_dv_str_ml_heatmap[indEnum, :] = np.swapaxes(str_this_mgn, 0, 2).ravel()
+
+#ML MGN, PA STR
+for indEnum, indRavelMgn in enumerate(mgn_ml_ravel):
+    str_this_mgn = results_by_thal_vox[indRavelMgn]
+    mgn_ml_str_ap_heatmap[indEnum, :] = str_this_mgn.ravel()
+
+
+#ML mgn, DV Str
+for indEnum, indRavelMgn in enumerate(mgn_ml_ravel):
+    str_this_mgn = results_by_thal_vox[indRavelMgn]
+    mgn_ml_str_dv_heatmap[indEnum, :] = np.swapaxes(str_this_mgn, 0, 1).ravel()
+
+
+#ML MGN, Ml STR
+for indEnum, indRavelMgn in enumerate(mgn_ml_ravel):
+    str_this_mgn = results_by_thal_vox[indRavelMgn]
+    mgn_ml_str_ml_heatmap[indEnum, :] = np.swapaxes(str_this_mgn, 0, 2).ravel()
+    
+
+
+
+plt.subplot(3, 3, 1)
+plt.imshow(mgn_ap_str_ap_heatmap, cmap = "Blues")
+plt.ylabel("Thalamus, AP")
+plt.xlabel("Striatum, AP")
+
+plt.subplot(3, 3, 2)
+plt.imshow(mgn_ap_str_dv_heatmap, cmap = "Blues")
+plt.ylabel("Thalamus, AP")
+plt.xlabel("Striatum, DV")
+
+plt.subplot(3, 3, 3)
+plt.imshow(mgn_ap_str_ml_heatmap, cmap = "Blues")
+plt.ylabel("Thalamus, AP")
+plt.xlabel("Striatum, ML")
+
+
+
+plt.subplot(3, 3, 4)
+plt.imshow(mgn_dv_str_ap_heatmap, cmap = "Blues")
+plt.ylabel("Thalamus, DV")
+plt.xlabel("Striatum, AP")
+
+plt.subplot(3, 3, 5)
+plt.imshow(mgn_dv_str_dv_heatmap, cmap = "Blues")
+plt.ylabel("Thalamus, DV")
+plt.xlabel("Striatum, DV")
+
+plt.subplot(3, 3, 6)
+plt.imshow(mgn_dv_str_ml_heatmap, cmap = "Blues")
+plt.ylabel("Thalamus, DV")
+plt.xlabel("Striatum, ML")
+
+
+
+plt.subplot(3, 3, 7)
+plt.imshow(mgn_ml_str_ap_heatmap, cmap = "Blues")
+plt.ylabel("Thalamus, ML")
+plt.xlabel("Striatum, AP")
+
+plt.subplot(3, 3, 8)
+plt.imshow(mgn_ml_str_dv_heatmap, cmap = "Blues")
+plt.ylabel("Thalamus, ML")
+plt.xlabel("Striatum, DV")
+
+plt.subplot(3, 3, 9)
+plt.imshow(mgn_ml_str_ml_heatmap, cmap = "Blues")
+plt.ylabel("Thalamus, ML")
+plt.xlabel("Striatum, ML")
+
+plt.show()
+
+###Manifold stuff
+#import sklearn
+#from sklearn import neighbors
 
 #dice_sim = neighbors.DistanceMetric.get_metric('dice')
 #
 #similarities = dice_sim.pairwise(str_ap_heatmap)
 
 #similarities = sklearn.metrics.pairwise.euclidean_distances(str_ap_heatmap)
-similarities = sklearn.metrics.pairwise.pairwise_distances(str_ap_heatmap, metric='cosine')
-
-seed = np.random.RandomState(seed=3)
-mds = manifold.MDS(n_components=2, max_iter=3000, eps=1e-9, random_state=seed,
-                   dissimilarity="precomputed", n_jobs=1)
-
-pos = mds.fit(similarities).embedding_
-
-
-
-#plt.subplot(3, 1, 1)
-#plt.imshow(str_ap_heatmap, cmap = "Blues")
+#similarities = sklearn.metrics.pairwise.pairwise_distances(str_ap_heatmap, metric='cosine')
 #
-#plt.subplot(3, 1, 2)
-#plt.imshow(str_dv_heatmap, cmap = "Blues")
+#seed = np.random.RandomState(seed=3)
+#mds = manifold.MDS(n_components=2, max_iter=3000, eps=1e-9, random_state=seed,
+                   #dissimilarity="precomputed", n_jobs=1)
 #
-#plt.subplot(3, 1, 3)
-#plt.imshow(str_ml_heatmap, cmap = "Blues")
-#plt.show()
+#pos = mds.fit(similarities).embedding_
+
 
 
 ##Testing
@@ -111,6 +295,9 @@ ap_ravel = test_array.ravel()
 dv_ravel = np.swapaxes(test_array, 0, 1).ravel()
 
 ml_ravel = np.swapaxes(test_array, 0, 2).ravel()
+
+
+
 
 
 ###If we make an array from reshape(range())..., then we can swapaxes it and ravel it
@@ -129,7 +316,5 @@ ml_ravel = np.swapaxes(test_array, 0, 2).ravel()
 ##pos_times_injection_anat030 = pos_array*anat030_filter
 ##neg_times_injection_anat024 = neg_array*anat024_filter
 ##pos_but_not_neg = pos_times_injection_anat030+neg_times_injection_anat024
-##pos_but_not_neg = np.ones((16, 3, 3))*(pos_but_not_neg>0)
-#
-#final = anat030_filter*np.logical_not(anat024_filter)
-#
+##pos_but_not_neg = np.ones((16, 3, 3))import os
+

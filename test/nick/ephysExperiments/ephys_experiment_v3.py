@@ -1,3 +1,4 @@
+import jaratoolbox
 from jaratoolbox import celldatabase
 from jaratoolbox import settings
 from jaratoolbox import spikesanalysis
@@ -7,7 +8,6 @@ from jaratoolbox import loadopenephys
 from jaratoolbox import extraplots
 from jaratoolbox import behavioranalysis
 from collections import defaultdict
-reload(extraplots)
 from jaratoolbox.spikesorting import align_waveforms, plot_waveforms #FIXME: don't import functions, import the module
 import matplotlib.pyplot as plt
 import os
@@ -21,7 +21,15 @@ reload(cms2)
 
 class EphysExperiment(object):
 
-    def __init__(self, animalName, date, experimenter='nick', serverUser='jarauser', serverName='jarahub', serverBehavPathBase='/data/behavior', paradigm='laser_tuning_curve'):
+    def __init__(self,
+                 animalName,
+                 date,
+                 experimenter='nick',
+                 serverUser='jarauser',
+                 serverName='jarahub',
+                 serverBehavPathBase='/data/behavior',
+                 paradigm='laser_tuning_curve'):
+
         self.SAMPLING_RATE = 30000.0
         self.animalName = animalName
         self.date = date
@@ -41,7 +49,7 @@ class EphysExperiment(object):
         print ' '.join(transferCommand)
         subprocess.call(transferCommand)
 
-    def get_session_name(self, session):
+    def get_session_name(self, session, dataType='ephys'):
             
         if isinstance(session, str):
             if len(session.split('_'))==2: #Has the date already
@@ -60,13 +68,16 @@ class EphysExperiment(object):
 
             return ephysSession
 
-        elif isinstance(session, rd.RecordingSession):
+        elif isinstance(session, jaratoolbox.test.nick.ephysExperiments.recordingday.Session):
             ephysSession = session.session
             behavFileIdentifier = session.behavFileIdentifier
-            if behavFileIdentifier:
-                return ephysSession, behavFileIdentifier
-            else:
+            
+            if dataType=='ephys':
                 return ephysSession
+            elif dataType=='behavior':
+                return behavFileIdentifier
+            else:
+                print "Unrecognized dataType: use 'ephys' or 'behavior'"
 
         else:
             print "Unrecognized session format"
@@ -84,9 +95,6 @@ class EphysExperiment(object):
         
         
         ephysSession = self.get_session_name(session)
-        if isinstance(ephysSession, tuple):
-            ephysSession = ephysSession[0]
-
         ephysDir=os.path.join(self.localEphysDir, ephysSession)
         event_filename=os.path.join(ephysDir, 'all_channels.events')
         eventData=loadopenephys.Events(event_filename)
@@ -100,9 +108,6 @@ class EphysExperiment(object):
         '''
 
         ephysSession = self.get_session_name(session)
-        if isinstance(ephysSession, tuple):
-            ephysSession = ephysSession[0]
-
         ephysDir=os.path.join(self.localEphysDir, ephysSession)
         plotTitle = ephysDir
 
@@ -111,16 +116,31 @@ class EphysExperiment(object):
 
     def get_session_spike_data_one_tetrode(self, session, tetrode, convert_to_seconds=True):
         '''
+        Get the spike data for one session, one tetrode.
+
         Method to retrieve the spike data for a session/tetrode. Automatically loads the 
         clusters if clustering has been done for the session. This method converts the spike 
         timestamps to seconds by default. 
 
+        Args:
+        
+        session (str or int): If a string, then must be either the full name of the ephys file (e.g. '2015-06-24_12-24-03') 
+        or just the timestamp portion of the file ('12-24-03'), in which case self.date will be used to construct the 
+        full file name. If an int, then the files that were recorded on self.date will be sorted, and the value provided
+        will be used to index the sorted list. Therefore, -1 will return the session with the latest timestamp on the recording day. 
+
+        tetrode (int): The tetrode number to retrieve
+
+        convert_to_seconds (bool): Whether or not to divide by the value stored in self.SAMPLING_RATE before returning spike 
+        timestamps
+
+        Returns: 
+
+        spikeData (object of type jaratoolbox.loadopenephys.DataSpikes)
+
         '''
         
         ephysSession = self.get_session_name(session)
-        if isinstance(ephysSession, tuple):
-            ephysSession = ephysSession[0]
-
         ephysDir=os.path.join(self.localEphysDir, ephysSession)
         spikeFilename = os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
         spikeData = loadopenephys.DataSpikes(spikeFilename)
@@ -138,10 +158,12 @@ class EphysExperiment(object):
 
         return spikeData
         
-    def get_event_onset_times(self, eventData, convert_to_seconds = True):
+    def get_event_onset_times(self, eventData, eventID=1, eventChannel=0, convert_to_seconds=True):
         '''
-        Crappy method. Needs work. Takes an Events object and gives you the event onset times. 
-        Returns the event times divided by the sampling rate, so they are in seconds. 
+        Calculate event onset times given an eventData object. 
+
+        Accepts a jaratoolbox.loadopenephys.Events object and finds the event onset times. 
+        
         '''
         
         evID=np.array(eventData.eventID)
@@ -151,14 +173,23 @@ class EphysExperiment(object):
             eventTimes=np.array(eventData.timestamps)/self.SAMPLING_RATE
         else:
             eventTimes = np.array(eventData.timestamps)
-        eventOnsetTimes=eventTimes[(evID==1)&(evChannel==0)]
+        eventOnsetTimes=eventTimes[(evID==eventID)&(evChannel==eventChannel)]
+
+        #Restrict to events are seperated by more than 0.5 seconds
+        print "FIXME: Hardcoded minimum difference between event onset times"
         evdiff = np.r_[1.0, np.diff(eventOnsetTimes)]
         eventOnsetTimes=eventOnsetTimes[evdiff>0.5]
         
         return eventOnsetTimes
                                               
 
-    def get_session_behav_data(self, session, behavFileIdentifier):
+    def get_session_behav_data(self, session, behavFileIdentifier=None):
+        if isinstance(session, jaratoolbox.test.nick.ephysExperiments.recordingday.Session):
+            behavFileIdentifier=self.get_session_name(session, dataType='behavior')
+        else:
+            if not behavFileIdentifier:
+                print "Either supply a Session object as the session, or supply a valid behav file identifier"
+
         behaviorDir=os.path.join(self.localBehavPath, self.animalName)
         fullBehavFilename = ''.join([self.behavFileBaseName, behavFileIdentifier, '.h5'])
         behavDataFileName=os.path.join(behaviorDir, fullBehavFilename)
@@ -601,7 +632,7 @@ class RecordingSite(object):
         
         pass
 
-    def generate_main_report(self):
+    def generate_main_report(self, siteName):
         '''
         Generate the reports for all of the sessions in this site. This is where we should interface with
         the multiunit clustering code, since all of the sessions that need to be clustered together have
@@ -619,7 +650,7 @@ class RecordingSite(object):
         #should either live in extraplots or should go in someone's directory
 
         for tetrode in self.goodTetrodes:
-            oneTT = cms2.MultipleSessionsToCluster(self.animalName, self.get_session_filenames(), tetrode, '{}at{}um'.format(self.date, self.depth))
+            oneTT = cms2.MultipleSessionsToCluster(self.animalName, self.get_session_filenames(), tetrode, '{}_{}'.format(self.date, siteName))
             oneTT.load_all_waveforms()
 
             #Do the clustering if necessary. 
@@ -724,6 +755,8 @@ class RecordingSession(object):
         self.session = '_'.join([date, sessionID]) 
         self.behavFileIdentifier = behavFileIdentifier
         self.sessionType = sessionType
+        self.plotType=None
+        self.report=None
         
     def set_plot_type(self, plotTypeStr, report = 'main'):
         self.plotType = plotTypeStr

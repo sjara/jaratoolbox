@@ -68,3 +68,24 @@ plt.show()
 #This is the behavior data for the best frequency presentation. 
 #At this site, the TC and BF sessions have saved behavior data
 bdata = ex0624.get_session_behav_data(s1BF)
+
+
+#We can also pass ephys filenames, with or without the date attached, to the object instead of handles. 
+#Lets look at the LP session for TT6c3
+spikeDataLP = ex0624.get_session_spike_data_one_tetrode('2015-06-24_15-25-08', 6)
+spikeTimesLP = spikeDataLP.timestamps[spikeDataLP.clusters==3]
+
+#Since the object knows the date, we can also do:
+spikeDataLP = ex0624.get_session_spike_data_one_tetrode('15-25-08', 6)
+
+#All of the methods to get data (get_session_spike_data_one_tetrode, get_event_data, and get_session_behav_data
+#can take either a session object, a full session filename string with the date, or a string with the 
+#time stamp only. NOTE that if you are passing a session filename string to get_session_behav_data, you must 
+#also pass the behavior file identifier. When passing an object this info is passed as well. 
+
+#Getting the behavior data for the tuning curve session by passing a full filename string:
+
+bdata_tc = ex0624.get_session_behav_data('2015-06-24_15-31-48', 'a')
+
+
+
