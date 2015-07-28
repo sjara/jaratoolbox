@@ -95,11 +95,14 @@ def laser_tc_analysis(site, sitenum):
 
             #The laser train raster plot
             plt.subplot2grid((5, 6), (2, 0), rowspan = 1, colspan = 3)
-            ltIndex = site.get_session_types().index('laserTrain')
-            ltSession = site.get_session_filenames()[ltIndex]
-            exp2.plot_session_raster(ltSession, tetrode, cluster = cluster, replace = 1)
-            plt.ylabel('Laser Trains')
-            plt.title(ltSession, fontsize = 10)
+            try:  
+                ltIndex = site.get_session_types().index('laserTrain')
+                ltSession = site.get_session_filenames()[ltIndex]
+                exp2.plot_session_raster(ltSession, tetrode, cluster = cluster, replace = 1)
+                plt.ylabel('Laser Trains')
+                plt.title(ltSession, fontsize = 10)
+            except ValueError:
+                print 'This session doesnot exist.'
 
             #The tuning curve
             plt.subplot2grid((5, 6), (0, 3), rowspan = 3, colspan = 3)
