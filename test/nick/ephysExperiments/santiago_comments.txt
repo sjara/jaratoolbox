@@ -1,0 +1,18 @@
+
+=== 2015-07-28 ===
+
+* recordingday.py
+- recordingday imports ephys_experiment_v3.EphysExperiment
+  but when using them we also need to import both?
+  Somethign seems recursive. They should be independent or hierarchical.
+- Parameters laserPulseResponse,soundResponsive,followsTrain don't seem appropriate
+  because they will probably change in the future (some added, some gone).
+  Maybe we should have them in a dictionary of 'features'.
+
+* ephys_experiment_v3.py
+- This object should be independent of the server. Maybe we need to define better the role of this object.
+
+= Minor:
+- Name 'recordingday.Recording' may be misleading (there are many recordings per day), 
+  but I can't come up with a better one.
+
