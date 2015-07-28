@@ -50,7 +50,7 @@ class EphysExperiment(object):
         subprocess.call(transferCommand)
 
     def get_session_name(self, session, dataType='ephys'):
-            
+
         if isinstance(session, str):
             if len(session.split('_'))==2: #Has the date already
                 ephysSession = session
@@ -61,7 +61,7 @@ class EphysExperiment(object):
                 pass
 
             return ephysSession
-                
+
         elif isinstance(session, int): #use the passed int as an index to get the session name from the current directory
             filesFromToday = [f for f in os.listdir(self.localEphysDir) if (f.startswith(self.date) & ('_kk' not in f))]
             ephysSession = sorted(filesFromToday)[session]
@@ -71,7 +71,7 @@ class EphysExperiment(object):
         elif isinstance(session, jaratoolbox.test.nick.ephysExperiments.recordingday.Session):
             ephysSession = session.session
             behavFileIdentifier = session.behavFileIdentifier
-            
+
             if dataType=='ephys':
                 return ephysSession
             elif dataType=='behavior':
