@@ -5,6 +5,9 @@ Beginnings of the electrophysiology recording database for Jaralab.
 
 '''
 
+import json
+import os
+
 class CellDB(list):
 
     def __init__(self):
@@ -23,20 +26,66 @@ class CellDB(list):
     def get_cluster_ids(self):
         return [c.clusterID for c in self]
 
-    def query_cell(self, lookup_dict):
+    def query(self, lookup_dict, verbose=True):
         '''
-        The lookup dict will be like this: {'animalName': 'pinp003', 'date': '2014-06-24'}
+        The lookup dict will be like this: {'animalName': ['pinp003'], 'date': ['2014-06-24']}
         '''
 
-        self.queryResults = self
-        for attrName, attrVal in lookup_dict.iteritems():
-            self.queryResults = [c for c in self.queryResults if getattr(c, attrName, False)==attrVal]
+        queryResults = self
+        for attrName, attrVals in lookup_dict.iteritems():
+            queryResults = [c for c in queryResults if getattr(c, attrName, False) in attrVals]
 
-        print "Found {} clusters satisfying these conditions".format(len(self.queryResults))
-        print '\n'.join(self.queryResults)
-        print "Results stored in self.queryResults"
+        if verbose:
+            print '\n'.join([result.clusterID for result in queryResults])
+            print "{} clusters satisfying these conditions".format(len(queryResults))
+        return queryResults
+
+    def find_cell(self, animalName, date, depth, tetrode, cluster):
+        '''
+        This method will return only a single cell
+        '''
+
+        cell = self.query({'animalName': [animalName],
+                           'date': [date],
+                           'depth': [depth],
+                           'tetrode': [tetrode],
+                           'cluster': [cluster]}, verbose=False)
+        return cell[0]
+
+    def write_to_json(self, filename):
+        '''CAUTION: This will currently overwrite the json file. You should always load the most current
+        database work with it, and then write the updated version when you are done.'''
+
+        confirmation = raw_input("This will overwrite the .json file. Proceed? [yes/no] ")
+
+        if confirmation=='yes':
+            with open(filename, 'w') as f:
+                f.write('[\n')
+                for indClust, cluster in enumerate(self):
+                    f.write(
+                        json.dumps(
+                            cluster.__dict__,
+                            indent=4,
+                            sort_keys=True))
+                    if indClust < len(self) - 1:
+                        f.write(',\n')
+                f.write('\n]')
+        elif confirmation=='no':
+            print "Aborting"
+        else:
+            print "Please enter 'yes' or 'no'"
 
 
+
+    def load_from_json(self, filename):
+        if os.path.isfile(filename):
+            with open(filename, 'r') as f:
+                jsonDict = json.load(f)
+
+            self.add_clusters([LoadedCluster(d) for d in jsonDict])
+
+        else:
+            print "No database file found"
 
 class Recording(object):
 
@@ -193,15 +242,16 @@ class Cluster(object):
 
         self.animalName = animalName
         self.date = date
-        self.cluster = clusterNumber
+        self.depth = depth
         self.tetrode = tetrode
-        self.clusterNumber = clusterNumber
+        self.experimenter = experimenter
+        self.paradigm = paradigm
+        self.cluster = clusterNumber
         self.ephysSessionList = ephysSessionList
         self.behavFileList = behavFileList
         self.sessionTypes = sessionTypes
         self.features = features
         self.comments = comments
-
         self.clusterID = '_'.join([animalName,
                                    date,
                                    str(depth),
@@ -213,3 +263,15 @@ class Cluster(object):
 
     def __str__(self):
         return self.clusterID
+
+class LoadedCluster(Cluster):
+
+    # def __init__(self, decodedDict):
+    #     for key in decodedDict:
+    #         if key not in [
+    #                 '__class__',
+    #                 '__module__']:  # FIXME: get rid of this, it does not seem useful
+    #             setattr(self, key, decodedDict[key])
+    def __init__(self, decodedDict):
+        for key in decodedDict:
+            setattr(self, key, decodedDict[key])
