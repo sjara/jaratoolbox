@@ -10,7 +10,7 @@ reload(cellDB)
 
 class ImportDB(unittest.TestCase):
     '''
-    A simple test to see if we can import the moduel and make a db. 
+    A simple test to see if we can import the moduel and make a db.
     '''
 
     def setUp(self):
@@ -21,7 +21,7 @@ class ImportDB(unittest.TestCase):
 
 class TestRecording(unittest.TestCase):
     '''
-    We first need to store information about our recording day  
+    We first need to store information about our recording day
     '''
 
     def setUp(self):
@@ -29,8 +29,8 @@ class TestRecording(unittest.TestCase):
                                          '2015-01-01',
                                          'nick',
                                          '2afc')
-        
-        
+
+
     def test_repr(self):
         expectation = '''animalName: pinp003
 date: 0000-00-00

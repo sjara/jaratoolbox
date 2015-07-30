@@ -1,7 +1,7 @@
 '''
 2015-07-24 Nick Ponvert
 
-Beginnings of the electrophysiology recording database for Jaralab. 
+Beginnings of the electrophysiology recording database for Jaralab.
 
 '''
 
@@ -9,24 +9,44 @@ class CellDB(list):
 
     def __init__(self):
         super(CellDB, self).__init__()
+        self.queryResults = []
 
-    
+
     def add_clusters(self, clusters):
 
         for cluster in clusters:
-            self.append(cluster)
+            if cluster.clusterID not in self.get_cluster_ids():
+                self.append(cluster)
+            else:
+                print "Attemted to add duplicate cluster {}".format(cluster.clusterID)
+
+    def get_cluster_ids(self):
+        return [c.clusterID for c in self]
+
+    def query_cell(self, lookup_dict):
+        '''
+        The lookup dict will be like this: {'animalName': 'pinp003', 'date': '2014-06-24'}
+        '''
+
+        self.queryResults = self
+        for attrName, attrVal in lookup_dict.iteritems():
+            self.queryResults = [c for c in self.queryResults if getattr(c, attrName, False)==attrVal]
+
+        print "Found {} clusters satisfying these conditions".format(len(self.queryResults))
+        print '\n'.join(self.queryResults)
+        print "Results stored in self.queryResults"
+
 
 
 class Recording(object):
 
 
-    def __init__(self, animalName, date, experimenter, paradigm): 
+    def __init__(self, animalName, date, experimenter, paradigm):
         self.animalName = animalName
         self.date = date
         self.experimenter = experimenter
         self.paradigm = paradigm
         self.siteList = []
-
     def add_site(self, depth, goodTetrodes):
         site = Site(depth,
                     goodTetrodes,
@@ -48,13 +68,13 @@ class Recording(object):
                                                       self.date,
                                                       self.experimenter)
         return objStr
- 
+
 
 class Site(object):
 
     '''
-    Class for holding information about a recording site. 
-    Will act as a parent for all of the Session 
+    Class for holding information about a recording site.
+    Will act as a parent for all of the Session
     objects that hold information about each individual recording session.
     '''
 
@@ -77,9 +97,7 @@ class Site(object):
     def add_cluster(self,
                     clusterNumber,
                     tetrode,
-                    soundResponsive=False,
-                    laserPulseResponse=False,
-                    followsLaserTrain=False,
+                    features = {},
                     comments=''):
 
         cluster = Cluster(
@@ -93,13 +111,21 @@ class Site(object):
             ephysSessionList=self.get_session_filenames(),
             behavFileList=self.get_session_behavIDs(),
             sessionTypes=self.get_session_types(),
-            soundResponsive=soundResponsive,
-            laserPulseResponse=laserPulseResponse,
-            followsLaserTrain=followsLaserTrain,
+            features=features,
             comments=comments)
 
         self.clusterList.append(cluster)
         return cluster
+
+    def add_clusters(self, clusterDict):
+        '''
+        Add clusters from many tetrodes at once by passing a dictionary
+        e.g. add_clusters({ 3: [2, 3, 5], 5: [3, 7]})
+        '''
+        for tetrode, clusters in clusterDict.iteritems():
+            for cluster in clusters:
+                self.add_cluster(cluster, tetrode)
+
 
     def get_session_filenames(self):
        return [s.session for s in self.sessionList]
@@ -112,6 +138,13 @@ class Site(object):
 
     def get_session_inds_one_type(self, plotType, report):
         return [index for index, s in enumerate(self.sessionList) if ((s.plotType == plotType) & (s.report == report))]
+
+
+    def __repr__(self):
+        return "Site at {}um".format(self.depth)
+
+    def __str__(self):
+        return "Site at {}um".format(self.depth)
 
 class Session(object):
 
@@ -134,6 +167,12 @@ class Session(object):
         self.plotType = plotTypeStr
         self.report = report
 
+    def __repr__(self):
+        return "{0} - {1}".format(self.session, self.sessionType)
+
+    def __str__(self):
+        return "{0} - {1}".format(self.session, self.sessionType)
+
 
 class Cluster(object):
 
@@ -149,9 +188,7 @@ class Cluster(object):
             ephysSessionList,
             behavFileList,
             sessionTypes,
-            soundResponsive,
-            laserPulseResponse,
-            followsLaserTrain,
+            features,
             comments=''):
 
         self.animalName = animalName
@@ -162,9 +199,7 @@ class Cluster(object):
         self.ephysSessionList = ephysSessionList
         self.behavFileList = behavFileList
         self.sessionTypes = sessionTypes
-        self.soundResponsive = soundResponsive
-        self.laserPulseResponse = laserPulseResponse
-        self.followsLaserTrain = followsLaserTrain
+        self.features = features
         self.comments = comments
 
         self.clusterID = '_'.join([animalName,
@@ -172,5 +207,9 @@ class Cluster(object):
                                    str(depth),
                                    'TT{}'.format(self.tetrode),
                                    str(clusterNumber)])
-    
 
+    def __repr__(self):
+        return self.clusterID
+
+    def __str__(self):
+        return self.clusterID
