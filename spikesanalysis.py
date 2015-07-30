@@ -10,7 +10,7 @@ import numpy as np
 def eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange,spikeindex=False):
     '''Create a vector with the spike timestamps w.r.t. events onset.
 
-    (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = 
+    (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) =
         eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange)
 
     timeStamps: (np.array) the time of each spike.
@@ -26,13 +26,13 @@ def eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange,spikeindex=False
     '''
     nTrials = len(eventOnsetTimes)
     # FIXME: check if timestamps are sorted. We will use searchsorted() later.
-    
+
     spikeTimesFromEventOnset = np.empty(0,dtype='float64')
     spikeIndices = np.empty(0,dtype='int')
     trialIndexForEachSpike = np.empty(0,dtype='int')
     indexLimitsEachTrial = np.empty((2,nTrials),dtype='int')
     accumIndexFirstSpike = 0
-    
+
     for indtrial in np.arange(nTrials):
         thisTrialRange = eventOnsetTimes[indtrial] + timeRange
         firstSpikeInTrial = np.searchsorted(timeStamps,thisTrialRange[0])
@@ -58,12 +58,12 @@ def eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange,spikeindex=False
 def spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,binEdges):
     '''
     Create a matrix with spike counts given the times of the spikes.
-    
+
     spikeTimesFromEventOnset: vector of spikes timestamps with respect
     to the onset of the event.
     indexLimitsEachTrial: each column contains [firstInd,lastInd+1] of the spikes on a trial
     binEdges: time bin edges (including the left-most and right-most).
-    
+
     Returns:
     spikeCountMat: each column is one trial. N rows is len(binEdges)-1
     '''

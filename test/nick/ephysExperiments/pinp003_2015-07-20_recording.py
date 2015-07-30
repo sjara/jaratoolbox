@@ -10,7 +10,7 @@ sessionTypes = {'nb':'noiseBurst',
                 'tc':'tc_heatmap',
                 'bf':'bestFreq',
                 '3p':'3mWpulse',
-                '1p':'1mWpulse'} 
+                '1p':'1mWpulse'}
 
 impedence = {
 'TT3' : [369, 389, 327, 362],
@@ -20,11 +20,11 @@ impedence = {
 
 
 laserCalibration = {
-'1.0mW':2.3, 
-'1.5mW':2.8, 
-'2.0mW':3.2, 
-'2.5mW':3.5, 
-'3.0mW':4.1, 
+'1.0mW':2.3,
+'1.5mW':2.8,
+'2.0mW':3.2,
+'2.5mW':3.5,
+'3.0mW':4.1,
 '3.5mW':4.45}
 
 comments = []
@@ -43,7 +43,7 @@ site1.add_session('10-21-34', None, 'NB0.5').set_plot_type('raster', report='mai
 site1.add_session('10-24-16', None, 'LP2.5').set_plot_type('raster', report='main')
 site1.add_session('10-26-57', None, 'LT2.5').set_plot_type('raster', report='main')
 site1.add_session('10-30-48', 'a', 'TC_2k-40k_16f_40-70_4ints').set_plot_type('tc_heatmap', report='main')
-#site1.generate_main_report()
+# site1.generate_main_report('site1')
 
 
 comments.append('site 2 has a reference for the spikes as well as the LFPs. spikes = channel 14, lfp = channel 11')
@@ -54,14 +54,14 @@ site2.add_session('11-05-29', None, 'NB0.3').set_plot_type('raster', report='mai
 site2.add_session('11-08-42', 'b', 'TC_2k-40k_16f_40-70_4ints').set_plot_type('tc_heatmap', report='main')
 #site2.add_session('11-08-42', 'b', 'TC_2k-40k_16f_40-70_4ints').set_plot_type('tc_heatmap', report='tcComparison')
 site2.add_session('11-23-51', 'c', 'TC_3k-13k_16f_20-50_4ints').set_plot_type('tc_heatmap', report='tcComparison')
-#site2.generate_main_report()
+# site2.generate_main_report('site2')
 
 
 site3 = ee3.RecordingSite(today, depth = 3602, goodTetrodes = [5, 6])
 site3.add_session('11-51-31', None, 'NB0.3').set_plot_type('raster', report='main')
 site3.add_session('11-54-05', None, 'LP2.5').set_plot_type('raster', report='main')
 site3.add_session('11-56-36', None, 'LT2.5').set_plot_type('raster', report='main')
+site3.generate_main_report('site3')
 #synaptic excitation if anything at all, moving on
 
 comments.append('1230hrs - no more sound responses at 4000um. I am removing the electrodes')
-

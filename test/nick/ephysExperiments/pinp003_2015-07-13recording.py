@@ -1,5 +1,5 @@
-from jaratoolbox.test.nick.ephysExperiments import ephys_experiment_v2 as ee2
-reload(ee2)
+from jaratoolbox.test.nick.ephysExperiments import ephys_experiment_v3 as ee3
+reload(ee3)
 
 #The session types to use for this kind of experiment
 #Can use a dict like this or simply write the sesison types directly
@@ -34,7 +34,7 @@ Laser calibration
 I am recording from the right well, more laterally than the last recordings but still in the middle of the well in the A-P direction. The bone is re-growing, so I am at the most medial possible site at this A-P location. The site is almost in the very center of the well. Additionally, the tetrodes are on the lateral side of the optical fiber, so this limits how close I will be able to get to the previous good recording sites.  
 '''
 
-today = ee2.RecordingDay(animalName = 'pinp003', date = '2015-07-13', experimenter = 'nick')
+today = ee3.RecordingDay(animalName = 'pinp003', date = '2015-07-13', experimenter = 'nick')
 
 '''
 At 1010 um there are good spikes on TT4 and some on TT5. It is hard to tell whether or not they are visually-responsive. THey have wide waveforms and are spiking very fast. 
@@ -60,7 +60,7 @@ The laser-evoked spike seems to be followed by a powerful silencing effect. I wi
 
 '''
 
-site1 = ee2.RecordingSite(today, depth = 3203, goodTetrodes = [6])
+site1 = ee3.RecordingSite(today, depth = 3203, goodTetrodes = [6])
 s1s1 = site1.add_session('19-05-32', None, sessionTypes['lp']).set_plot_type('raster', report = 'extrarasters')
 
 #The below ephys session is incorrectly named
@@ -70,30 +70,32 @@ s1s2 = site1.add_session('19-05-32', 'a', sessionTypes['nb']).set_plot_type('ras
 '''
 THe sound response here is so weak/possibly not there that I am going to keep moving. 
 '''
-site2 = ee2.RecordingSite(today, depth = 3700, goodTetrodes = [5, 6])
-site2.add_session('20-26-48', None, sessionTypes['lp']).set_plot_type('raster', report = 'main') #Laser at 1mW
-site2.add_session('20-21-34', None, sessionTypes['lp']).set_plot_type('raster', report = 'main') #Laser at 3mW
+site2 = ee3.RecordingSite(today, depth = 3700, goodTetrodes = [5, 6])
 site2.add_session('20-11-35', None, sessionTypes['nb']).set_plot_type('raster', report = 'main')
+site2.add_session('20-21-34', None, sessionTypes['lp']).set_plot_type('raster', report = 'main') #Laser at 3mW
+#site2.add_session('20-26-48', None, sessionTypes['lp']) #Laser at 1mW
 site2.add_session('20-32-21', None, sessionTypes['lt']).set_plot_type('raster', report = 'main')
 site2.add_session('20-37-10', 'b', sessionTypes['tc']).set_plot_type('tc_heatmap', report = 'main')
-site2.generate_main_report()
+# site2.generate_main_report('site2')
 
 '''
 I am going to keep moving. 
 '''
-site3 = ee2.RecordingSite(today, depth = 3751, goodTetrodes = [5, 6])
-site3.add_session('21-11-00', None, sessionTypes['nb']) #Responses on TT6, maybe TT5
+site3 = ee3.RecordingSite(today, depth = 3751, goodTetrodes = [5, 6])
+site3.add_session('21-11-00', None, sessionTypes['nb']).set_plot_type('raster') #Responses on TT6, maybe TT5
  
-site3.add_session('21-14-05', None, sessionTypes['lp']) #Laser at 1mW
-site3.add_session('21-16-36', None, sessionTypes['lt']) #Laser at 1mW
-site3.add_session('21-20-28', 'c', sessionTypes['tc']) #regular TC
+site3.add_session('21-14-05', None, sessionTypes['lp']).set_plot_type('raster') #Laser at 1mW
+site3.add_session('21-16-36', None, sessionTypes['lt']).set_plot_type('raster') #Laser at 1mW
+site3.add_session('21-20-28', 'c', sessionTypes['tc']).set_plot_type('tc_heatmap') #regular TC
 site3.add_session('21-34-28', 'd', sessionTypes['tc']) #zooming in on bf
 #5000-22000, 16freqs, 20-50db, 4intensities, 0.1duration, 0.8isi
+site3.generate_main_report('site3')
 
 
-site4 = ee2.RecordingSite(today, depth = 3901, goodTetrodes = [5, 6])
-site4.add_session('21-54-42', None, sessionTypes['nb'])
-site4.add_session('21-58-54', 'e', sessionTypes['tc']) #BF still between 5 and 9
+site4 = ee3.RecordingSite(today, depth = 3901, goodTetrodes = [5, 6])
+site4.add_session('21-54-42', None, sessionTypes['nb']).set_plot_type('raster')
+site4.add_session('21-58-54', 'e', sessionTypes['tc']).set_plot_type('tc_heatmap') #BF still between 5 and 9
+site4.generate_main_report('site4')
 
 
 
