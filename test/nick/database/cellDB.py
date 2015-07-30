@@ -80,11 +80,28 @@ class CellDB(list):
         queryResults = startingList
         for featureName, featureVal in features_dict.iteritems():
                 queryResults = [c for c in queryResults if op(c.features[featureName], featureVal)]
+        if verbose:
+            print "{} clusters satisfying these conditions".format(len(queryResults))
+        return queryResults
 
     def set_features(self, features_dict, inds_to_set=range(len(self))):
+        '''
+        Do we ever want to specify a range of inds to this function?
+        '''
         for featureName, featureVal in features_dict.iteritems():
             for ind in inds_to_set:
                 self[ind].features[featureName]=featureVal
+
+    def set_features_from_array(self, featureName, featureArray):
+        '''
+        The feature array has to be the same length as the database
+        '''
+        if len(featureArray)!=len(self):
+            print "The feature array has to be the same length as the database"
+            pass
+
+        for indClust, featureVal in enumerate(featureArray):
+            self[indClust].features[featureName]=featureVal
 
     def write_to_json(self, filename):
         '''CAUTION: This will currently overwrite the json file. You should always load the most current
