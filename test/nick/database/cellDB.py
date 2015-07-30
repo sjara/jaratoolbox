@@ -6,6 +6,7 @@ Beginnings of the electrophysiology recording database for Jaralab.
 '''
 
 import json
+import operator
 import os
 
 class CellDB(list):
@@ -16,6 +17,9 @@ class CellDB(list):
 
 
     def add_clusters(self, clusters):
+        '''
+        The safe way to append clusters. Will not add a cluster if it already exists in the database. 
+        '''
 
         for cluster in clusters:
             if cluster.clusterID not in self.get_cluster_ids():
@@ -26,17 +30,19 @@ class CellDB(list):
     def get_cluster_ids(self):
         return [c.clusterID for c in self]
 
-    def query(self, lookup_dict, verbose=True):
+    def query(self, lookup_dict, startingList=self, verbose=True):
         '''
-        The lookup dict will be like this: {'animalName': ['pinp003'], 'date': ['2014-06-24']}
+        The lookup dict will be like this: {'animalName': 'test000', 'date': '2014-06-24'}
+        You can also do: {'animalName': ['test000', 'test001']}
         '''
-
-        queryResults = self
-        for attrName, attrVals in lookup_dict.iteritems():
-            queryResults = [c for c in queryResults if getattr(c, attrName, False) in attrVals]
+        queryResults = startingList
+        for attrName, attrVal in lookup_dict.iteritems():
+            if isinstance(attrVal, list): #If a list of possible values is supplied, test whether each cluster value is in the list
+                queryResults = [clu for clu in queryResults if getattr(clu, attrName) in attrVal]
+            else: #If a single value is supplied, just check if each cluster's attribute value is equal to it.
+                queryResults = [clu for clu in queryResults if getattr(clu, attrName)==attrVal]
 
         if verbose:
-            print '\n'.join([result.clusterID for result in queryResults])
             print "{} clusters satisfying these conditions".format(len(queryResults))
         return queryResults
 
@@ -51,6 +57,34 @@ class CellDB(list):
                            'tetrode': [tetrode],
                            'cluster': [cluster]}, verbose=False)
         return cell[0]
+
+    def query_features(self, features_dict, startingList=self, verbose=True):
+        '''
+        The features dictionary is annoying to query with the regular query function because you
+        have to write a dictionary inside the query dict. This method will search the features attr only. 
+        '''
+        queryResults = startingList
+        for featureName, featureVal in features_dict.iteritems():
+            if isinstance(featureVal, list):
+                queryResults = [c for c in queryResults if c.features[featureName] in featureVal]
+            else:
+                queryResults = [c for c in queryResults if c.features[featureName] == featureVal]
+        if verbose:
+            print "{} clusters satisfying these conditions".format(len(queryResults))
+        return queryResults
+
+    def query_features_custom_op(self, features_dict, op=operator.eq, startingList=self, verbose=True)
+    '''
+    This method allows you to query using a custom comparison opeartor, like operator.gt()
+    '''
+        queryResults = startingList
+        for featureName, featureVal in features_dict.iteritems():
+                queryResults = [c for c in queryResults if op(c.features[featureName], featureVal)]
+
+    def set_features(self, features_dict, inds_to_set=range(len(self))):
+        for featureName, featureVal in features_dict.iteritems():
+            for ind in inds_to_set:
+                self[ind].features[featureName]=featureVal
 
     def write_to_json(self, filename):
         '''CAUTION: This will currently overwrite the json file. You should always load the most current
