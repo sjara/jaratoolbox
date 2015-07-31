@@ -13,12 +13,11 @@ class CellDB(list):
 
     def __init__(self):
         super(CellDB, self).__init__()
-        self.queryResults = []
 
 
     def add_clusters(self, clusters):
         '''
-        The safe way to append clusters. Will not add a cluster if it already exists in the database. 
+        The safe way to append clusters. Will not add a cluster if it already exists in the database.
         '''
 
         for cluster in clusters:
@@ -34,6 +33,8 @@ class CellDB(list):
         '''
         The lookup dict will be like this: {'animalName': 'test000', 'date': '2014-06-24'}
         You can also do: {'animalName': ['test000', 'test001']}
+        THIS WILL BREAK or at least not do useful things when we try to look at attributes that
+        are lists, such as the sessions or sessionTypes. The function below tries to remedy this
         '''
         queryResults = startingList
         for attrName, attrVal in lookup_dict.iteritems():
@@ -46,22 +47,77 @@ class CellDB(list):
             print "{} clusters satisfying these conditions".format(len(queryResults))
         return queryResults
 
-    def find_cell(self, animalName, date, depth, tetrode, cluster):
+    def query_improved(self, lookup_dict, startingList=self, verbose=True):
+        '''
+        The lookup dict will be like this: {'animalName': 'test000', 'date': '2014-06-24'}
+        You can also do: {'animalName': ['test000', 'test001']}
+        We need to figure out what to do when looking for cells that have a 'BestFreq' session,
+        when looking for cells with a particular ephys session, etc since these attributes are lists
+        '''
+        #Start with either the entire DB or some pre-defined subset of it.
+        queryResults = startingList
+
+        #Iterate through the values in the query dictionary, narrowing the results each time.
+        for attrName, attrVal in lookup_dict.iteritems():
+            passing_clusters_this_attr = []
+            for clu in queryResults:
+                #Get the value of the attribute for this cluster
+                clusterAttrVal = getattr(clu, attrName)
+
+                #Some attributes, like sessions, sessionTypes, and behavFileIDs,
+                #are lists. We should check each entry
+                if isinstance(clusterAttrVal, list):
+
+                    #Now we need to handle things differently depending on whether
+                    #the supplied attribute value in the query was a list of possible
+                    #values or a single value
+
+                    #Compare the list of cluster attribute vals to a list
+                    if isinstance(attrVal, list):
+                        #This should pass if they share any items
+                        if set(clusterAttrVal) & set(attrVal):
+                            passing_clusters_this_attr.append(clu)
+                            pass
+                    else:
+                        #Test whether the supplied value is in the cluster attribute
+                        if attrVal in clusterAttrVal:
+                            passing_clusters_this_attr.append(clu)
+                            pass
+                #If the cluster attribute val is not a list
+                else:
+                    #Compare a single cluster attribute to a list of possibilities
+                    if isinstance(attrVal, list):
+                        if clusterAttrVal in attrVal:
+                            passing_clusters_this_attr.append(clu)
+                            pass
+                    #Compare a single cluster attribute to a single value
+                    else:
+                        if clusterAttrVal==attrVal:
+                            passing_clusters_this_attr.append(clu)
+                            pass
+
+
+            queryResults = passing_clusters_this_attr
+        if verbose:
+            print "{} clusters satisfying these conditions".format(len(queryResults))
+        return queryResults
+
+    def find_cell_from_site(self, animalName, date, depth, tetrode, cluster):
         '''
         This method will return only a single cell
         '''
 
-        cell = self.query({'animalName': [animalName],
-                           'date': [date],
-                           'depth': [depth],
-                           'tetrode': [tetrode],
-                           'cluster': [cluster]}, verbose=False)
+        cell = self.query({'animalName': animalName,
+                           'date': date,
+                           'depth': depth,
+                           'tetrode': tetrode,
+                           'cluster': cluster}, verbose=False)
         return cell[0]
 
     def query_features(self, features_dict, startingList=self, verbose=True):
         '''
         The features dictionary is annoying to query with the regular query function because you
-        have to write a dictionary inside the query dict. This method will search the features attr only. 
+        have to write a dictionary inside the query dict. This method will search the features attr only.
         '''
         queryResults = startingList
         for featureName, featureVal in features_dict.iteritems():
@@ -73,10 +129,10 @@ class CellDB(list):
             print "{} clusters satisfying these conditions".format(len(queryResults))
         return queryResults
 
-    def query_features_custom_op(self, features_dict, op=operator.eq, startingList=self, verbose=True)
-    '''
-    This method allows you to query using a custom comparison opeartor, like operator.gt()
-    '''
+    def query_features_custom_op(self, features_dict, op=operator.eq, startingList=self, verbose=True):
+        '''
+        This method allows you to query using a custom comparison opeartor, like operator.gt()
+        '''
         queryResults = startingList
         for featureName, featureVal in features_dict.iteritems():
                 queryResults = [c for c in queryResults if op(c.features[featureName], featureVal)]

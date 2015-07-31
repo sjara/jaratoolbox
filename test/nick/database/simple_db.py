@@ -38,9 +38,9 @@ db = cellDB.CellDB()
 db.add_clusters(d1site1.clusterList)
 db.add_clusters(d2site1.clusterList)
 
-dbfile = '/tmp/allcells.json'
-db.write_to_json(dbfile)
+# dbfile = '/tmp/allcells.json'
+# db.write_to_json(dbfile)
 
 
-db2 = cellDB.CellDB()
-db2.load_from_json(dbfile)
+# db2 = cellDB.CellDB()
+# db2.load_from_json(dbfile)
