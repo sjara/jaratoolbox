@@ -114,7 +114,7 @@ class EphysExperiment(object):
         return plotTitle
 
 
-    def get_session_spike_data_one_tetrode(self, session, tetrode, convert_to_seconds=True):
+    def get_session_spike_data_one_tetrode(self, session, tetrode, convert_to_seconds=True, convert_to_mV=True):
         '''
         Get the spike data for one session, one tetrode.
 
@@ -145,10 +145,18 @@ class EphysExperiment(object):
         spikeFilename = os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
         spikeData = loadopenephys.DataSpikes(spikeFilename)
 
+        if convert_to_mV and hasattr(spikeData, 'samples'):
+            spikeData.samples = spikeData.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
+            spikeData.samples = (1000.0/spikeData.gain[0,0]) * spikeData.samples
+        else: 
+            spikeData.samples = np.array([])
+
         if convert_to_seconds and hasattr(spikeData, 'timestamps'):
             spikeData.timestamps = spikeData.timestamps/self.SAMPLING_RATE
         else:
             spikeData.timestamps = np.array([])
+
+        print "FIXME: getting spike data without converting values will result in no timestamps or samples being returned"
 
         #If clustering has been done for the tetrode, add the clusters to the spikedata object
         clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,ephysSession))
