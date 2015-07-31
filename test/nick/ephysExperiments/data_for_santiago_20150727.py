@@ -62,7 +62,23 @@ spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesana
 
 plt.figure()
 plt.plot(spikeTimesFromEventOnset, trialIndexForEachSpike, 'k.', ms=1)
+
 plt.show()
+
+
+
+#Will plot the waveforms of spikes in a certain time range after an event
+from jaratoolbox import spikesorting
+
+indexTR = [0, 0.1]
+spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial, spikeIndex = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimes,indexTR, spikeindex=True)
+waves = spikeDataNB.samples[spikeIndex]
+
+figure()
+spikesorting.plot_waveforms(waves)
+
+
+ 
 
 #For a session that has behavior data, we can use the object to get the behavior data
 #This is the behavior data for the best frequency presentation. 
