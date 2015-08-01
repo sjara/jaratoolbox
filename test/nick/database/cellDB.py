@@ -306,15 +306,28 @@ class Site(object):
         self.sessionList = []
         self.clusterList = []
 
-    def add_session(self, sessionID, behavFileIdentifier, sessionType, paradigm=self.defaultParadigm):
+    def add_session(self, sessionTimestamp, behavFileSuffix, sessionType, paradigm=None):
         '''
         Args:
-            sessionID (str): The timestamp for the ephys file (e.g. '11-22-33')
-            behavFileIdentifier (str): The suffix on the behavior file
+            sessionTimestamp (str): The timestamp for the ephys file (e.g. '11-22-33')
+            behavFileSuffix (str): The suffix on the behavior file
             sessionType (str): An arbitrary string describing the session. Useful if standardized for a particular experiment (e.g. 'NoiseBurst')
             paradigm (str): The name of the paradigm that was used to collect the session. Defaults to the default paradigm for this site. 
         '''
-        session = Session(sessionID, behavFileIdentifier, sessionType, self.date)
+
+        if not paradigm:
+            paradigm = self.defaultParadigm
+
+        if behavFileSuffix:
+            datestr = ''.join(self.date.split('-'))
+            behavFileNameBaseName = '_'.join([self.animalName, paradigm, datestr])
+            fullBehavFileName = '{}{}.h5'.format(behavFileNameBaseName, behavFileSuffix)
+        else:
+            fullBehavFileName=None
+
+        fullSessionFilename = '_'.join([self.date, sessionTimestamp])
+        
+        session = Session(fullSessionFilename, fullBehavFileName, sessionType)
         self.sessionList.append(session)
         return session
 
@@ -359,10 +372,6 @@ class Site(object):
     def get_session_types(self):
         return [s.sessionType for s in self.sessionList]
 
-    # def get_session_inds_one_type(self, plotType, report):
-    #     return [index for index, s in enumerate(self.sessionList) if ((s.plotType == plotType) & (s.report == report))]
-
-
     def __repr__(self):
         return "Site at {}um".format(self.depth)
 
@@ -379,16 +388,10 @@ class Session(object):
     having to write it over and over again.
     '''
 
-    def __init__(self, sessionID, behavFileIdentifier, sessionType, date):
-        self.session = '_'.join([date, sessionID])
-        self.behavFileIdentifier = behavFileIdentifier
+    def __init__(self, fullSessionFilename, fullBehavFilename, sessionType, date):
+        self.ephysFilename = fullSessionFilename
+        self.behavFilename = fullBehavFilename
         self.sessionType = sessionType
-        # self.plotType = ''
-        # self.report = ''
-
-    # def set_plot_type(self, plotTypeStr, report='main'):
-    #     self.plotType = plotTypeStr
-    #     self.report = report
 
     def __repr__(self):
         return "{0} - {1}".format(self.session, self.sessionType)
