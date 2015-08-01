@@ -6,26 +6,26 @@ Beginnings of the electrophysiology recording database for Jaralab.
 TODO:
 
 - What to do when sessions from the same site occur on different days?
-- If we change the experimenter for an Experiment, will it change for all of
-the clusters because they are all pointing at the same place in memory? 
--  Change goodTetrodes to just tetrodes
-- Change behavFileIdentifier to something like behavSuffix
-- Sessions need to know about the paradigm that was used
-- Repeated arguments should be in the same order ('animalName', etc)
+TESTED, DONT THINK SO- If we change the experimenter for an Experiment, will it change for all of
+the clusters because they are all pointing at the same place in memory?
+DONE -  Change tetrodes to just tetrodes
+DONE - Change behavFileIdentifier to something like behavSuffix
+DONE - Sessions need to know about the paradigm that was used
+DONE (I think)- Repeated arguments should be in the same order ('animalName', etc)
 
-animalName, date, ephysSessionList, behavFileList, experimenter, paradigm, 
+animalName, date, ephysSessionList, behavFileList, experimenter, paradigm,
 
 - We should be able to cluster just a single session and get clusters from it
 - We need to have a database of sites in addition to a database of clusters
-- Sessions need to hold the whole behavior file name, not just the suffix. We will still create them by specifying the suffix
+DONE - Sessions need to hold the whole behavior file name, not just the suffix. We will still create them by specifying the suffix
 
 - Consider not separating the behav files by animal
 
-- the database will ultimately give us back strings for the filenames of the ephys and behavior session, also cluster objects. 
+- the database will ultimately give us back strings for the filenames of the ephys and behavior session, also cluster objects.
 - Cluster may need to have methods for returning ephys and behav filenames
 
 
-- For next time: how do we send an email with what clusters to plot and then plot them very easily?  
+- For next time: how do we send an email with what clusters to plot and then plot them very easily?
 '''
 
 import json
@@ -157,6 +157,8 @@ class CellDB(list):
         '''
         The features dictionary is annoying to query with the regular query function because you
         have to write a dictionary inside the query dict. This method will search the features attr only.
+        This method will only work if features have ONE value. It is not yet implemented for features that
+        contain lists of values.
         '''
         queryResults = self
         for featureName, featureVal in features_dict.iteritems():
@@ -171,6 +173,12 @@ class CellDB(list):
     def query_features_custom_op(self, features_dict, op=operator.eq, verbose=True):
         '''
         This method allows you to query using a custom comparison opeartor, like operator.gt()
+        The operator function must compare the feature val of a cluster with the val you supply and
+        return True or False.
+
+        This method only works if you supply a single value as a feature val.
+        Other constraints apply depending on the choice of opeartor function. When using
+        functions from the opeartor module, this will probably only work well with numeric features
         '''
         queryResults = self
         for featureName, featureVal in features_dict.iteritems():
@@ -187,7 +195,6 @@ class CellDB(list):
             indsToSet = range(len(self))
         for featureName, featureVal in features_dict.iteritems():
             for ind in indsToSet:
-                print ind
                 self[ind].features[featureName]=featureVal
 
     def set_features_from_array(self, featureName, featureArray):
@@ -248,21 +255,21 @@ class Experiment(object):
         self.experimenter = experimenter
         self.defaultParadigm = defaultParadigm
         self.siteList = []
-    def add_site(self, depth, goodTetrodes):
+    def add_site(self, depth, tetrodes):
 
         '''
         Args:
 
         depth (int): The depth of the site in microns
-        goodTetrodes (list): A list of the tetrode numbers that have good signals
+        tetrodes (list): A list of the tetrode numbers that have good signals
         '''
 
-        site = Site(depth,
-                    goodTetrodes,
-                    animalName=self.animalName,
+        site = Site(animalName=self.animalName,
                     date=self.date,
                     experimenter=self.experimenter,
-                    defaultParadigm=self.defaultParadigm)
+                    defaultParadigm=self.defaultParadigm,
+                    tetrodes=tetrodes,
+                    depth=depth)
 
         self.siteList.append(site)
         return site
@@ -288,17 +295,17 @@ class Site(object):
     information about each individual recording session.
     '''
 
-    def __init__(self, animalName, date, experimenter, defaultParadigm, goodTetrodes, depth=0):
+    def __init__(self, animalName, date, experimenter, defaultParadigm, tetrodes, depth=0):
 
         '''
         Args:
 
         depth (int): The site depth in microns
-        goodTetrodes (list): A list of the tetrodes with good signals for this site
+        tetrodes (list): A list of the tetrodes with good signals for this site
         '''
 
         self.depth = depth
-        self.goodTetrodes = goodTetrodes
+        self.tetrodes = tetrodes
         self.animalName = animalName #Provided by Recording
         self.date = date #Provided by Recording
         self.experimenter = experimenter #Provided by Recording
@@ -312,7 +319,7 @@ class Site(object):
             sessionTimestamp (str): The timestamp for the ephys file (e.g. '11-22-33')
             behavFileSuffix (str): The suffix on the behavior file
             sessionType (str): An arbitrary string describing the session. Useful if standardized for a particular experiment (e.g. 'NoiseBurst')
-            paradigm (str): The name of the paradigm that was used to collect the session. Defaults to the default paradigm for this site. 
+            paradigm (str): The name of the paradigm that was used to collect the session. Defaults to the default paradigm for this site.
         '''
 
         if not paradigm:
@@ -326,14 +333,14 @@ class Site(object):
             fullBehavFileName=None
 
         fullSessionFilename = '_'.join([self.date, sessionTimestamp])
-        
+
         session = Session(fullSessionFilename, fullBehavFileName, sessionType)
         self.sessionList.append(session)
         return session
 
     def add_cluster(self,
-                    clusterNumber,
                     tetrode,
+                    cluster,
                     **kwargs):
 
 
@@ -341,12 +348,10 @@ class Site(object):
             animalName=self.animalName,
             date=self.date,
             depth=self.depth,
-            # experimenter=self.experimenter,
-            # paradigm = self.paradigm,
-            clusterNumber=clusterNumber,
             tetrode=tetrode,
-            ephysSessionList=self.get_session_filenames(),
-            behavFileList=self.get_session_behavIDs(),
+            cluster=cluster,
+            ephysSessionList=self.get_session_ephys_filenames(),
+            behavFileList=self.get_session_behav_filenames(),
             sessionTypes=self.get_session_types(),
             **kwargs)
 
@@ -360,14 +365,14 @@ class Site(object):
         '''
         for tetrode, clusters in clusterDict.iteritems():
             for cluster in clusters:
-                self.add_cluster(cluster, tetrode)
+                self.add_cluster(tetrode, cluster)
 
 
-    def get_session_filenames(self):
-       return [s.session for s in self.sessionList]
+    def get_session_ephys_filenames(self):
+       return [s.ephysFilename for s in self.sessionList]
 
-    def get_session_behavIDs(self):
-        return [s.behavFileIdentifier for s in self.sessionList]
+    def get_session_behav_filenames(self):
+        return [s.behavFilename for s in self.sessionList]
 
     def get_session_types(self):
         return [s.sessionType for s in self.sessionList]
@@ -388,7 +393,7 @@ class Session(object):
     having to write it over and over again.
     '''
 
-    def __init__(self, fullSessionFilename, fullBehavFilename, sessionType, date):
+    def __init__(self, fullSessionFilename, fullBehavFilename, sessionType):
         self.ephysFilename = fullSessionFilename
         self.behavFilename = fullBehavFilename
         self.sessionType = sessionType
@@ -405,7 +410,6 @@ class Cluster(object):
     The init method currently sets the features attr to a copy of the features argument
     If we dont do this, all clusters will point to the same dictionary and we dont know why
 
-    Cluster might need to have methods to returin ephys and behavior filenames
     '''
 
     def __init__(
@@ -414,9 +418,7 @@ class Cluster(object):
             date,
             depth,
             tetrode,
-            experimenter,
-            paradigm,
-            clusterNumber,
+            cluster,
             ephysSessionList,
             behavFileList,
             sessionTypes,
@@ -427,9 +429,7 @@ class Cluster(object):
         self.date = date
         self.depth = depth
         self.tetrode = tetrode
-        self.experimenter = experimenter
-        self.paradigm = paradigm
-        self.cluster = clusterNumber
+        self.cluster = cluster
         self.ephysSessionList = ephysSessionList
         self.behavFileList = behavFileList
         self.sessionTypes = sessionTypes
@@ -439,22 +439,26 @@ class Cluster(object):
                                    date,
                                    str(depth),
                                    'TT{}'.format(self.tetrode),
-                                   str(clusterNumber)])
+                                   str(cluster)])
 
-    # def __repr__(self):
-    #     return self.clusterID
+    def get_data_filenames(self, sessionType):
+        sessionIndex = self.sessionTypes.index(sessionType)
+        ephysFile = self.ephysSessionList[sessionIndex]
+        behavFile = self.behavFileList[sessionIndex]
+
+        if behavFile:
+            return ephysFile, behavFile
+        else:
+            return ephysFile
+
+    def __repr__(self):
+        return self.clusterID
 
     def __str__(self):
         return self.clusterID
 
 class LoadedCluster(Cluster):
 
-    # def __init__(self, decodedDict):
-    #     for key in decodedDict:
-    #         if key not in [
-    #                 '__class__',
-    #                 '__module__']:  # FIXME: get rid of this, it does not seem useful
-    #             setattr(self, key, decodedDict[key])
     def __init__(self, decodedDict):
         for key in decodedDict:
             setattr(self, key, decodedDict[key])
