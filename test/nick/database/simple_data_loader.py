@@ -7,6 +7,8 @@ data.
 '''
 from jaratoolbox.test.nick.database import dataloader
 from jaratoolbox.test.nick.database import cellDB
+from jaratoolbox import spikesanalysis
+from matplotlib import pyplot as plt
 reload(cellDB)
 reload(dataloader)
 
@@ -30,5 +32,42 @@ cell1NoisePhys = cell1.get_data_filenames('noiseBurst')
 #Sessions with behav data return the tuple (ephysFilename, behavFilename)
 cell1TuningPhys, cell1TuningBehavior = cell1.get_data_filenames('tcHeatmap')
 
-loader = dataloader.DataLoader('offline')
+# -----------------------
+##Initialize an offline data loader
+# -----------------------
+
+#For now we still need to specify the experimenter for offline data analysis
+#since the behavior data is broken up by experimenter
+loader = dataloader.DataLoader('offline', experimenter = 'nick')
+
+# -----------------------
+##Get ephys and behavior data by passing the filenames from the cluster
+# -----------------------
+
+cell1NoiseSpikesTT6 = loader.get_session_spikes(cell1NoisePhys, 6)
+cell1NoiseEvents = loader.get_session_events(cell1NoisePhys)
+cell1TuningBdata = loader.get_session_behavior(cell1TuningBehavior)
+eventOnsetTimes = loader.get_event_onset_times(cell1NoiseEvents)
+spikeTimes = cell1NoiseSpikesTT6.timestamps
+
+# -----------------------
+##Make a raster plot
+# -----------------------
+
+timeRange = [-0.5, 1]
+spikeTimesFromEventOnset, trialIndexEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimes, eventOnsetTimes, timeRange)
+
+# plt.figure()
+# plt.plot(spikeTimesFromEventOnset, trialIndexEachSpike, 'k.', ms=2)
+# plt.show()
+
+# -----------------------
+##The loader still has an online mode for use during ephys experiments
+# -----------------------
+
+#Get data online using -1, -2, etc. or by supplying the timestamp
+onlineLoader = dataloader.DataLoader('online', 'pinp003', '2015-06-24', 'nick', 'laser_tuning_curve')
+onlineSpikes = onlineLoader.get_session_spikes('15-22-29', 6)
+onlineEvents = onlineLoader.get_session_events('15-22-29')
+onlineBehavior = onlineLoader.get_session_behavior('a')
 

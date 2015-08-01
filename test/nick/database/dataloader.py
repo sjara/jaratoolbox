@@ -7,12 +7,14 @@ Classes and methods for getting electrophysiology and behavior data
 import os
 import numpy as np
 from jaratoolbox import settings
+from jaratoolbox import loadopenephys
+from jaratoolbox import loadbehavior
 
 class DataLoader(object):
 
     def __init__(self,
                  mode='offline',
-                 animalname='',
+                 animalName='',
                  date='',
                  experimenter='',
                  paradigm=''):
@@ -30,11 +32,15 @@ class DataLoader(object):
 
         self.mode=mode
 
+        if self.mode=='offline':
+            self.experimenter = experimenter #This will go away in the future
+
         if self.mode=='online':
-            self.defaultBehavFileBaseName = '_'.join([self.animalName, self.paradigm, ''.join(self.date.split('-'))])
             self.animalName = animalName
             self.date = date
             self.experimenter = experimenter
+            self.paradigm=paradigm
+            self.behavFileBaseName = '_'.join([self.animalName, self.paradigm, ''.join(self.date.split('-'))])
             self.onlineBehavPath = os.path.join(settings.BEHAVIOR_PATH, self.experimenter)
             self.onlineEphysPath = os.path.join(settings.EPHYS_PATH, self.animalName)
 
@@ -65,17 +71,17 @@ class DataLoader(object):
 
         '''
 
-        if mode=='online':
+        if self.mode=='online':
             ephysSession = self.get_session_filename(session) #The ephys session will not be relaive to the mouse
-            fullEventFilename=os.path.join(self.localEphysDir, ephysSession, 'all_channels.events')
+            fullEventFilename=os.path.join(self.onlineEphysPath, ephysSession, 'all_channels.events')
 
-        elif mode=='offline': #The path should already be relative to the mouse
+        elif self.mode=='offline': #The path should already be relative to the mouse
             fullEventFilename = os.path.join(settings.EPHYS_PATH, session, 'all_channels.events')
 
-        eventData=loadopenephys.Events(FullEventFilename)
+        eventData=loadopenephys.Events(fullEventFilename)
 
         #Convert the timestamps to seconds
-        eventTimes=np.array(eventData.timestamps)/self.EPHYS_SAMPLING_RATE
+        eventData.timestamps=np.array(eventData.timestamps)/self.EPHYS_SAMPLING_RATE
 
         return eventData
 
@@ -118,11 +124,11 @@ class DataLoader(object):
         Returns:
             spikeData (object of type jaratoolbox.loadopenephys.DataSpikes)
         '''
-        if mode=='online':
+        if self.mode=='online':
             ephysSession = self.get_session_filename(session)
             spikeFilename = os.path.join(self.onlineEphysPath, ephysSession, 'Tetrode{}.spikes'.format(tetrode))
 
-        elif mode=='offline': #The session should already be relative to the mouse
+        elif self.mode=='offline': #The session should already be relative to the mouse
             spikeFilename = os.path.join(settings.EPHYS_PATH, session, 'Tetrode{}.spikes'.format(tetrode))
 
         spikeData = loadopenephys.DataSpikes(spikeFilename)
@@ -143,8 +149,12 @@ class DataLoader(object):
         spikeData.timestamps = spikeData.timestamps/self.EPHYS_SAMPLING_RATE
 
         #If clustering has been done for the tetrode, add the clusters to the spikedata object
-        clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,ephysSession))
-        clustersFile = os.path.join(clustersDir,'Tetrode%d.clu.1'%tetrode)
+        if self.mode=='online':
+            clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,ephysSession)) #FIXME: Change to python 3 compatible format
+            clustersFile = os.path.join(clustersDir,'Tetrode%d.clu.1'%tetrode)
+        elif self.mode=='offline':
+            clustersFile = os.path.join(settings.EPHYS_PATH, '{}_kk/'.format(session), 'Tetrode{}.clu.1'.format(tetrode))
+
         if os.path.isfile(clustersFile):
             spikeData.set_clusters(clustersFile)
 
@@ -152,13 +162,14 @@ class DataLoader(object):
 
     def get_session_behavior(self, behavFileName):
 
-        if mode=='online':
+        if self.mode=='online':
             behaviorDir=os.path.join(self.onlineBehavPath, self.animalName)
-            fullBehavFilename = ''.join([self.behavFileBaseName, beahvFileName, '.h5'])
+            fullBehavFilename = ''.join([self.behavFileBaseName, behavFileName, '.h5'])
             behavDataFilePath=os.path.join(behaviorDir, fullBehavFilename)
 
-        elif mode=='offline': #The path should already be relative to the mouse
-            behavDataFilePath = os.path.join(settings.BEHAVIOR_PATH, behavFileName)
+        elif self.mode=='offline': #The path should already be relative to the mouse
+            print "Fixme: Stop dividing the behavior by experimenter and change this method"
+            behavDataFilePath = os.path.join(settings.BEHAVIOR_PATH, self.experimenter, behavFileName)
 
         bdata = loadbehavior.BehaviorData(behavDataFilePath,readmode='full')
         return bdata
