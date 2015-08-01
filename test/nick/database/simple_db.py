@@ -71,8 +71,8 @@ db.add_clusters(d2site1.clusterList)
 #Writing currently overwrites the file. The proper way is to load the database,
 #append new clusters to it, and then rewrite the file with the new contents added
 #However, I am currently asking for confirmation unless you pass force=True.
-# dbfile = '/tmp/allcells.json'
-# db.write_to_json(dbfile)
+dbfile = '/tmp/allcells.json'
+db.write_to_json(dbfile)
 
 
 # db2 = cellDB.CellDB()

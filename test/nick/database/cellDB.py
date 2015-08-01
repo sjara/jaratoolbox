@@ -461,18 +461,20 @@ class Cluster(object):
             behavFilename (str): Also returned if the session has behavior data
         '''
         sessionIndex = self.sessionTypes.index(sessionType)
+        ephysFile = None
+        behavFile = None
 
         #I think we will usually want to include the mouse directory in the output.
         #This will help when doing offline plotting of cells from many mice.
         #We will not have to have seperate DataLoader objects for each mouse that we deal with
         if includeMouse:
-            ephysFile = os.path.join(self.animalname, self.ephyssessionlist[sessionindex])
-            if self.behavfilelist[sessionindex]:
-                behavFile = os.path.join(self.animalname, self.behavfilelist[sessionindex]) #We can't do the join if the behav file is None
+            ephysFile = os.path.join(self.animalName, self.ephysSessionList[sessionIndex])
+            if self.behavFileList[sessionIndex]:
+                behavFile = os.path.join(self.animalName, self.behavFileList[sessionIndex]) #We can't do the join if the behav file is None
 
         else:
-            ephysFile = self.ephyssessionlist[sessionindex]
-            behavFile = self.behavfilelist[sessionindex]
+            ephysFile = self.ephysSessionList[sessionIndex]
+            behavFile = self.behavFileList[sessionIndex]
 
         if behavFile:
             return ephysFile, behavFile

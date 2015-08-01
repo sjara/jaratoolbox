@@ -15,8 +15,8 @@ reload(dataloader)
 # ----------------------
 
 dbfile = '/tmp/allcells.json'
-db2 = cellDB.CellDB()
-db2.load_from_json(dbfile)
+db = cellDB.CellDB()
+db.load_from_json(dbfile)
 
 cell1 = db.find_cell_from_site('pinp003', '2015-06-24',  3543, 6, 5)
 
@@ -29,3 +29,6 @@ cell1NoisePhys = cell1.get_data_filenames('noiseBurst')
 
 #Sessions with behav data return the tuple (ephysFilename, behavFilename)
 cell1TuningPhys, cell1TuningBehavior = cell1.get_data_filenames('tcHeatmap')
+
+loader = dataloader.DataLoader('offline')
+
