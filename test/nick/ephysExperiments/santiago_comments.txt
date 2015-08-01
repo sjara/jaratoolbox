@@ -1,4 +1,19 @@
 
+=== 2015-07-31 ===
+* loadopenephys.py
+- The goal is to load raw data from a file (in raw format?)
+- Should it have a way to add cluster data?
+- Should it also convert numbers to the right units? (timestamps to seconds, divide gain, etc)
+
+* ephyscore.py
+- The goal is to load data easily given a cell from the database.
+- It may make it inefficient to load several clusters/cells from the same tetrode.
+  (since it requires reloading the tetrode spike data)
+- It should associate to ephys events (sent from arduino) and to relevant behavioral data (stored by taskontrol).
+
+
+
+
 === 2015-07-28 ===
 
 * recordingday.py
