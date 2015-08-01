@@ -3,6 +3,29 @@
 
 Beginnings of the electrophysiology recording database for Jaralab.
 
+TODO:
+
+- What to do when sessions from the same site occur on different days?
+- If we change the experimenter for an Experiment, will it change for all of
+the clusters because they are all pointing at the same place in memory? 
+-  Change goodTetrodes to just tetrodes
+- Change behavFileIdentifier to something like behavSuffix
+- Sessions need to know about the paradigm that was used
+- Repeated arguments should be in the same order ('animalName', etc)
+
+animalName, date, ephysSessionList, behavFileList, experimenter, paradigm, 
+
+- We should be able to cluster just a single session and get clusters from it
+- We need to have a database of sites in addition to a database of clusters
+- Sessions need to hold the whole behavior file name, not just the suffix. We will still create them by specifying the suffix
+
+- Consider not separating the behav files by animal
+
+- the database will ultimately give us back strings for the filenames of the ephys and behavior session, also cluster objects. 
+- Cluster may need to have methods for returning ephys and behav filenames
+
+
+- For next time: how do we send an email with what clusters to plot and then plot them very easily?  
 '''
 
 import json
@@ -29,25 +52,25 @@ class CellDB(list):
     def get_cluster_ids(self):
         return [c.clusterID for c in self]
 
-    def query(self, lookup_dict, startingList=self, verbose=True):
-        '''
-        The lookup dict will be like this: {'animalName': 'test000', 'date': '2014-06-24'}
-        You can also do: {'animalName': ['test000', 'test001']}
-        THIS WILL BREAK or at least not do useful things when we try to look at attributes that
-        are lists, such as the sessions or sessionTypes. The function below tries to remedy this
-        '''
-        queryResults = startingList
-        for attrName, attrVal in lookup_dict.iteritems():
-            if isinstance(attrVal, list): #If a list of possible values is supplied, test whether each cluster value is in the list
-                queryResults = [clu for clu in queryResults if getattr(clu, attrName) in attrVal]
-            else: #If a single value is supplied, just check if each cluster's attribute value is equal to it.
-                queryResults = [clu for clu in queryResults if getattr(clu, attrName)==attrVal]
+    # def query(self, lookup_dict, verbose=True):
+    #     '''
+    #     The lookup dict will be like this: {'animalName': 'test000', 'date': '2014-06-24'}
+    #     You can also do: {'animalName': ['test000', 'test001']}
+    #     THIS WILL BREAK or at least not do useful things when we try to look at attributes that
+    #     are lists, such as the sessions or sessionTypes. The function below tries to remedy this
+    #     '''
+    #     queryResults = self
+    #     for attrName, attrVal in lookup_dict.iteritems():
+    #         if isinstance(attrVal, list): #If a list of possible values is supplied, test whether each cluster value is in the list
+    #             queryResults = [clu for clu in queryResults if getattr(clu, attrName) in attrVal]
+    #         else: #If a single value is supplied, just check if each cluster's attribute value is equal to it.
+    #             queryResults = [clu for clu in queryResults if getattr(clu, attrName)==attrVal]
 
-        if verbose:
-            print "{} clusters satisfying these conditions".format(len(queryResults))
-        return queryResults
+    #     if verbose:
+    #         print "{} clusters satisfying these conditions".format(len(queryResults))
+    #     return queryResults
 
-    def query_improved(self, lookup_dict, startingList=self, verbose=True):
+    def query(self, lookup_dict, verbose=True):
         '''
         The lookup dict will be like this: {'animalName': 'test000', 'date': '2014-06-24'}
         You can also do: {'animalName': ['test000', 'test001']}
@@ -55,7 +78,7 @@ class CellDB(list):
         when looking for cells with a particular ephys session, etc since these attributes are lists
         '''
         #Start with either the entire DB or some pre-defined subset of it.
-        queryResults = startingList
+        queryResults = self
 
         #Iterate through the values in the query dictionary, narrowing the results each time.
         for attrName, attrVal in lookup_dict.iteritems():
@@ -112,14 +135,30 @@ class CellDB(list):
                            'depth': depth,
                            'tetrode': tetrode,
                            'cluster': cluster}, verbose=False)
-        return cell[0]
+        if cell:
+            return cell[0]
+        else:
+            print "No clusters found"
 
-    def query_features(self, features_dict, startingList=self, verbose=True):
+    def find_cell_from_session(self, animalName, ephysSession, tetrode, cluster):
+
+        cell = self.query({
+            'animalName': animalName,
+            'ephysSessionList': ephysSession,
+            'tetrode': tetrode,
+            'cluster': cluster}, verbose=False)
+
+        if cell:
+            return cell[0]
+        else:
+            print "No clusters found"
+
+    def query_features(self, features_dict, verbose=True):
         '''
         The features dictionary is annoying to query with the regular query function because you
         have to write a dictionary inside the query dict. This method will search the features attr only.
         '''
-        queryResults = startingList
+        queryResults = self
         for featureName, featureVal in features_dict.iteritems():
             if isinstance(featureVal, list):
                 queryResults = [c for c in queryResults if c.features[featureName] in featureVal]
@@ -129,23 +168,26 @@ class CellDB(list):
             print "{} clusters satisfying these conditions".format(len(queryResults))
         return queryResults
 
-    def query_features_custom_op(self, features_dict, op=operator.eq, startingList=self, verbose=True):
+    def query_features_custom_op(self, features_dict, op=operator.eq, verbose=True):
         '''
         This method allows you to query using a custom comparison opeartor, like operator.gt()
         '''
-        queryResults = startingList
+        queryResults = self
         for featureName, featureVal in features_dict.iteritems():
                 queryResults = [c for c in queryResults if op(c.features[featureName], featureVal)]
         if verbose:
             print "{} clusters satisfying these conditions".format(len(queryResults))
         return queryResults
 
-    def set_features(self, features_dict, inds_to_set=range(len(self))):
+    def set_features(self, features_dict, indsToSet=[]):
         '''
         Do we ever want to specify a range of inds to this function?
         '''
+        if not indsToSet:
+            indsToSet = range(len(self))
         for featureName, featureVal in features_dict.iteritems():
-            for ind in inds_to_set:
+            for ind in indsToSet:
+                print ind
                 self[ind].features[featureName]=featureVal
 
     def set_features_from_array(self, featureName, featureArray):
@@ -194,22 +236,33 @@ class CellDB(list):
         else:
             print "No database file found"
 
-class Recording(object):
+class Experiment(object):
+    '''
+    Experiment is a container of Sites.
+    '''
 
 
-    def __init__(self, animalName, date, experimenter, paradigm):
+    def __init__(self, animalName, date, experimenter, defaultParadigm=''):
         self.animalName = animalName
         self.date = date
         self.experimenter = experimenter
-        self.paradigm = paradigm
+        self.defaultParadigm = defaultParadigm
         self.siteList = []
     def add_site(self, depth, goodTetrodes):
+
+        '''
+        Args:
+
+        depth (int): The depth of the site in microns
+        goodTetrodes (list): A list of the tetrode numbers that have good signals
+        '''
+
         site = Site(depth,
                     goodTetrodes,
                     animalName=self.animalName,
                     date=self.date,
                     experimenter=self.experimenter,
-                    paradigm=self.paradigm)
+                    defaultParadigm=self.defaultParadigm)
 
         self.siteList.append(site)
         return site
@@ -230,22 +283,37 @@ class Site(object):
 
     '''
     Class for holding information about a recording site.
-    Will act as a parent for all of the Session
-    objects that hold information about each individual recording session.
+
+    Will act as a parent for all of the Session objects that hold
+    information about each individual recording session.
     '''
 
-    def __init__(self, depth, goodTetrodes, animalName, date, experimenter, paradigm):
+    def __init__(self, animalName, date, experimenter, defaultParadigm, goodTetrodes, depth=0):
+
+        '''
+        Args:
+
+        depth (int): The site depth in microns
+        goodTetrodes (list): A list of the tetrodes with good signals for this site
+        '''
 
         self.depth = depth
         self.goodTetrodes = goodTetrodes
         self.animalName = animalName #Provided by Recording
         self.date = date #Provided by Recording
         self.experimenter = experimenter #Provided by Recording
-        self.paradigm = paradigm #Provided by Recording
+        self.defaultParadigm = defaultParadigm #Provided by Recording
         self.sessionList = []
         self.clusterList = []
 
-    def add_session(self, sessionID, behavFileIdentifier, sessionType):
+    def add_session(self, sessionID, behavFileIdentifier, sessionType, paradigm=self.defaultParadigm):
+        '''
+        Args:
+            sessionID (str): The timestamp for the ephys file (e.g. '11-22-33')
+            behavFileIdentifier (str): The suffix on the behavior file
+            sessionType (str): An arbitrary string describing the session. Useful if standardized for a particular experiment (e.g. 'NoiseBurst')
+            paradigm (str): The name of the paradigm that was used to collect the session. Defaults to the default paradigm for this site. 
+        '''
         session = Session(sessionID, behavFileIdentifier, sessionType, self.date)
         self.sessionList.append(session)
         return session
@@ -253,22 +321,21 @@ class Site(object):
     def add_cluster(self,
                     clusterNumber,
                     tetrode,
-                    features = {},
-                    comments=''):
+                    **kwargs):
+
 
         cluster = Cluster(
             animalName=self.animalName,
             date=self.date,
             depth=self.depth,
-            experimenter=self.experimenter,
-            paradigm = self.paradigm,
+            # experimenter=self.experimenter,
+            # paradigm = self.paradigm,
             clusterNumber=clusterNumber,
             tetrode=tetrode,
             ephysSessionList=self.get_session_filenames(),
             behavFileList=self.get_session_behavIDs(),
             sessionTypes=self.get_session_types(),
-            features=features,
-            comments=comments)
+            **kwargs)
 
         self.clusterList.append(cluster)
         return cluster
@@ -292,8 +359,8 @@ class Site(object):
     def get_session_types(self):
         return [s.sessionType for s in self.sessionList]
 
-    def get_session_inds_one_type(self, plotType, report):
-        return [index for index, s in enumerate(self.sessionList) if ((s.plotType == plotType) & (s.report == report))]
+    # def get_session_inds_one_type(self, plotType, report):
+    #     return [index for index, s in enumerate(self.sessionList) if ((s.plotType == plotType) & (s.report == report))]
 
 
     def __repr__(self):
@@ -316,12 +383,12 @@ class Session(object):
         self.session = '_'.join([date, sessionID])
         self.behavFileIdentifier = behavFileIdentifier
         self.sessionType = sessionType
-        self.plotType = ''
-        self.report = ''
+        # self.plotType = ''
+        # self.report = ''
 
-    def set_plot_type(self, plotTypeStr, report='main'):
-        self.plotType = plotTypeStr
-        self.report = report
+    # def set_plot_type(self, plotTypeStr, report='main'):
+    #     self.plotType = plotTypeStr
+    #     self.report = report
 
     def __repr__(self):
         return "{0} - {1}".format(self.session, self.sessionType)
@@ -331,6 +398,12 @@ class Session(object):
 
 
 class Cluster(object):
+    '''
+    The init method currently sets the features attr to a copy of the features argument
+    If we dont do this, all clusters will point to the same dictionary and we dont know why
+
+    Cluster might need to have methods to returin ephys and behavior filenames
+    '''
 
     def __init__(
             self,
@@ -344,7 +417,7 @@ class Cluster(object):
             ephysSessionList,
             behavFileList,
             sessionTypes,
-            features,
+            features={},
             comments=''):
 
         self.animalName = animalName
@@ -357,7 +430,7 @@ class Cluster(object):
         self.ephysSessionList = ephysSessionList
         self.behavFileList = behavFileList
         self.sessionTypes = sessionTypes
-        self.features = features
+        self.features = features.copy()
         self.comments = comments
         self.clusterID = '_'.join([animalName,
                                    date,
@@ -365,8 +438,8 @@ class Cluster(object):
                                    'TT{}'.format(self.tetrode),
                                    str(clusterNumber)])
 
-    def __repr__(self):
-        return self.clusterID
+    # def __repr__(self):
+    #     return self.clusterID
 
     def __str__(self):
         return self.clusterID

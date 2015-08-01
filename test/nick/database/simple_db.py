@@ -1,3 +1,4 @@
+import numpy as np
 from jaratoolbox.test.nick.database import cellDB
 reload(cellDB)
 
@@ -21,7 +22,8 @@ d1site1.add_session('15-45-22', 'b', sessionTypes['bf']).set_plot_type('raster')
 d1site1.add_clusters({6: [5, 8, 11]})
 
 
-day2 = cellDB.Recording(animalName = 'pinp003', date = '2015-07-06', experimenter = 'nick', paradigm='laser_tuning_curve')
+
+day2 = cellDB.Experiment(animalName = 'pinp003', date = '2015-07-06', experimenter = 'nick', paradigm='laser_tuning_curve')
 
 d2site1 = day2.add_site(depth = 3509, goodTetrodes = [3, 6])
 d2site1.add_session('11-15-56', None, sessionTypes['nb'])
@@ -44,3 +46,36 @@ db.add_clusters(d2site1.clusterList)
 
 # db2 = cellDB.CellDB()
 # db2.load_from_json(dbfile)
+
+##Query functionality
+
+#Find a cell from a specific site
+cell1 = db.find_cell_from_site('pinp003', '2015-06-24',  3543, 6, 5)
+
+
+#Find a cell from a specific ephys session
+cell2 = db.find_cell_from_session('pinp003', '2015-06-24_15-22-29', 6, 5)
+
+
+#Intersectional query - find cells that satisfy certain conditions
+hlcells = db.query({
+    'animalName': 'pinp003',
+    'sessionTypes': '3mWpulse'
+})
+
+#There is a bug in the code to set feature values
+#Setting the features dict for one cluster appears to set the features for all clusters
+
+
+#Setting features for all cells
+#db.set_features({'coolness': 'very cool'})
+
+#Setting features for just cells with specific inds
+#db.set_features({'coolness': 'extra cool'}, [1, 3, 5])
+
+#featureArray = np.array(range(8))
+#db.set_features_from_array('number', featureArray)
+
+db[0].features['myfeature'] = 1
+
+print db[1].features
