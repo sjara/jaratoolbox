@@ -208,13 +208,15 @@ class CellDB(list):
         for indClust, featureVal in enumerate(featureArray):
             self[indClust].features[featureName]=featureVal
 
-    def write_to_json(self, filename):
+    def write_to_json(self, filename, force=False):
         '''CAUTION: This will currently overwrite the json file. You should always load the most current
         database work with it, and then write the updated version when you are done.'''
 
-        confirmation = raw_input("This will overwrite the .json file. Proceed? [yes/no] ")
+        confirmation=''
+        if not force:
+            confirmation = raw_input("This will overwrite the .json file. Proceed? [yes/no] ")
 
-        if confirmation=='yes':
+        if (confirmation=='yes' or force):
             with open(filename, 'w') as f:
                 f.write('[\n')
                 for indClust, cluster in enumerate(self):
@@ -343,7 +345,6 @@ class Site(object):
                     cluster,
                     **kwargs):
 
-
         cluster = Cluster(
             animalName=self.animalName,
             date=self.date,
@@ -360,8 +361,10 @@ class Site(object):
 
     def add_clusters(self, clusterDict):
         '''
-        Add clusters from many tetrodes at once by passing a dictionary
-        e.g. add_clusters({ 3: [2, 3, 5], 5: [3, 7]})
+        Add clusters from many tetrodes at once by passing a dictionary.
+
+        Args:
+            clusterDict (dict): A dictionary in the form: {tetrodeNumber: [clusterNumbers]}
         '''
         for tetrode, clusters in clusterDict.iteritems():
             for cluster in clusters:
@@ -369,12 +372,21 @@ class Site(object):
 
 
     def get_session_ephys_filenames(self):
-       return [s.ephysFilename for s in self.sessionList]
+        '''
+        Returns a list of the ephys filenames for each session in the sessionList
+        '''
+        return [s.ephysFilename for s in self.sessionList]
 
     def get_session_behav_filenames(self):
+        '''
+        Returns a list of the behavior filenames for each session in the sessionList
+        '''
         return [s.behavFilename for s in self.sessionList]
 
     def get_session_types(self):
+        '''
+        Returns a list of the session types for each session in the sessionList
+        '''
         return [s.sessionType for s in self.sessionList]
 
     def __repr__(self):
@@ -387,10 +399,6 @@ class Session(object):
 
     '''
     Class to hold information about a single session.
-    Includes the session name, the type of session, and any associated behavior data
-    Accepts just the time of the recording (i.e. 11-36-54), and the date, which can
-    be passed from the parent when this class is called. This keeps us from
-    having to write it over and over again.
     '''
 
     def __init__(self, fullSessionFilename, fullBehavFilename, sessionType):
@@ -409,7 +417,6 @@ class Cluster(object):
     '''
     The init method currently sets the features attr to a copy of the features argument
     If we dont do this, all clusters will point to the same dictionary and we dont know why
-
     '''
 
     def __init__(
@@ -442,6 +449,16 @@ class Cluster(object):
                                    str(cluster)])
 
     def get_data_filenames(self, sessionType):
+        '''
+        Returns the ephys session folder name, or a tuple containing both the ephys filename
+        and the behavior file name
+
+        Args:
+            sessionType (str): The string used to define the session when it was created
+        Returns:
+            ephysFilename (str): The full name of the ephys session folder
+            behavFilename (str): Also returned if the session has behavior data
+        '''
         sessionIndex = self.sessionTypes.index(sessionType)
         ephysFile = self.ephysSessionList[sessionIndex]
         behavFile = self.behavFileList[sessionIndex]

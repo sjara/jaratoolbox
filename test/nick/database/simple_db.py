@@ -1,5 +1,14 @@
 from jaratoolbox.test.nick.database import cellDB
 reload(cellDB)
+'''
+2015-07-31 Nick Ponvert
+
+This file constructs a cell database from several electrophysiology experiments, and
+inclues examples for querying the database and manipulating the features of the clusters
+in the database
+
+'''
+
 
 # ----------------------
 ##Defining standard session type strings for my experiment
@@ -59,6 +68,9 @@ db.add_clusters(d2site1.clusterList)
 ##Saving and loading databases
 # ----------------------
 
+#Writing currently overwrites the file. The proper way is to load the database,
+#append new clusters to it, and then rewrite the file with the new contents added
+#However, I am currently asking for confirmation unless you pass force=True.
 # dbfile = '/tmp/allcells.json'
 # db.write_to_json(dbfile)
 
@@ -78,6 +90,7 @@ cell1 = db.find_cell_from_site('pinp003', '2015-06-24',  3543, 6, 5)
 cell2 = db.find_cell_from_session('pinp003', '2015-06-24_15-22-29', 6, 5)
 
 #Intersectional query - find cells that satisfy certain conditions
+#Will print the number of cells that satisfy the query unless you pass verbose=Flase
 cellsWithStrongLaserSessions = db.query({
     'animalName': 'pinp003',
     'sessionTypes': '3mWpulse'
@@ -95,7 +108,7 @@ db.set_features({'coolness': 'extra cool'}, [1, 3, 5])
 
 #Setting features for all cells using an array the same length as the database
 import numpy as np
-featureArray = np.arange(10)
+featureArray = np.arange(len(db))
 db.set_features_from_array('number', featureArray)
 
 
@@ -107,7 +120,7 @@ db.set_features_from_array('number', featureArray)
 #There are several methods that make querying features much easier and more powerful
 
 #Feature queries
-extraCoolCells = db.query_features({'coolness': 'extra cool'})
+extraCoolCells = db.query_features({'coolness': 'extra cool'}, verbose=False)
 
 #Feature queries with custom comparison functions
 #This method takes a feature value and a comparison function, and uses the function to
@@ -116,18 +129,25 @@ extraCoolCells = db.query_features({'coolness': 'extra cool'})
 
 
 import operator #Standard library module with generic operator functions (gt (>), lt (<), etc.)
-highNumberCells = db.query_features_custom_op({'number': 3}, operator.gt)
-lowNumberCells = db.query_features_custom_op({'number': 3}, operator.lt)
+highNumberCells = db.query_features_custom_op({'number': 3}, operator.gt, verbose=False)
+lowNumberCells = db.query_features_custom_op({'number': 3}, operator.lt, verbose=False)
 
 # -----------------------
 ##Getting the data from a cluster to make a plot
 # -----------------------
 
 #Sessions with no behav data return just the ephys
-cell1LaserPhys = cell1.get_data_filenames('laserPulse')
+cell1NoisePhys = cell1.get_data_filenames('noiseBurst')
 
 #Sessions with behav data return the tuple (ephysFilename, behavFilename)
 cell1TuningPhys, cell1TuningBehavior = cell1.get_data_filenames('tcHeatmap')
 
 #If you have a sessionTypes dict you can use that here as well
-cell1LaserTrainPhys = cell1.get_data_filenames(sessionTypes[lt])
+cell1LaserTrainPhys = cell1.get_data_filenames(sessionTypes['lt'])
+
+# -----------------------
+##Still to do (non critical)
+# -----------------------
+# Graceful failures - if you try to grab the data files and you give the wrong session types,
+# it should warn you and tell you what session types are available to use
+# There should be similar behavior for regular queries and feature queries
