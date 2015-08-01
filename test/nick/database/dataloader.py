@@ -11,27 +11,32 @@ from jaratoolbox import settings
 class DataLoader(object):
 
     def __init__(self,
-                 animalname,
-                 date,
-                 experimenter,
+                 mode='offline',
+                 animalname='',
+                 date='',
+                 experimenter='',
                  paradigm=''):
 
         '''
         I know you won't like the fact that we are including the paradigm here, but it allows us to
         interactively work with data by just giving the suffix which is really nice
+
+        If mode == 'online', we will set the local ephys path and behav path using the experimenter and animalName.
+        If mode == 'offline', we will assume that paths relative to settings.EPHYS_PATH and settings.BEHAVIOR_PATH are passed
         '''
 
         print "FIXME: Hardcoded ephys sampling rate in DataLoader __init__"
         self.EPHYS_SAMPLING_RATE = 30000.0
 
-        self.animalName = animalName
-        self.date = date
-        self.experimenter = experimenter
-        self.localBehavPath = os.path.join(settings.BEHAVIOR_PATH, self.experimenter)
-        self.localEphysPath = os.path.join(settings.EPHYS_PATH, self.animalName)
+        self.mode=mode
 
-        if paradigm:
+        if self.mode=='online':
             self.defaultBehavFileBaseName = '_'.join([self.animalName, self.paradigm, ''.join(self.date.split('-'))])
+            self.animalName = animalName
+            self.date = date
+            self.experimenter = experimenter
+            self.onlineBehavPath = os.path.join(settings.BEHAVIOR_PATH, self.experimenter)
+            self.onlineEphysPath = os.path.join(settings.EPHYS_PATH, self.animalName)
 
 
     def get_session_filename(self, session):
@@ -48,7 +53,7 @@ class DataLoader(object):
             return ephysSession
 
         elif isinstance(session, int): #use the passed int as an index to get the session name from the current directory
-            filesFromToday = [f for f in os.listdir(self.localEphysPath) if (f.startswith(self.date) & ('_kk' not in f))]
+            filesFromToday = [f for f in os.listdir(self.onlineEphysPath) if (f.startswith(self.date) & ('_kk' not in f))]
             ephysSession = sorted(filesFromToday)[session]
 
             return ephysSession
@@ -60,10 +65,14 @@ class DataLoader(object):
 
         '''
 
-        ephysSession = self.get_session_filename(session)
-        ephysDir=os.path.join(self.localEphysDir, ephysSession)
-        event_filename=os.path.join(ephysDir, 'all_channels.events')
-        eventData=loadopenephys.Events(event_filename)
+        if mode=='online':
+            ephysSession = self.get_session_filename(session) #The ephys session will not be relaive to the mouse
+            fullEventFilename=os.path.join(self.localEphysDir, ephysSession, 'all_channels.events')
+
+        elif mode=='offline': #The path should already be relative to the mouse
+            fullEventFilename = os.path.join(settings.EPHYS_PATH, session, 'all_channels.events')
+
+        eventData=loadopenephys.Events(FullEventFilename)
 
         #Convert the timestamps to seconds
         eventTimes=np.array(eventData.timestamps)/self.EPHYS_SAMPLING_RATE
@@ -109,14 +118,17 @@ class DataLoader(object):
         Returns:
             spikeData (object of type jaratoolbox.loadopenephys.DataSpikes)
         '''
+        if mode=='online':
+            ephysSession = self.get_session_filename(session)
+            spikeFilename = os.path.join(self.onlineEphysPath, ephysSession, 'Tetrode{}.spikes'.format(tetrode))
 
-        ephysSession = self.get_session_filename(session)
-        ephysDir=os.path.join(self.localEphysPath, ephysSession)
-        spikeFilename = os.path.join(ephysDir, 'Tetrode{}.spikes'.format(tetrode))
+        elif mode=='offline': #The session should already be relative to the mouse
+            spikeFilename = os.path.join(settings.EPHYS_PATH, session, 'Tetrode{}.spikes'.format(tetrode))
+
         spikeData = loadopenephys.DataSpikes(spikeFilename)
 
         #Make samples an empty array if there are no spikes
-        if not hasattr(spikeData, 'samples')
+        if not hasattr(spikeData, 'samples'):
             spikeData.samples = np.array([])
 
         #Convert the spike samples to mV
@@ -140,21 +152,21 @@ class DataLoader(object):
 
     def get_session_behavior(self, behavFileName):
 
-        behaviorDir=os.path.join(self.localBehavPath, self.animalName)
-
-        if len(behavFileName.split('.'))==1: #No .h5 at the end, therefore assume a suffix was provided
+        if mode=='online':
+            behaviorDir=os.path.join(self.onlineBehavPath, self.animalName)
             fullBehavFilename = ''.join([self.behavFileBaseName, beahvFileName, '.h5'])
-        else:
-            fullBehavFilename = behavFileName
-        behavDataFileName=os.path.join(behaviorDir, fullBehavFilename)
+            behavDataFilePath=os.path.join(behaviorDir, fullBehavFilename)
 
-        bdata = loadbehavior.BehaviorData(behavDataFileName,readmode='full')
+        elif mode=='offline': #The path should already be relative to the mouse
+            behavDataFilePath = os.path.join(settings.BEHAVIOR_PATH, behavFileName)
+
+        bdata = loadbehavior.BehaviorData(behavDataFilePath,readmode='full')
         return bdata
 
-    def get_full_session_path(self, session):
-        '''
-        Constructs the full session path for use as a plot title
-        '''
-        ephysSession = self.get_session_filename(session)
-        fullPath = os.path.join(self.localEphysDir, ephysSession)
-        return fullPath
+    # def get_full_session_path(self, session):
+    #     '''
+    #     Constructs the full session path for use as a plot title
+    #     '''
+    #     ephysSession = self.get_session_filename(session)
+    #     fullPath = os.path.join(self.localEphysDir, ephysSession)
+    #     return fullPath

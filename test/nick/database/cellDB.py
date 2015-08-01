@@ -448,20 +448,31 @@ class Cluster(object):
                                    'TT{}'.format(self.tetrode),
                                    str(cluster)])
 
-    def get_data_filenames(self, sessionType):
+    def get_data_filenames(self, sessionType, includeMouse=True):
         '''
         Returns the ephys session folder name, or a tuple containing both the ephys filename
         and the behavior file name
 
         Args:
             sessionType (str): The string used to define the session when it was created
+            includeMouse (bool): Whether to return the full filename joined to the mouse folder
         Returns:
             ephysFilename (str): The full name of the ephys session folder
             behavFilename (str): Also returned if the session has behavior data
         '''
         sessionIndex = self.sessionTypes.index(sessionType)
-        ephysFile = self.ephysSessionList[sessionIndex]
-        behavFile = self.behavFileList[sessionIndex]
+
+        #I think we will usually want to include the mouse directory in the output.
+        #This will help when doing offline plotting of cells from many mice.
+        #We will not have to have seperate DataLoader objects for each mouse that we deal with
+        if includeMouse:
+            ephysFile = os.path.join(self.animalname, self.ephyssessionlist[sessionindex])
+            if self.behavfilelist[sessionindex]:
+                behavFile = os.path.join(self.animalname, self.behavfilelist[sessionindex]) #We can't do the join if the behav file is None
+
+        else:
+            ephysFile = self.ephyssessionlist[sessionindex]
+            behavFile = self.behavfilelist[sessionindex]
 
         if behavFile:
             return ephysFile, behavFile

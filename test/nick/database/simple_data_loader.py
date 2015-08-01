@@ -5,6 +5,10 @@ This file shows how to load a database file, query the database to find certain 
 extract the session filenames from the cluster, and use the **DataLoading** object to load the
 data.
 '''
+from jaratoolbox.test.nick.database import dataloader
+from jaratoolbox.test.nick.database import cellDB
+reload(cellDB)
+reload(dataloader)
 
 # ----------------------
 ##Load the database and find a cluster
