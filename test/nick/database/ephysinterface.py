@@ -148,11 +148,15 @@ class EphysInterface(object):
 
 
     #Relies on external TC heatmap plotting functions
-    def plot_session_tc_heatmap(self, session, tetrode, behavSuffix, replace=True):
+    def plot_session_tc_heatmap(self, session, tetrode, behavSuffix, replace=True, timeRange=[0, 0.1]):
         bdata = self.loader.get_session_behavior(behavSuffix)
         plotTitle = self.loader.get_session_filename(session)
         eventData = self.loader.get_session_events(session)
         spikeData = self.loader.get_session_spikes(session, tetrode)
+
+        spikeTimestamps = spikeData.timestamps
+
+        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
 
         freqEachTrial = bdata['currentFreq']
         intensityEachTrial = bdata['currentIntensity']
@@ -166,13 +170,27 @@ class EphysInterface(object):
         else:
             fig = plt.figure()
 
-        spikeArray = 
 
         xlabel='Frequency (kHz)'
         ylabel='Intensity (dB SPL)'
 
-        xtickLabels = ["%.1f" % freq for freq in possibleFreq/1000.0] #FIXME: This should be outside this function
-        ytickLabels = ['{}'.format(inten) for inten in possibleIntensity]
+        freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0] #FIXME: This should be outside this function
+        intenLabels = ['{}'.format(inten) for inten in possibleIntensity]
+
+        dataplotter.two_axis_heatmap(spikeTimestamps,
+                                     eventOnsetTimes,
+                                     intensityEachTrial,
+                                     freqEachTrial,
+                                     intenLabels,
+                                     freqLabels,
+                                     xlabel,
+                                     ylabel,
+                                     plotTitle,
+                                     flipFirstAxis=True,
+                                     flipSecondAxis=False,
+                                     timeRange=timeRange)
+
+        plt.show()
 
     def plot_array_heatmap(self, session, behavSuffix, replace=True):
         pass

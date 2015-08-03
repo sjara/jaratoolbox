@@ -1,5 +1,8 @@
 from jaratoolbox.test.nick.database import cellDB
 reload(cellDB)
+
+from jaratoolbox.test.nick.database import sitefuncs
+reload(sitefuncs)
 '''
 2015-07-31 Nick Ponvert
 
@@ -33,6 +36,9 @@ d1site1.add_session('15-22-29', None, sessionTypes['nb'])
 d1site1.add_session('15-27-37', None, sessionTypes['lt'])
 d1site1.add_session('15-31-48', 'a', sessionTypes['tc'])
 d1site1.add_session('15-45-22', 'b', sessionTypes['bf'])
+
+###Test of sitefunc for plotting the main report Lan and I use
+sitefuncs.nick_lan_daily_report(d1site1, 'site1', mainRasterInds=[0, 1, 3], mainTCind= 2)
 
 #Choosing good clusters for this site
 d1site1.add_clusters({6: [5, 8, 11]})
@@ -71,8 +77,8 @@ db.add_clusters(d2site1.clusterList)
 #Writing currently overwrites the file. The proper way is to load the database,
 #append new clusters to it, and then rewrite the file with the new contents added
 #However, I am currently asking for confirmation unless you pass force=True.
-dbfile = '/tmp/allcells.json'
-db.write_to_json(dbfile)
+#dbfile = '/tmp/allcells.json'
+ #db.write_to_json(dbfile)
 
 
 # db2 = cellDB.CellDB()

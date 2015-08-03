@@ -4,81 +4,144 @@
 This module will contain report plotting methods that act on entire sites
 
 '''
-def nick_lan_daily_report(site, siteName): #FIXME: This was copied, and needs to be updated. 
+from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
+from jaratoolbox.test.nick.database import dataloader
+from jaratoolbox.test.nick.database import dataplotter
+reload(dataplotter)
+from jaratoolbox import extraplots
+from jaratoolbox import spikesorting
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+
+def cluster_site(site, siteName, tetrode, report=True): 
+    oneTT = cms2.MultipleSessionsToCluster(site.animalName, site.get_session_ephys_filenames(), tetrode, '{}_{}'.format(site.date, siteName))
+    oneTT.load_all_waveforms()
+
+    #Do the clustering if necessary.
+    clusterFile = os.path.join(oneTT.clustersDir,'Tetrode%d.clu.1'%oneTT.tetrode)
+    if os.path.isfile(clusterFile):
+        oneTT.set_clusters_from_file()
+    else:
+        oneTT.create_multisession_fet_files()
+        oneTT.run_clustering()
+        oneTT.set_clusters_from_file()
+
+    oneTT.save_single_session_clu_files()
+
+    if report:
+        plt.figure()
+        oneTT.save_multisession_report()
+        plt.close()
+
+    return oneTT #This is a little bit lazy, it should really spit out some attributes not the whole object
+
+
+def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
     '''
-    Generate the reports for all of the sessions in this site. This is where we should interface with
-    the multiunit clustering code, since all of the sessions that need to be clustered together have
-    been defined at this point.
 
-    FIXME: This method should be able to load some kind of report template perhaps, so that the
-    types of reports we can make are not a limited. For instance, what happens when we just have
-    rasters for a site and no tuning curve? Implementing this is a lower priority for now.
-
-    Incorporated lan's code for plotting the cluster reports directly on the main report
     '''
-    #FIXME: import another piece of code to do this?
-    #FIXME: OR, break into two functions: one that will do the multisite clustering, and one that
-    #knows the type of report that we want. The first one can probably be a method of MSTC, the other
-    #should either live in extraplots or should go in someone's directory
 
-    for tetrode in self.goodTetrodes:
-        oneTT = cms2.MultipleSessionsToCluster(self.animalName, self.get_session_filenames(), tetrode, '{}_{}'.format(self.date, siteName))
-        oneTT.load_all_waveforms()
+    loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
 
-        #Do the clustering if necessary.
-        clusterFile = os.path.join(oneTT.clustersDir,'Tetrode%d.clu.1'%oneTT.tetrode)
-        if os.path.isfile(clusterFile):
-            oneTT.set_clusters_from_file()
-        else:
-            oneTT.create_multisession_fet_files()
-            oneTT.run_clustering()
-            oneTT.set_clusters_from_file()
+    for tetrode in site.tetrodes:
+        oneTT = cluster_site(site, siteName, tetrode)
+        possibleClusters=np.unique(oneTT.clusters)
 
-        oneTT.save_single_session_clu_files()
-        possibleClusters = np.unique(oneTT.clusters)
-
-        ee = EphysExperiment(self.animalName, self.date, experimenter = self.experimenter)
 
         #Iterate through the clusters, making a new figure for each cluster.
         #for indClust, cluster in enumerate([3]):
         for indClust, cluster in enumerate(possibleClusters):
 
 
-            mainRasterInds = self.get_session_inds_one_type(plotType='raster', report='main')
-            mainRasterSessions = [self.get_session_filenames()[i] for i in mainRasterInds]
-            mainRasterTypes = [self.get_session_types()[i] for i in mainRasterInds]
-
-            mainTCinds = self.get_session_inds_one_type(plotType='tc_heatmap', report='main')
-            mainTCsessions = [self.get_session_filenames()[i] for i in mainTCinds]
-
-            mainTCbehavIDs = [self.get_session_behavIDs()[i] for i in mainTCinds]
-            mainTCtypes = [self.get_session_types()[i] for i in mainTCinds]
+            mainRasterEphysFilenames = [site.get_mouse_relative_ephys_filenames()[i] for i in mainRasterInds]
+            mainRasterTypes = [site.get_session_types()[i] for i in mainRasterInds]
+            if mainTCind:
+                mainTCsession = site.get_mouse_relative_ephys_filenames()[mainTCind]
+                mainTCbehavFilename = site.get_mouse_relative_behav_filenames()[mainTCind]
+                mainTCtype = site.get_session_types()[mainTCind]
+            else:
+                mainTCsession=None
 
             plt.figure() #The main report for this cluster/tetrode/session
 
-            for indRaster, rasterSession in enumerate(mainRasterSessions):
+            for indRaster, rasterSession in enumerate(mainRasterEphysFilenames):
                 plt.subplot2grid((6, 6), (indRaster, 0), rowspan = 1, colspan = 3)
-                ee.plot_session_raster(rasterSession, tetrode, cluster = cluster, replace = 1, ms=1)
+
+                rasterSpikes = loader.get_session_spikes(rasterSession, tetrode)
+                spikeTimestamps = rasterSpikes.timestamps[rasterSpikes.clusters==cluster]
+
+                rasterEvents = loader.get_session_events(rasterSession)
+                eventOnsetTimes = loader.get_event_onset_times(rasterEvents)
+
+                dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, ms=1)
+
                 plt.ylabel('{}\n{}'.format(mainRasterTypes[indRaster], rasterSession.split('_')[1]), fontsize = 10)
                 ax=plt.gca()
-                extraplots.set_ticks_fontsize(ax,6)
+                extraplots.set_ticks_fontsize(ax,6) #Should this go in dataplotter?
 
             #We can only do one main TC for now.
-            if len(mainTCsessions)>0:
+            if mainTCsession:
+
                 plt.subplot2grid((6, 6), (0, 3), rowspan = 3, colspan = 3)
-                #tcIndex = site.get_session_types().index('tuningCurve')
-                tcSession = mainTCsessions[0]
-                tcBehavID = mainTCbehavIDs[0]
-                ee.plot_session_tc_heatmap(tcSession, tetrode, tcBehavID, replace = 1, cluster = cluster)
-                plt.title("{0}\nBehavFileID = '{1}'".format(tcSession, tcBehavID), fontsize = 10)
+
+
+                bdata = loader.get_session_behavior(mainTCbehavFilename)
+                plotTitle = loader.get_session_filename(mainTCsession)
+                eventData = loader.get_session_events(mainTCsession)
+                spikeData = loader.get_session_spikes(mainTCsession, tetrode)
+
+                spikeTimestamps = spikeData.timestamps[spikeData.clusters==cluster]
+
+                eventOnsetTimes = loader.get_event_onset_times(eventData)
+
+                freqEachTrial = bdata['currentFreq']
+                intensityEachTrial = bdata['currentIntensity']
+
+                possibleFreq = np.unique(freqEachTrial)
+                possibleIntensity = np.unique(intensityEachTrial)
+
+                xlabel='Frequency (kHz)'
+                ylabel='Intensity (dB SPL)'
+
+                # firstSortLabels = ["%.1f" % freq for freq in possibleFreq/1000.0]
+                # secondSortLabels = ['{}'.format(inten) for inten in possibleIntensity]
+
+                # dataplotter.two_axis_heatmap(spikeTimestamps,
+                #                             eventOnsetTimes,
+                #                             freqEachTrial,
+                #                             intensityEachTrial,
+                #                             firstSortLabels,
+                #                             secondSortLabels,
+                #                             xlabel,
+                #                             ylabel,
+                #                             plotTitle=plotTitle,
+                #                             flipFirstAxis=False,
+                #                             flipSecondAxis=True,
+                #                             timeRange=[0, 0.1])
+
+                freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0] #FIXME: This should be outside this function
+                intenLabels = ['{}'.format(inten) for inten in possibleIntensity]
+
+                dataplotter.two_axis_heatmap(spikeTimestamps,
+                                            eventOnsetTimes,
+                                            intensityEachTrial,
+                                            freqEachTrial,
+                                            intenLabels,
+                                            freqLabels,
+                                            xlabel,
+                                            ylabel,
+                                            plotTitle,
+                                            flipFirstAxis=True,
+                                            flipSecondAxis=False,
+                                            timeRange=[0, 0.1])
+
+                plt.title("{0}\nBehavFileID = '{1}'".format(mainTCsession, mainTCbehavFilename), fontsize = 10)
+                plt.show()
+
 
             nSpikes = len(oneTT.timestamps)
             nClusters = len(possibleClusters)
-            #spikesEachCluster = np.empty((nClusters, nSpikes),dtype = bool)
-            #if oneTT.clusters == None:
-                #oneTT.set_clusters_from_file()
-            #for indc, clusterID in enumerate (possibleClusters):
-                #spikesEachCluster[indc, :] = (oneTT.clusters==clusterID)
 
             tsThisCluster = oneTT.timestamps[oneTT.clusters==cluster]
             wavesThisCluster = oneTT.samples[oneTT.clusters==cluster]
@@ -109,8 +172,3 @@ def nick_lan_daily_report(site, siteName): #FIXME: This was copied, and needs to
             plt.savefig(full_fig_path, format = 'png')
             #plt.show()
             plt.close()
-
-
-        plt.figure()
-        oneTT.save_multisession_report()
-        plt.close()

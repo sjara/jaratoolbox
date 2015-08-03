@@ -131,15 +131,15 @@ def two_axis_sorted_raster(spikeTimestamps,
 
 def two_axis_heatmap(spikeTimestamps,
                      eventOnsetTimes,
-                     firstSortArray,
-                     secondSortArray,
+                     firstSortArray, #Should be intensity in F/I TC (Y axis)
+                     secondSortArray, #Should be frequency in F/I TC (X Axis)
                      firstSortLabels,
                      secondSortLabels,
                      xlabel,
                      ylabel,
                      plotTitle,
-                     flipFirstAxis=False,
-                     flipSecondAxis=True, #Useful for making the highest intensity plot on top
+                     flipFirstAxis=True, #Useful for making the highest intensity plot on top
+                     flipSecondAxis=False, 
                      timeRange=[-0, 0.1]):
 
     firstPossibleVals = np.unique(firstSortArray)
@@ -157,22 +157,19 @@ def two_axis_heatmap(spikeTimestamps,
 
     trialsEachCond = behavioranalysis.find_trials_each_combination(firstSortArray, firstPossibleVals, secondSortArray, secondPossibleVals)
     spikeArray = avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
-    plot_array_as_heatmap(spikeArray, xlabel=xlabel, ylabel=ylabel, xticklabels=secondSortLabels, yticklabels=firstSortLabels, cbarLabel=cbarLabel)
+    plot_array_as_heatmap(spikeArray, xlabel=xlabel, ylabel=ylabel, xtickLabels=secondSortLabels, ytickLabels=firstSortLabels, cbarLabel=cbarLabel)
 
 
-def avg_spikes_in_event_locked_timerange_each_cond(self, spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
+def avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
 
     if len(eventOnsetTimes)!=np.shape(trialsEachCond)[0]:
         eventOnsetTimes=eventOnsetTimes[:-1]
-
-    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,
-                                                                                                                    eventOnsetTimes,
-                                                                                                                    timeRange)
-    spikeArray = self.avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCond)
-
+        print "FIXME: Using bad hack to make event onset times equal number of trials"
+    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps, eventOnsetTimes, timeRange)
+    spikeArray = avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCond)
     return spikeArray
 
-def avg_locked_spikes_per_condition(self, indexLimitsEachTrial, trialsEachCond):
+def avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCond):
 
     numSpikesInTimeRangeEachTrial = np.squeeze(np.diff(indexLimitsEachTrial, axis=0))
     conditionMatShape = np.shape(trialsEachCond)
@@ -182,27 +179,21 @@ def avg_locked_spikes_per_condition(self, indexLimitsEachTrial, trialsEachCond):
     avgSpikesArray = np.sum(spikesFilteredByTrialType, 0)/np.sum(trialsEachCond, 0).astype('float')
     return avgSpikesArray
 
-def plot_array_as_heatmap(self, heatmapArray, xlabel=None, ylabel=None, xtickLabels=None, ytickLabels=None, cbarLabel=None, cmap='Blues'):
+def plot_array_as_heatmap(heatmapArray, xlabel=None, ylabel=None, xtickLabels=None, ytickLabels=None, cbarLabel=None, cmap='Blues'):
 
     ax = plt.gca()
-
     if xlabel:
         ax.set_xlabel(xlabel)
-
     if ylabel:
         ax.set_ylabel(ylabel)
-
     cax = ax.imshow(heatmapArray, interpolation='none', aspect='auto', cmap=cmap)
     vmin, vmax = cax.get_clim()
     cbar=plt.colorbar(cax, format = '%.1f')
-
     if cbarLabel is not None:
         cbar.ax.set_ylabel(cbarLabel)
-
     if xtickLabels is not None:
         ax.set_xticks(range(len(xtickLabels)))
         ax.set_xticklabels(xtickLabels, rotation = 'vertical')
-
     if ytickLabels:
         ax.set_yticks(range(len(ytickLabels)))
         ax.set_yticklabels(ytickLabels)

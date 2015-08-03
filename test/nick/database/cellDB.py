@@ -360,11 +360,25 @@ class Site(object):
         '''
         return [s.ephysFilename for s in self.sessionList]
 
+    def get_mouse_relative_ephys_filenames(self):
+        return [os.path.join(self.animalName, fn) for fn in self.get_session_ephys_filenames()]
+
     def get_session_behav_filenames(self):
         '''
         Returns a list of the behavior filenames for each session in the sessionList
         '''
         return [s.behavFilename for s in self.sessionList]
+
+    def get_mouse_relative_behav_filenames(self):
+        behavFns = self.get_session_behav_filenames()
+        fnList = []
+        for fn in behavFns:
+            if fn:
+                fnList.append(os.path.join(self.animalName, fn))
+            else:
+                fnList.append(None)
+                              
+        return fnList
 
     def get_session_types(self):
         '''

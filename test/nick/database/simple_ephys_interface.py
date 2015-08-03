@@ -21,5 +21,6 @@ interface = ephysinterface.EphysInterface('pinp003', '2015-06-24', 'nick', 'lase
 # interface.plot_sorted_tuning_raster('15-31-48', 6, 'a')
 
 
+interface.plot_session_tc_heatmap('15-31-48', 6, 'a')
 
 
