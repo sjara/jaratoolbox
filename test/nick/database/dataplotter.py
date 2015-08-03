@@ -36,6 +36,7 @@ a heatmap to an outside method)
 #raster. This function wraps three other good functions and provides a way to use them easily
 
 #It should have a less ambiguous name though, since there is the function raster_plot in extraplots
+import numpy as np
 from matplotlib import pyplot as plt
 import functools
 from jaratoolbox import extraplots
@@ -123,8 +124,40 @@ def two_axis_sorted_raster(spikeTimestamps,
 
         plt.ylabel(secondSortLabels[ind])
 
-        if indIntensity == len(possibleIntensity)-1:
+        if ind == len(secondPossibleVals)-1:
             plt.xlabel(xLabel)
+
+
+
+def two_axis_heatmap(spikeTimestamps,
+                     eventOnsetTimes,
+                     firstSortArray,
+                     secondSortArray,
+                     firstSortLabels,
+                     secondSortLabels,
+                     xlabel,
+                     ylabel,
+                     plotTitle,
+                     flipFirstAxis=False,
+                     flipSecondAxis=True, #Useful for making the highest intensity plot on top
+                     timeRange=[-0, 0.1]):
+
+    firstPossibleVals = np.unique(firstSortArray)
+    secondPossibleVals = np.unique(secondSortArray)
+
+    cbarLabel = 'Avg spikes in time range: {}'.format(timeRange)
+
+    if flipFirstAxis:
+        firstPossibleVals=firstPossibleVals[::-1]
+        firstSortLabels=firstSortLabels[::-1]
+
+    if flipSecondAxis:
+        secondPossibleVals=secondPossibleVals[::-1]
+        secondSortLabels=secondSortLabels[::-1]
+
+    trialsEachCond = behavioranalysis.find_trials_each_combination(firstSortArray, firstPossibleVals, secondSortArray, secondPossibleVals)
+    spikeArray = avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
+    plot_array_as_heatmap(spikeArray, xlabel=xlabel, ylabel=ylabel, xticklabels=secondSortLabels, yticklabels=firstSortLabels, cbarLabel=cbarLabel)
 
 
 def avg_spikes_in_event_locked_timerange_each_cond(self, spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
@@ -149,44 +182,45 @@ def avg_locked_spikes_per_condition(self, indexLimitsEachTrial, trialsEachCond):
     avgSpikesArray = np.sum(spikesFilteredByTrialType, 0)/np.sum(trialsEachCond, 0).astype('float')
     return avgSpikesArray
 
-def plot_TCarray_as_heatmap(self, heatmapArray, xlabels=None, ylabels=None, timeRange = None, flipy=True, flipylabels=True, cmap='Blues'):
+def plot_array_as_heatmap(self, heatmapArray, xlabel=None, ylabel=None, xtickLabels=None, ytickLabels=None, cbarLabel=None, cmap='Blues'):
 
     ax = plt.gca()
-    ax.set_ylabel('Intensity (dB SPL)')
-    ax.set_xlabel('Frequency (kHz)') #FIXME: This should be outside this function and does not appear to work anyway
 
-    if flipy:
-        heatmapArray = np.flipud(heatmapArray)
+    if xlabel:
+        ax.set_xlabel(xlabel)
+
+    if ylabel:
+        ax.set_ylabel(ylabel)
 
     cax = ax.imshow(heatmapArray, interpolation='none', aspect='auto', cmap=cmap)
     vmin, vmax = cax.get_clim()
     cbar=plt.colorbar(cax, format = '%.1f')
 
-    if timeRange is not None:
+    if cbarLabel is not None:
+        cbar.ax.set_ylabel(cbarLabel)
 
-        cbar.ax.set_ylabel('Avg spikes in time range: {}'.format(timeRange))
+    if xtickLabels is not None:
+        ax.set_xticks(range(len(xtickLabels)))
+        ax.set_xticklabels(xtickLabels, rotation = 'vertical')
 
-    if xlabels is not None:
-        ax.set_xticks(range(len(xlabels)))
-        xticks = ["%.1f" % freq for freq in xlabels/1000.0] #FIXME: This should be outside this function
-        ax.set_xticklabels(xticks, rotation = 'vertical')
+    if ytickLabels:
+        ax.set_yticks(range(len(ytickLabels)))
+        ax.set_yticklabels(ytickLabels)
 
-    ax.set_yticks(range(np.shape(heatmapArray)[0]))
-
-
-    if ylabels is not None:
-        if flipylabels:
-            ax.set_yticklabels(ylabels[::-1])
-        else:
-            ax.set_yticklabels(ylabels)
+    return ax, cax, cbar
 
 class FlipThroughData(object):
 
+    '''
+    Decorator class that can wrap a plotting function and allow it to flip through a list of data using the < / > keys.
+
+    Args:
+        plottingFn (function): A function that can accept one item in the data list and make the plot that you want.
+    '''
+
     def __init__(self, plottingFn):
         self.plotter = plottingFn
-        #This is supposed to make this a 'well-behaved' decorator,
-        #but I am not sure if is is doing its job
-        functools.update_wrapper(self, plottingFn)
+        functools.update_wrapper(self, plottingFn) #Make this a well-behaved decorator
 
     def __call__(self, data):
 
@@ -206,11 +240,13 @@ class FlipThroughData(object):
 
         self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
         #The kpid will now know the size of the data and what to do with it.
+        plt.show()
 
     def redraw(self):
         plt.clf()
         self.plotter(self.data[self.counter])
         self.title_plot()
+        plt.show()
 
     def on_key_press(self, event):
         '''
@@ -233,5 +269,3 @@ class FlipThroughData(object):
         plt.title("{}/{}: Press < or > to flip through data\n{}".format(self.counter,
                                                                         self.maxDataInd,
                                                                         self.originalPlotTitle))
-
-

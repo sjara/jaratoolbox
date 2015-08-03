@@ -8,6 +8,10 @@ The job of the module will be to take session names, get the data, and then pass
 
 from jaratoolbox.test.nick.database import dataloader
 from jaratoolbox.test.nick.database import dataplotter
+reload(dataplotter)
+import os
+from matplotlib import pyplot as plt
+import numpy as np
 
 
 class EphysInterface(object):
@@ -16,7 +20,7 @@ class EphysInterface(object):
                  animalName,
                  date,
                  experimenter,
-                 paradigm,
+                 defaultParadigm=None,
                  serverUser='jarauser',
                  serverName='jarahub',
                  serverBehavPathBase='/data/behavior'
@@ -25,13 +29,9 @@ class EphysInterface(object):
         self.animalName = animalName
         self.date = date
         self.experimenter = experimenter
-        self.paradigm = paradigm
+        self.defaultParadigm = defaultParadigm
 
-        self.loader = dataloader.DataLoader('online', animalName, date, experimenter, paradigm)
-
-
-        #Since this is separate from the loader, can it have the server stuff too?
-        #Then I could have the get_behavior code run before every heatmap
+        self.loader = dataloader.DataLoader('online', animalName, date, experimenter, defaultParadigm)
 
         self.serverUser = serverUser
         self.serverName = serverName
@@ -47,10 +47,25 @@ class EphysInterface(object):
         print ' '.join(transferCommand)
         subprocess.call(transferCommand)
 
+    def plot_session_raster(self, session, tetrode, cluster = None, sortArray = [], replace=0, ms=4):
 
-    #Use external raster plotting method
-    def plot_session_raster(self, session, tetrode, replace=True):
-        pass
+        plotTitle = self.loader.get_session_filename(session)
+        spikeData= self.loader.get_session_spikes(session, tetrode)
+        eventData = self.loader.get_session_events(session)
+        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+        spikeTimestamps=spikeData.timestamps
+
+        if cluster:
+            spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
+
+        if replace:
+            plt.cla()
+        else:
+            plt.figure()
+
+        dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, ms=ms)
+
+        plt.show()
 
     def plot_array_raster(self, session, replace=0, timeRange = [-0.5, 1], tetrodes=[3,4,5,6], ms=4):
         '''
@@ -87,7 +102,7 @@ class EphysInterface(object):
             if ind == 0:
                 plt.title(plotTitle)
 
-            plt.ylabel('TT {}'.format(tetrodeID))
+            plt.ylabel('TT {}'.format(tetrode))
 
         plt.xlabel('time (sec)')
         plt.show()
@@ -124,7 +139,7 @@ class EphysInterface(object):
                                            intensityLabels,
                                            xLabel,
                                            plotTitle,
-                                           flipFirstAxis=True,
+                                           flipFirstAxis=False,
                                            flipSecondAxis=True,
                                            timeRange=timeRange,
                                            ms=ms)
@@ -134,17 +149,38 @@ class EphysInterface(object):
 
     #Relies on external TC heatmap plotting functions
     def plot_session_tc_heatmap(self, session, tetrode, behavSuffix, replace=True):
-        pass
+        bdata = self.loader.get_session_behavior(behavSuffix)
+        plotTitle = self.loader.get_session_filename(session)
+        eventData = self.loader.get_session_events(session)
+        spikeData = self.loader.get_session_spikes(session, tetrode)
 
-    def plot_array_tc_heatmap(self, session, behavSuffix, replace=True):
-        pass
+        freqEachTrial = bdata['currentFreq']
+        intensityEachTrial = bdata['currentIntensity']
 
+        possibleFreq = np.unique(freqEachTrial)
+        possibleIntensity = np.unique(intensityEachTrial)
+
+        if replace:
+            fig = plt.gcf()
+            plt.clf()
+        else:
+            fig = plt.figure()
+
+        spikeArray = 
+
+        xlabel='Frequency (kHz)'
+        ylabel='Intensity (dB SPL)'
+
+        xtickLabels = ["%.1f" % freq for freq in possibleFreq/1000.0] #FIXME: This should be outside this function
+        ytickLabels = ['{}'.format(inten) for inten in possibleIntensity]
+
+    def plot_array_heatmap(self, session, behavSuffix, replace=True):
+        pass
 
     #Relies on module for clustering multiple sessions
     #Also relies on methods for plotting rasters and cluster waveforms
     def cluster_sessions_and_plot_rasters_for_each_cluster(self, ):
         pass
-
 
     #Relies on methods for interactive plotting (</>, etc)
     def switch_through_plots_interactively(self, ):

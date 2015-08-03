@@ -21,8 +21,8 @@ DONE - Sessions need to hold the whole behavior file name, not just the suffix. 
 
 - Consider not separating the behav files by animal
 
-- the database will ultimately give us back strings for the filenames of the ephys and behavior session, also cluster objects.
-- Cluster may need to have methods for returning ephys and behav filenames
+DONE- the database will ultimately give us back strings for the filenames of the ephys and behavior session, also cluster objects.
+DONE- Cluster may need to have methods for returning ephys and behav filenames
 
 
 - For next time: how do we send an email with what clusters to plot and then plot them very easily?
@@ -52,23 +52,6 @@ class CellDB(list):
     def get_cluster_ids(self):
         return [c.clusterID for c in self]
 
-    # def query(self, lookup_dict, verbose=True):
-    #     '''
-    #     The lookup dict will be like this: {'animalName': 'test000', 'date': '2014-06-24'}
-    #     You can also do: {'animalName': ['test000', 'test001']}
-    #     THIS WILL BREAK or at least not do useful things when we try to look at attributes that
-    #     are lists, such as the sessions or sessionTypes. The function below tries to remedy this
-    #     '''
-    #     queryResults = self
-    #     for attrName, attrVal in lookup_dict.iteritems():
-    #         if isinstance(attrVal, list): #If a list of possible values is supplied, test whether each cluster value is in the list
-    #             queryResults = [clu for clu in queryResults if getattr(clu, attrName) in attrVal]
-    #         else: #If a single value is supplied, just check if each cluster's attribute value is equal to it.
-    #             queryResults = [clu for clu in queryResults if getattr(clu, attrName)==attrVal]
-
-    #     if verbose:
-    #         print "{} clusters satisfying these conditions".format(len(queryResults))
-    #     return queryResults
 
     def query(self, lookup_dict, verbose=True):
         '''
