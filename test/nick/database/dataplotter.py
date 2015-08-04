@@ -51,7 +51,8 @@ def plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = [], timeRange = [-
     '''
     if len(sortArray)>0:
         trialsEachCond = behavioranalysis.find_trials_each_type(sortArray, np.unique(sortArray))
-        labels=['%.1f' % f for f in np.unique(sortArray)]
+        if not labels:
+            labels=['%.1f' % f for f in np.unique(sortArray)]
     else:
         trialsEachCond = []
 
@@ -163,7 +164,7 @@ def two_axis_heatmap(spikeTimestamps,
 def one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, sortArray, timeRange=[0, 0.1]):
     trialsEachCond = behavioranalysis.find_trials_each_type(sortArray, np.unique(sortArray))
     spikeArray = avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
-    plt.plot(spikeArray, 'k-')
+    plt.plot(spikeArray, ls='-', lw=2, c='0.25')
     pass
 
 def avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
@@ -263,6 +264,5 @@ class FlipThroughData(object):
             self.redraw()
 
     def title_plot(self):
-        plt.title("{}/{}: Press < or > to flip through data\n{}".format(self.counter,
-                                                                        self.maxDataInd,
-                                                                        self.originalPlotTitle))
+        plt.suptitle("{}/{}: Press < or > to flip through data".format(self.counter,
+                                                                        self.maxDataInd))

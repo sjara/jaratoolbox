@@ -1,6 +1,5 @@
 from jaratoolbox.test.nick.database import ephysinterface
 reload(ephysinterface)
-reload(dataplotter)
 
 #Some sessions from 2015-06-24 for reference. 
 # d1site1 = day1.add_site(depth = 3543, tetrodes = [6])
@@ -21,6 +20,9 @@ interface = ephysinterface.EphysInterface('pinp003', '2015-06-24', 'nick', 'lase
 # interface.plot_sorted_tuning_raster('15-31-48', 6, 'a')
 
 
-interface.plot_session_tc_heatmap('15-31-48', 6, 'a')
+# interface.plot_session_tc_heatmap('15-31-48', 6, 'a')
 
+# interface.plot_array_freq_tuning('15-31-48', 'a')
+
+interface.flip_tetrode_tuning('15-31-48', 'a')
 

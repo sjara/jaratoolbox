@@ -97,8 +97,19 @@ class EphysInterface(object):
             spikeTimestamps = spikeData.timestamps
             dataplotter.one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, freqEachTrial, timeRange=timeRange)
 
+            ax.set_xticks(range(len(freqLabels)))
+
+            if ind == numTetrodes-1:
+                ax.set_xticklabels(freqLabels, rotation='vertical')
+                plt.xlabel('Frequency (kHz)')
+            else:
+                plt.setp(ax.get_xticklabels(), visible=False)
 
 
+            plt.ylabel('TT {}'.format(tetrode))
+            
+
+        plt.figtext(0.05, 0.5, 'Average number of spikes in range {}'.format(timeRange), rotation='vertical', va='center', ha='center')
         plt.show()
 
 
@@ -228,14 +239,63 @@ class EphysInterface(object):
 
         plt.show()
 
-    def plot_array_heatmap(self, session, behavSuffix, replace=True):
-        pass
-
     #Relies on module for clustering multiple sessions
     #Also relies on methods for plotting rasters and cluster waveforms
     def cluster_sessions_and_plot_rasters_for_each_cluster(self, ):
         pass
 
-    #Relies on methods for interactive plotting (</>, etc)
-    def switch_through_plots_interactively(self, ):
-        pass
+
+    def flip_tetrode_tuning(self, session, behavSuffix, tetrodes=[3, 4, 5, 6], rasterRange=[-0.5, 1], tcRange=[0, 0.1]):
+
+        plotTitle = self.loader.get_session_filename(session)
+
+        spikesList=[]
+        eventsList=[]
+        freqList=[]
+        rasterRangeList=[]
+        tcRangeList=[]
+        
+        bdata = self.loader.get_session_behavior(behavSuffix)
+        freqEachTrial = bdata['currentFreq']
+        eventData = self.loader.get_session_events(session)
+        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+
+        for tetrode in tetrodes:
+            spikeData = self.loader.get_session_spikes(session, tetrode)
+            spikeTimestamps = spikeData.timestamps
+
+            spikesList.append(spikeTimestamps)
+            eventsList.append(eventOnsetTimes)
+            freqList.append(freqEachTrial)
+            rasterRangeList.append(rasterRange)
+            tcRangeList.append(tcRange)
+
+        dataList=zip(spikesList, eventsList, freqList, tetrodes, rasterRangeList, tcRangeList)
+
+        self._tetrode_tuning(dataList)
+
+        
+    
+    @dataplotter.FlipThroughData    
+    def _tetrode_tuning(dataTuple): 
+
+        #Unpack the data tuple (Watch out - make sure things from the above method are in the right order)
+        spikeTimestamps, eventOnsetTimes, freqEachTrial, tetrode, rasterRange, tcRange = dataTuple
+
+        possibleFreq=np.unique(freqEachTrial)
+        freqLabels = ['{0:.1f}'.format(freq/1000.0) for freq in possibleFreq]
+        fig = plt.gcf()
+
+        ax1=plt.subplot2grid((3, 3), (0, 0), rowspan=3, colspan=2)
+        dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = freqEachTrial, ms=1, labels=freqLabels, timeRange=rasterRange)
+        plt.title("Tetrode {}".format(tetrode))
+        ax1.set_ylabel('Freq (kHz)')
+        ax1.set_xlabel('Time from sound onset (sec)')
+
+        ax2=plt.subplot2grid((3, 3), (0, 2), rowspan=3, colspan=1)
+        dataplotter.one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, freqEachTrial, timeRange=tcRange)
+
+        ax2.set_ylabel("Avg spikes in range {}".format(tcRange))
+        ax2.set_xticks(range(len(freqLabels)))
+        ax2.set_xticklabels(freqLabels, rotation='vertical')
+        ax2.set_xlabel('Freq (kHz)')
