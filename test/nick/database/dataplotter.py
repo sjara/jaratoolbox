@@ -43,20 +43,21 @@ from jaratoolbox import extraplots
 from jaratoolbox import spikesanalysis
 from jaratoolbox import behavioranalysis
 
-def plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = [], timeRange = [-0.5, 1], ms = 4):
+def plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = [], timeRange = [-0.5, 1], ms = 4, labels=None):
     '''
     Args:
         sortarray (array): an array of parameter values for each trial. output will be sorted by the possible values of the parameter. Must be the same length as the event onset times array
 
     '''
     if len(sortArray)>0:
-        trialseachcond = behavioranalysis.find_trials_each_type(sortArray, np.unique(sortArray))
+        trialsEachCond = behavioranalysis.find_trials_each_type(sortArray, np.unique(sortArray))
+        labels=['%.1f' % f for f in np.unique(sortArray)]
     else:
         trialsEachCond = []
 
     spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimes,timeRange)
 
-    pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond)
+    pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond, labels=labels)
     plt.setp(pRaster,ms=ms)
 
 def two_axis_sorted_raster(spikeTimestamps,
@@ -159,6 +160,11 @@ def two_axis_heatmap(spikeTimestamps,
     spikeArray = avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
     plot_array_as_heatmap(spikeArray, xlabel=xlabel, ylabel=ylabel, xtickLabels=secondSortLabels, ytickLabels=firstSortLabels, cbarLabel=cbarLabel)
 
+def one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, sortArray, timeRange=[0, 0.1]):
+    trialsEachCond = behavioranalysis.find_trials_each_type(sortArray, np.unique(sortArray))
+    spikeArray = avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
+    plt.plot(spikeArray, 'k-')
+    pass
 
 def avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
 

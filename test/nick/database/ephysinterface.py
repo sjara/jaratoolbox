@@ -67,7 +67,43 @@ class EphysInterface(object):
 
         plt.show()
 
-    def plot_array_raster(self, session, replace=0, timeRange = [-0.5, 1], tetrodes=[3,4,5,6], ms=4):
+
+    def plot_array_freq_tuning(self, session, behavSuffix, replace=0, tetrodes=[3, 4, 5, 6], timeRange=[0, 0.1]):
+
+        numTetrodes = len(tetrodes)
+        eventData = self.loader.get_session_events(session)
+        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+        plotTitle = self.loader.get_session_filename(session)
+        bdata=self.loader.get_session_behavior(behavSuffix)
+        freqEachTrial = bdata['currentFreq']
+        freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]
+
+        if replace:
+            fig = plt.gcf()
+            plt.clf()
+        else:
+            fig = plt.figure()
+
+
+        for ind , tetrode in enumerate(tetrodes):
+
+            spikeData = self.loader.get_session_spikes(session, tetrode)
+
+            if ind == 0:
+                ax = fig.add_subplot(numTetrodes,1,ind+1)
+            else:
+                ax = fig.add_subplot(numTetrodes,1,ind+1, sharex = fig.axes[0], sharey = fig.axes[0])
+
+            spikeTimestamps = spikeData.timestamps
+            dataplotter.one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, freqEachTrial, timeRange=timeRange)
+
+
+
+        plt.show()
+
+
+
+    def plot_array_raster(self, session, replace=0, sortArray=[], timeRange = [-0.5, 1], tetrodes=[3,4,5,6], ms=4):
         '''
         This is the much-improved version of a function to plot a raster for each tetrode. All rasters
         will be plotted using standardized plotting code, and we will simply call the functions.
@@ -97,7 +133,7 @@ class EphysInterface(object):
                 ax = fig.add_subplot(numTetrodes,1,ind+1, sharex = fig.axes[0], sharey = fig.axes[0])
 
             spikeTimestamps = spikeData.timestamps
-            dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, ms=ms, timeRange = timeRange)
+            dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray=sortArray, ms=ms, timeRange = timeRange)
 
             if ind == 0:
                 plt.title(plotTitle)
