@@ -38,7 +38,7 @@ d1site1.add_session('15-31-48', 'a', sessionTypes['tc'])
 d1site1.add_session('15-45-22', 'b', sessionTypes['bf'])
 
 ###Test of sitefunc for plotting the main report Lan and I use
-sitefuncs.nick_lan_daily_report(d1site1, 'site1', mainRasterInds=[0, 1, 3], mainTCind= 2)
+#sitefuncs.nick_lan_daily_report(d1site1, 'site1', mainRasterInds=[0, 1, 3], mainTCind= 2)
 
 #Choosing good clusters for this site
 d1site1.add_clusters({6: [5, 8, 11]})
@@ -77,12 +77,12 @@ db.add_clusters(d2site1.clusterList)
 #Writing currently overwrites the file. The proper way is to load the database,
 #append new clusters to it, and then rewrite the file with the new contents added
 #However, I am currently asking for confirmation unless you pass force=True.
-#dbfile = '/tmp/allcells.json'
- #db.write_to_json(dbfile)
+dbfile = '/tmp/allcells.json'
+db.write_to_json(dbfile)
 
 
-# db2 = cellDB.CellDB()
-# db2.load_from_json(dbfile)
+db2 = cellDB.CellDB()
+db2.load_from_json(dbfile)
 
 # ----------------------
 ##Query functionality
@@ -128,6 +128,9 @@ db.set_features_from_array('number', featureArray)
 #Feature queries
 extraCoolCells = db.query_features({'coolness': 'extra cool'}, verbose=False)
 
+#FIXME: This should return a boolean
+#FIXME: Or just get the array of values for a particular feature - Then we could do all the calculations ourselves. 
+
 #Feature queries with custom comparison functions
 #This method takes a feature value and a comparison function, and uses the function to
 #compare the supplied value to the value of each cell. You can either define your own
@@ -145,6 +148,7 @@ lowNumberCells = db.query_features_custom_op({'number': 3}, operator.lt, verbose
 #Sessions with no behav data return just the ephys
 cell1NoisePhys = cell1.get_data_filenames('noiseBurst')
 
+#FIXME: Always return a tuple, even if there is no behav data - call this get_filenames
 #Sessions with behav data return the tuple (ephysFilename, behavFilename)
 cell1TuningPhys, cell1TuningBehavior = cell1.get_data_filenames('tcHeatmap')
 

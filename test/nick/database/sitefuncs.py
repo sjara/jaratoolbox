@@ -120,8 +120,8 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
                 #                             flipSecondAxis=True,
                 #                             timeRange=[0, 0.1])
 
-                freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0] #FIXME: This should be outside this function
-                intenLabels = ['{}'.format(inten) for inten in possibleIntensity]
+                freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0]
+                intenLabels = ["%.1f" % inten for inten in possibleIntensity]
 
                 dataplotter.two_axis_heatmap(spikeTimestamps,
                                             eventOnsetTimes,

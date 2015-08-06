@@ -71,7 +71,6 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
                 else:
                     self.samples = np.concatenate([self.samples, samplesThisSession])
                     self.timestamps = np.concatenate([self.timestamps, timestampsThisSession])
-                    #import pdb; pdb.set_trace()
                     self.recordingNumber = np.concatenate([self.recordingNumber, sessionVector])
             
         self.nSpikes = len(self.timestamps)

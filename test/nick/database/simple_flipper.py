@@ -7,16 +7,43 @@ from jaratoolbox.test.nick.database import dataloader
 import itertools
 reload(dataplotter)
 
-folder = '/home/nick/data/test_images'
+folder = '/mnt/jarahubdata/histology/test034_jpg'
 imageFilenameList = [os.path.join(folder, fn) for fn in sorted(os.listdir(folder))]
 imageList = map(scipy.misc.imread, imageFilenameList)
 
 
-@dataplotter.FlipThroughData
-def show_img(image):
-    plt.imshow(image)
+# @dataplotter.FlipThroughData
+# def show_img(image):
+#     plt.imshow(image)
 
-#show_img(imageList)
+# flip_image=dataplotter.FlipThroughData(show_img)
+# flip_image(imageList)
+
+
+
+# # show_img(imageList)
+
+flipper = dataplotter.FlipT(plt.imshow, imageList)
+
+
+#'-------------------------------------'
+# # imageList
+# plt.imshow(image)
+# flipt(plt.imshow,imageList)
+# #----
+# def twoplots(spiketimes, events):
+#     subplot()
+#     plot(spiketimes,events)
+#     subplot()
+#     plot(mean(spiketimes))
+
+# flipt(twoplots, dataList)
+    
+
+
+
+'''
+
 
 dbFn = '/var/tmp/allcells.json'
 db = cellDB.CellDB()
@@ -56,3 +83,5 @@ def simple_raster(cellDataTuple):
     plt.ylabel('My Y Label')
 
 simple_raster(dataTuples)
+
+'''

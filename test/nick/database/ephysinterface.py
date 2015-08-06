@@ -21,6 +21,7 @@ class EphysInterface(object):
                  date,
                  experimenter,
                  defaultParadigm=None,
+                 defaultTetrodes=[3, 4, 5, 6],
                  serverUser='jarauser',
                  serverName='jarahub',
                  serverBehavPathBase='/data/behavior'
@@ -30,6 +31,7 @@ class EphysInterface(object):
         self.date = date
         self.experimenter = experimenter
         self.defaultParadigm = defaultParadigm
+        self.defaultTetrodes=defaultTetrodes
 
         self.loader = dataloader.DataLoader('online', animalName, date, experimenter, defaultParadigm)
 
@@ -68,7 +70,10 @@ class EphysInterface(object):
         plt.show()
 
 
-    def plot_array_freq_tuning(self, session, behavSuffix, replace=0, tetrodes=[3, 4, 5, 6], timeRange=[0, 0.1]):
+    def plot_array_freq_tuning(self, session, behavSuffix, replace=0, tetrodes=None, timeRange=[0, 0.1]):
+
+        if not tetrodes:
+            tetrodes=self.defaultTetrodes
 
         numTetrodes = len(tetrodes)
         eventData = self.loader.get_session_events(session)
@@ -114,13 +119,16 @@ class EphysInterface(object):
 
 
 
-    def plot_array_raster(self, session, replace=0, sortArray=[], timeRange = [-0.5, 1], tetrodes=[3,4,5,6], ms=4):
+    def plot_array_raster(self, session, replace=0, sortArray=[], timeRange = [-0.5, 1], tetrodes=None, ms=4):
         '''
         This is the much-improved version of a function to plot a raster for each tetrode. All rasters
         will be plotted using standardized plotting code, and we will simply call the functions.
         In this case, we get the event data once, and then loop through the tetrodes, getting the
         spike data and calling the plotting code for each tetrode.
         '''
+
+        if not tetrodes:
+            tetrodes=self.defaultTetrodes
 
         numTetrodes = len(tetrodes)
         eventData = self.loader.get_session_events(session)
@@ -245,8 +253,11 @@ class EphysInterface(object):
         pass
 
 
-    def flip_tetrode_tuning(self, session, behavSuffix, tetrodes=[3, 4, 5, 6], rasterRange=[-0.5, 1], tcRange=[0, 0.1]):
+    def flip_tetrode_tuning(self, session, behavSuffix, tetrodes=None , rasterRange=[-0.5, 1], tcRange=[0, 0.1]):
 
+        if not tetrodes:
+            tetrodes=self.defaultTetrodes
+        
         plotTitle = self.loader.get_session_filename(session)
 
         spikesList=[]

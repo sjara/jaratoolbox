@@ -212,6 +212,12 @@ class FlipThroughData(object):
     '''
     Decorator class that can wrap a plotting function and allow it to flip through a list of data using the < / > keys.
 
+    The advantage of this way is that functions are decorated in place, and you do not need a different instance
+    of the function to flip through different lists of data - you do not need to give a name to each instance
+
+    The disadvantage is that decorators are confusing - you have to decorate in one place and then use it in a
+    different place - the user may not be able to get good help about what to pass to the function
+
     Args:
         plottingFn (function): A function that can accept one item in the data list and make the plot that you want.
     '''
@@ -221,6 +227,72 @@ class FlipThroughData(object):
         functools.update_wrapper(self, plottingFn) #Make this a well-behaved decorator
 
     def __call__(self, data):
+
+        self.data = data
+        self.counter=0
+        self.maxDataInd = len(data)-1
+        self.fig = plt.gcf()
+
+        # self.plotter(*self.data[self.counter])
+        self.redraw()
+
+        #Get the user's original plot title
+        self.originalPlotTitle = self.fig.axes[0].get_title()
+        self.originalXlabel = self.fig.axes[0].get_xlabel()
+        self.originalYlabel = self.fig.axes[0].get_ylabel()
+
+        self.title_plot()
+
+        self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+        #The kpid will now know the size of the data and what to do with it.
+        plt.show()
+
+    def redraw(self):
+        plt.clf()
+        if not isinstance(self.data[self.counter], tuple):
+            dataToPlot = tuple(self.data[self.counter])
+        else:
+            dataToPlot = self.data[self.counter]
+        self.plotter(dataToPlot)
+        self.title_plot()
+        plt.show()
+
+    def on_key_press(self, event):
+        '''
+        Method to listen for keypresses and change the slice
+        '''
+        if event.key=='<' or event.key==',' or event.key=='left':
+            if self.counter>0:
+                self.counter-=1
+            else:
+                self.counter=self.maxDataInd
+            self.redraw()
+        elif event.key=='>' or event.key=='.' or event.key=='right':
+            if self.counter<self.maxDataInd:
+                self.counter+=1
+            else:
+                self.counter=0
+            self.redraw()
+
+    def title_plot(self):
+        plt.suptitle("{}/{}: Press < or > to flip through data".format(self.counter,
+                                                                        self.maxDataInd))
+class FlipT(object):
+
+    '''
+    The advantage of this version is that we only need to write one line:
+    flipper = dataplotter.FlipT(function, dataList)
+
+    The disadvantage is that we need to assign a handle to the object instance to prevent it from
+    being garbage collected, which is not obvious to the user. 
+
+    Args:
+        plottingFn (function): A function that can accept one item in the data list and make the plot that you want.
+    '''
+
+    def __init__(self, plottingFn, data):
+        self.plotter = plottingFn
+        functools.update_wrapper(self, plottingFn) #Make this a well-behaved decorator
 
         self.data = data
         self.counter=0
@@ -242,7 +314,11 @@ class FlipThroughData(object):
 
     def redraw(self):
         plt.clf()
-        self.plotter(self.data[self.counter])
+        if not isinstance(self.data[self.counter], tuple):
+            dataToPlot = tuple(self.data[self.counter])
+        else:
+            dataToPlot = self.data[self.counter]
+        self.plotter(dataToPlot)
         self.title_plot()
         plt.show()
 
