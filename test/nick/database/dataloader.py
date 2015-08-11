@@ -106,7 +106,7 @@ class DataLoader(object):
 
         return eventOnsetTimes
 
-    def get_session_spikes(self, session, tetrode):
+    def get_session_spikes(self, session, tetrode, cluster=None):
         '''
         Get the spike data for one session, one tetrode.
 
@@ -158,6 +158,10 @@ class DataLoader(object):
         if os.path.isfile(clustersFile):
             spikeData.set_clusters(clustersFile)
 
+        if cluster:
+            spikeData.samples=spikeData.samples[spikeData.clusters==cluster]
+            spikeData.timestamps=spikeData.timestamps[spikeData.clusters==cluster]
+            
         return spikeData
 
     def get_session_behavior(self, behavFileName):

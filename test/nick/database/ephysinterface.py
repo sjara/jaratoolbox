@@ -288,10 +288,14 @@ class EphysInterface(object):
         
     
     @dataplotter.FlipThroughData    
-    def _tetrode_tuning(dataTuple): 
+    def _tetrode_tuning(spikeTimestamps, eventOnsetTimes, freqEachTrial, tetrode, rasterRange, tcRange): 
+
+        '''
+        Fix this so that
+        '''
 
         #Unpack the data tuple (Watch out - make sure things from the above method are in the right order)
-        spikeTimestamps, eventOnsetTimes, freqEachTrial, tetrode, rasterRange, tcRange = dataTuple
+        # spikeTimestamps, eventOnsetTimes, freqEachTrial, tetrode, rasterRange, tcRange = dataTuple
 
         possibleFreq=np.unique(freqEachTrial)
         freqLabels = ['{0:.1f}'.format(freq/1000.0) for freq in possibleFreq]

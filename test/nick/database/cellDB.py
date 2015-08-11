@@ -26,6 +26,14 @@ DONE- Cluster may need to have methods for returning ephys and behav filenames
 
 
 - For next time: how do we send an email with what clusters to plot and then plot them very easily?
+
+Design Decisions:
+
+Should experiment be an object if it just holds strings? It seems like we are not using the site list. However, if we want to add the clusters for all of the sites to a database at one time, it may be nice to have a list of all of the site objects
+
+Advantage: We are exlicitly creating site objects if the experiment is just a dict of strings. 
+
+
 '''
 
 import json
@@ -228,6 +236,13 @@ class CellDB(list):
         else:
             print "No database file found"
 
+
+    def __str__(self):
+        objStrs=[]
+        for ind, cluster in enumerate(self):
+            objStrs.append('Cell {}\nID: {}\nComments: {}\n\n'.format(ind, cluster.clusterID, cluster.comments))
+        return ''.join(objStrs)
+    
 class Experiment(object):
     '''
     Experiment is a container of Sites.
@@ -298,10 +313,10 @@ class Site(object):
         self.sessionList = []
         self.clusterList = []
 
-    def add_session(self, sessionTimestamp, behavFileSuffix, sessionType, paradigm=None):
+    def add_session(self, session, behavFileSuffix, sessionType, paradigm=None):
         '''
         Args:
-            sessionTimestamp (str): The timestamp for the ephys file (e.g. '11-22-33')
+            session (str): The timestamp for the ephys file (e.g. '11-22-33')
             behavFileSuffix (str): The suffix on the behavior file
             sessionType (str): An arbitrary string describing the session. Useful if standardized for a particular experiment (e.g. 'NoiseBurst')
             paradigm (str): The name of the paradigm that was used to collect the session. Defaults to the default paradigm for this site.
@@ -311,15 +326,25 @@ class Site(object):
             paradigm = self.defaultParadigm
 
         if behavFileSuffix:
-            datestr = ''.join(self.date.split('-'))
-            behavFileNameBaseName = '_'.join([self.animalName, paradigm, datestr])
-            fullBehavFileName = '{}{}.h5'.format(behavFileNameBaseName, behavFileSuffix)
+            if len(behavFileSuffix)==1: #This is just the suffix - need to add the date
+                datestr = ''.join(self.date.split('-'))
+                behavFileNameBaseName = '_'.join([self.animalName, paradigm, datestr])
+                fullBehavFileName = '{}{}.h5'.format(behavFileNameBaseName, behavFileSuffix)
+            elif len(behavFileSuffix)==9: #Has the date but no paradigm - add the rest
+                behavFileNameBaseName = '_'.join([self.animalName, paradigm])
+                fullBehavFileName = '{}_{}.h5'.format(behavFileNameBaseName, behavFileSuffix)
         else:
             fullBehavFileName=None
 
-        fullSessionFilename = '_'.join([self.date, sessionTimestamp])
+        #If we need to record past midnight, just include the date in the session timestamp
+        if len(session.split('_'))==2: #Has the date already
+            ephysSession = session
 
-        session = Session(fullSessionFilename, fullBehavFileName, sessionType)
+        elif len(session.split('_'))==1: #Does not have the date already, assume to be the stored date
+            ephysSession = '_'.join([self.date, session])
+
+
+        session = Session(ephysSession, fullBehavFileName, sessionType)
         self.sessionList.append(session)
         return session
 

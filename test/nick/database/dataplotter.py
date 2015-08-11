@@ -41,6 +41,7 @@ from matplotlib import pyplot as plt
 import functools
 from jaratoolbox import extraplots
 from jaratoolbox import spikesanalysis
+from jaratoolbox import spikesorting
 from jaratoolbox import behavioranalysis
 
 def plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = [], timeRange = [-0.5, 1], ms = 4, labels=None):
@@ -207,6 +208,14 @@ def plot_array_as_heatmap(heatmapArray, xlabel=None, ylabel=None, xtickLabels=No
 
     return ax, cax, cbar
 
+def plot_waveforms_in_event_locked_timerange(spikeSamples, spikeTimes, eventOnsetTimes, timeRange):
+    
+    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial,spikeIndices = spikesanalysis.eventlocked_spiketimes(spikeTimes, eventOnsetTimes, timeRange, spikeindex=True)
+    samplesToPlot=spikeSamples[spikeIndices]
+    ax=plt.gca()
+    spikesorting.plot_waveforms(samplesToPlot)
+    plt.title('Waveforms in range {} to {}'.format(*timeRange))
+
 class FlipThroughData(object):
 
     '''
@@ -233,16 +242,8 @@ class FlipThroughData(object):
         self.maxDataInd = len(data)-1
         self.fig = plt.gcf()
 
-        # self.plotter(*self.data[self.counter])
         self.redraw()
-
-        #Get the user's original plot title
-        self.originalPlotTitle = self.fig.axes[0].get_title()
-        self.originalXlabel = self.fig.axes[0].get_xlabel()
-        self.originalYlabel = self.fig.axes[0].get_ylabel()
-
         self.title_plot()
-
         self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
         #The kpid will now know the size of the data and what to do with it.
         plt.show()

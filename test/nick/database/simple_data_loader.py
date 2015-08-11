@@ -44,7 +44,7 @@ loader = dataloader.DataLoader('offline', experimenter = 'nick')
 ##Get ephys and behavior data by passing the filenames from the cluster
 # -----------------------
 
-cell1NoiseSpikesTT6 = loader.get_session_spikes(cell1NoisePhys, 6)
+cell1NoiseSpikesTT6 = loader.get_session_spikes(cell1NoisePhys, 6, cluster=cell1.cluster)
 cell1NoiseEvents = loader.get_session_events(cell1NoisePhys)
 cell1TuningBdata = loader.get_session_behavior(cell1TuningBehavior)
 eventOnsetTimes = loader.get_event_onset_times(cell1NoiseEvents)

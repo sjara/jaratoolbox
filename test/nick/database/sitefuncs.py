@@ -136,7 +136,7 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
                                             flipSecondAxis=False,
                                             timeRange=[0, 0.1])
 
-                plt.title("{0}\nBehavFileID = '{1}'".format(mainTCsession, mainTCbehavFilename), fontsize = 10)
+                plt.title("{0}\n{1}".format(mainTCsession, mainTCbehavFilename), fontsize = 10)
                 plt.show()
 
 
