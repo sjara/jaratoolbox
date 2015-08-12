@@ -36,15 +36,3 @@ eventOnsetTimes = loader.get_event_onset_times(eventData)
 fet = spikesorting.calculate_features(spikeData.samples, ['peak'])
 
 cw = clustercutting.ClusterCutter(fet)
-
-inp = None
-while inp==None:
-    inp = raw_input("Press Enter to Continue")
-
-
-figure()
-spikesorting.plot_waveforms(spikeData.samples[cw.inCluster])
-title('in new cluster')
-
-
-
