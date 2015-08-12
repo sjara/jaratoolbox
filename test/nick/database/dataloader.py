@@ -85,7 +85,9 @@ class DataLoader(object):
 
         return eventData
 
-    def get_event_onset_times(self, eventData, eventID=1, eventChannel=0):
+
+    @staticmethod
+    def get_event_onset_times(eventData, eventID=1, eventChannel=0):
         '''
         Calculate event onset times given an eventData object.
 
@@ -185,3 +187,21 @@ class DataLoader(object):
     #     ephysSession = self.get_session_filename(session)
     #     fullPath = os.path.join(self.localEphysDir, ephysSession)
     #     return fullPath
+
+    def get_cluster_data(self, clusterObj, sessionType=None):
+        '''
+        A method that will take a cluster object and return data objects. 
+        '''
+        ephysFn, behavFn = clusterObj.get_data_filenames(sessionType)
+
+        spikeData = self.get_session_spikes(ephysFn, clusterObj.tetrode, clusterObj.cluster)
+        eventData = self.get_session_events(ephysFn)
+
+        behavData = None
+
+        if behavFn:
+            behavData = self.get_session_behavior(behavFn)
+
+        return spikeData, eventData, behavData
+
+        

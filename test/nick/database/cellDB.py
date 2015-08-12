@@ -470,7 +470,7 @@ class Cluster(object):
                                    'TT{}'.format(self.tetrode),
                                    str(cluster)])
 
-    def get_data_filenames(self, sessionType, includeMouse=True):
+    def get_data_filenames(self, sessionType=None, includeMouse=True):
         '''
         Returns the ephys session folder name, or a tuple containing both the ephys filename
         and the behavior file name
@@ -482,7 +482,17 @@ class Cluster(object):
             ephysFilename (str): The full name of the ephys session folder
             behavFilename (str): Also returned if the session has behavior data
         '''
-        sessionIndex = self.sessionTypes.index(sessionType)
+
+        if sessionType:
+            sessionIndex = self.sessionTypes.index(sessionType)
+        else:
+            print 'Cluster {} has the following sessions:\n'.format(self.clusterID)
+            for ind, sessionType in enumerate(self.sessionTypes):
+                print '{} - {}'.format(ind, sessionType)
+            sessionIndex = raw_input("What session would you like? [index]: ")
+            sessionIndex = int(sessionIndex)
+
+
         ephysFile = None
         behavFile = None
 
@@ -498,10 +508,7 @@ class Cluster(object):
             ephysFile = self.ephysSessionList[sessionIndex]
             behavFile = self.behavFileList[sessionIndex]
 
-        if behavFile:
-            return ephysFile, behavFile
-        else:
-            return ephysFile
+        return ephysFile, behavFile
 
     def __repr__(self):
         return self.clusterID
