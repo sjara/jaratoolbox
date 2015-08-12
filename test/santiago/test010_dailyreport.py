@@ -21,7 +21,7 @@ else:
     session = '20150308a'
 
 
-for CASE in [1,2,3,4]:
+for CASE in [2,3,4,5]:#[5]:#
 
     if CASE==1:
         subjects = ['test011','test015','test016','test017','test018']
@@ -30,8 +30,10 @@ for CASE in [1,2,3,4]:
                     'test055','test056','test057','test058','test059']
     elif CASE==3:
         subjects = ['test085','test086','test087', 'test088','test089']
-    if CASE==4:
+    elif CASE==4:
         subjects = ['adap001','adap002','adap003','adap004','adap005']
+    elif CASE==5:
+        subjects = ['adap006','adap007','adap008','adap009','adap010']
 
     figure(CASE)
     # subjects = ['test011','test015','test016','test017', 'test012','test013','test014','test018','test019','test020']

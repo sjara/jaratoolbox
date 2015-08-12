@@ -22,7 +22,8 @@ subject = 'pinp001'
 #behavSession = '20150322a'; ephysSession = '2015-03-22_00-12-18'
 #behavSession = '20150322b'; ephysSession = '2015-03-22_17-13-54'
 behavSession = '20150322c'; ephysSession = '2015-03-22_17-40-55'
-tetrodes = [3,4,6]
+behavSession = '20150323b'; ephysSession = '2015-03-23_22-46-13'
+tetrodes = [3,6]
 
 nTetrodes = len(tetrodes)
 

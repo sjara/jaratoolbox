@@ -51,7 +51,8 @@ class ClusterCutter(object):
         self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
 
         #show the plot
-        plt.show()
+        plt.hold(True)
+        self.fig.show()
 
     def on_click(self, event):
         '''
