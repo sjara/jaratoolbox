@@ -7,7 +7,6 @@ from jaratoolbox.test.nick.database import dataloader
 reload(dataloader)
 
 
-loader=dataloader.DataLoader('online', 'pinp005', '2015-07-30', 'laser_tuning_curve')
 
 # spikeData = loader.get_session_spikes('20-41-13', 4, cluster=3)
 # events = loader.get_session_events('20-41-13')
@@ -24,12 +23,6 @@ loader=dataloader.DataLoader('online', 'pinp005', '2015-07-30', 'laser_tuning_cu
 # dataplotter.plot_waveforms_in_event_locked_timerange(waveforms, spikeTimes, eventOnsetTimes, [0, 0.1])
 
 
-spikeData = loader.get_session_spikes('22-10-33', 4, cluster=8)
-events = loader.get_session_events('22-10-33')
-eventOnsetTimes=loader.get_event_onset_times(events)
-
-spikeTimes=spikeData.timestamps
-waveforms=spikeData.samples
 
 # plt.figure()
 # dataplotter.plot_raster(spikeTimes, eventOnsetTimes)
@@ -46,16 +39,24 @@ waveforms=spikeData.samples
 def compare_session_spike_waveforms(spikeSamples, spikeTimes, eventOnsetTimes, rasterTimeRange, timeRangeList):
     
     fig=plt.figure()
-    subplot2grid((3, 2), (0, 0), rowspan=2, colspan=2) 
+    plt.subplot2grid((3, 2), (0, 0), rowspan=2, colspan=2) 
     dataplotter.plot_raster(spikeTimes, eventOnsetTimes, timeRange=rasterTimeRange)
 
     for ind, tr in enumerate( timeRangeList ):
         
-        subplot2grid((3, 2), (2, ind), rowspan=1, colspan=1)
-        dataplotter.plot_waveforms_in_event_locked_timerange(waveforms, spikeTimes, eventOnsetTimes, tr)
+        plt.subplot2grid((3, 2), (2, ind), rowspan=1, colspan=1)
+        dataplotter.plot_waveforms_in_event_locked_timerange(spikeSamples, spikeTimes, eventOnsetTimes, tr)
 
     plt.subplots_adjust(hspace = 0.7)
 
-compare_session_spike_waveforms(waveforms, spikeTimes, eventOnsetTimes, [-0.5, 1], [[-0.2, 0], [0, 0.1]])
+if __name__=="__main__":
+    loader=dataloader.DataLoader('online', 'pinp005', '2015-07-30', 'laser_tuning_curve')
+    spikeData = loader.get_session_spikes('22-10-33', 4, cluster=8)
+    events = loader.get_session_events('22-10-33')
+    eventOnsetTimes=loader.get_event_onset_times(events)
+
+    spikeTimes=spikeData.timestamps
+    waveforms=spikeData.samples
+    compare_session_spike_waveforms(waveforms, spikeTimes, eventOnsetTimes, [-0.5, 1], [[-0.2, 0], [0, 0.1]])
 
 #TODO: It would be awesome if we could show the spikes on the raster in a color that corresponds to the waveforms

@@ -1,3 +1,6 @@
+from jaratoolbox.test.nick.database import simple_spike_selector
+reload(simple_spike_selector)
+
 from jaratoolbox.test.nick.database import dataloader
 reload(dataloader)
 
@@ -24,22 +27,6 @@ spikeData, eventData, behavData = loader.get_cluster_data(c, 'laserPulse')
 spikeTimes = spikeData.timestamps
 eventOnsetTimes = loader.get_event_onset_times(eventData)
 
-# figure()
-# spikesorting.plot_waveforms(spikeData.samples)
-# title('all spikes')
+simple_spike_selector.compare_session_spike_waveforms(spikeData.samples, spikeData.timestamps, eventOnsetTimes, [-0.5, 1], [[-0.2, 0], [0.002, 0.005]])
 
-# figure()
-# dataplotter.plot_raster(spikeTimes, eventOnsetTimes)
-# show()
-
-fet = spikesorting.calculate_features(spikeData.samples, ['peak', 'valley', 'energy'])
-# fet = spikesorting.calculate_features(spikeData.samples, ['peak'])
-
-cw = clustercutting.ClusterCutter(fet)
-
-cont = raw_input("Press enter to continue")
-
-while cont != '':
-    cont = raw_input("Press enter to continue")
-
-print "{} out of {} spikes still in cluster".format(sum(cw.inCluster), len(spikeData.samples))
+plt.show()
