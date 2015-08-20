@@ -1,4 +1,17 @@
 
+=== 2015-08-15 ===
+- If data doesn't exist loader.get_cluster_data() does not fail. Just gives empty data.
+- Not clear why dataloader.DataLoader() has param 'offline'
+- Regarding use of str() and expr(). Maybe the default should be to print every attribute.
+  for example for cellDB.Site
+- I find site5.clusterList misleading (it doesn't tell me what type the items are)
+- CellDB should have an easy way to add a cluster (without creating all the other stuff).
+- cellDB.Cluster should have a way to create a cluster easily from basic info.
+  Currently we need to create a site (add sessions and add clusters), and get clusterList to add it to CellDB.
+
+
+
+
 === 2015-07-31 ===
 * loadopenephys.py
 - The goal is to load raw data from a file (in raw format?)
