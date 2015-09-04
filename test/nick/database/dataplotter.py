@@ -136,17 +136,29 @@ def two_axis_heatmap(spikeTimestamps,
                      eventOnsetTimes,
                      firstSortArray, #Should be intensity in F/I TC (Y axis)
                      secondSortArray, #Should be frequency in F/I TC (X Axis)
-                     firstSortLabels,
-                     secondSortLabels,
-                     xlabel,
-                     ylabel,
-                     plotTitle,
+                     firstSortLabels=None,
+                     secondSortLabels=None,
+                     xlabel=None,
+                     ylabel=None,
+                     plotTitle=None,
                      flipFirstAxis=True, #Useful for making the highest intensity plot on top
                      flipSecondAxis=False, 
                      timeRange=[-0, 0.1]):
 
     firstPossibleVals = np.unique(firstSortArray)
     secondPossibleVals = np.unique(secondSortArray)
+
+    if firstSortLabels==None:
+        firstSortLabels=[]
+
+    if secondSortLabels==None:
+        secondSortLabels=[]
+
+    if xlabel==None:
+        xlabel=''
+
+    if ylabel==None:
+        ylabel=''
 
     cbarLabel = 'Avg spikes in time range: {}'.format(timeRange)
 

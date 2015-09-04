@@ -33,7 +33,6 @@ Should experiment be an object if it just holds strings? It seems like we are no
 
 Advantage: We are exlicitly creating site objects if the experiment is just a dict of strings. 
 
-
 '''
 
 import json
@@ -43,12 +42,21 @@ import os
 class CellDB(list):
 
     def __init__(self):
+
+        '''
+        This list subclass acts as a container for stored cluster objects. 
+
+        Current Problems: If you index the list, it generates a regular list instead of a new version of this object.
+        '''
         super(CellDB, self).__init__()
 
 
     def add_clusters(self, clusters):
         '''
         The safe way to append clusters. Will not add a cluster if it already exists in the database.
+
+        Args:
+            clusters (list of Cluster objects): A list containing all of the cluster objects to be added. 
         '''
 
         for cluster in clusters:
@@ -58,8 +66,12 @@ class CellDB(list):
                 print "Attemted to add duplicate cluster {}".format(cluster.clusterID)
 
     def get_cluster_ids(self):
-        return [c.clusterID for c in self]
 
+        '''
+        Will return a list containing the cluster id for each cluster in the database
+        '''
+        
+        return [c.clusterID for c in self]
 
     def query(self, lookup_dict, verbose=True):
         '''
@@ -81,7 +93,6 @@ class CellDB(list):
                 #Some attributes, like sessions, sessionTypes, and behavFileIDs,
                 #are lists. We should check each entry
                 if isinstance(clusterAttrVal, list):
-
                     #Now we need to handle things differently depending on whether
                     #the supplied attribute value in the query was a list of possible
                     #values or a single value
@@ -109,8 +120,6 @@ class CellDB(list):
                         if clusterAttrVal==attrVal:
                             passing_clusters_this_attr.append(clu)
                             pass
-
-
             queryResults = passing_clusters_this_attr
         if verbose:
             print "{} clusters satisfying these conditions".format(len(queryResults))
@@ -138,7 +147,6 @@ class CellDB(list):
             'ephysSessionList': ephysSession,
             'tetrode': tetrode,
             'cluster': cluster}, verbose=False)
-
         if cell:
             return cell[0]
         else:
@@ -163,6 +171,11 @@ class CellDB(list):
 
     def query_features_custom_op(self, features_dict, op=operator.eq, verbose=True):
         '''
+
+        DEPRECATED: We should simply get an array of feature values so that we can do any arbitrary
+        calculation. This should be combined with a method for efficently getting certain indices
+        from the database. 
+        
         This method allows you to query using a custom comparison opeartor, like operator.gt()
         The operator function must compare the feature val of a cluster with the val you supply and
         return True or False.
@@ -178,35 +191,46 @@ class CellDB(list):
             print "{} clusters satisfying these conditions".format(len(queryResults))
         return queryResults
 
-    def set_features(self, features_dict, indsToSet=[]):
+    def set_features(self, featuresDict, indsToSet=[]):
         '''
         Do we ever want to specify a range of inds to this function?
+
+        Args:
+            featuresDict (dict): A dictionary of feature names and values (example: {"coolness": "extra cool"})
+            indsToSet (list): The indices of clusters in the database for which to set the features. 
         '''
         if not indsToSet:
             indsToSet = range(len(self))
-        for featureName, featureVal in features_dict.iteritems():
+        for featureName, featureVal in featuresDict.iteritems():
             for ind in indsToSet:
                 self[ind].features[featureName]=featureVal
 
     def set_features_from_array(self, featureName, featureArray):
         '''
         The feature array has to be the same length as the database
+
+        Args:
+            featureName (str): The name of the feature to set
+            featureArray (array): The value for this feature for each cluster in the database. Must be the same length as the database
         '''
         if len(featureArray)!=len(self):
             print "The feature array has to be the same length as the database"
             pass
-
         for indClust, featureVal in enumerate(featureArray):
             self[indClust].features[featureName]=featureVal
 
     def write_to_json(self, filename, force=False):
         '''CAUTION: This will currently overwrite the json file. You should always load the most current
-        database work with it, and then write the updated version when you are done.'''
+        database work with it, and then write the updated version when you are done.
+
+        Args: 
+            filename (str): The path to the json file
+            force (bool): Whether or not to proceed with overwriting the database file without asking for confirmation
+        '''
 
         confirmation=''
         if not force:
             confirmation = raw_input("This will overwrite the .json file. Proceed? [yes/no] ")
-
         if (confirmation=='yes' or force):
             with open(filename, 'w') as f:
                 f.write('[\n')
@@ -224,18 +248,20 @@ class CellDB(list):
         else:
             print "Please enter 'yes' or 'no'"
 
-
-
     def load_from_json(self, filename):
+
+        '''
+        Load clusters from a json file
+
+        Args:
+            filename (str): The path to the json file
+        '''
         if os.path.isfile(filename):
             with open(filename, 'r') as f:
                 jsonDict = json.load(f)
-
             self.add_clusters([LoadedCluster(d) for d in jsonDict])
-
         else:
             print "No database file found"
-
 
     def __str__(self):
         objStrs=[]
