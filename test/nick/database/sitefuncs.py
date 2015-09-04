@@ -5,6 +5,7 @@ This module will contain report plotting methods that act on entire sites
 
 '''
 from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
+reload(cms2)
 from jaratoolbox.test.nick.database import dataloader
 from jaratoolbox.test.nick.database import dataplotter
 reload(dataplotter)
@@ -30,9 +31,8 @@ def cluster_site(site, siteName, tetrode, report=True):
     oneTT.save_single_session_clu_files()
 
     if report:
-        plt.figure()
+        plt.clf()
         oneTT.save_multisession_report()
-        plt.close()
 
     return oneTT #This is a little bit lazy, it should really spit out some attributes not the whole object
 
@@ -63,7 +63,8 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
             else:
                 mainTCsession=None
 
-            plt.figure() #The main report for this cluster/tetrode/session
+            # plt.figure() #The main report for this cluster/tetrode/session
+            plt.clf()
 
             for indRaster, rasterSession in enumerate(mainRasterEphysFilenames):
                 plt.subplot2grid((6, 6), (indRaster, 0), rowspan = 1, colspan = 3)
@@ -171,4 +172,39 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
             #plt.tight_layout()
             plt.savefig(full_fig_path, format = 'png')
             #plt.show()
-            plt.close()
+            # plt.close()
+
+def am_mod_report(site, siteName, amSessionInd):
+    '''
+
+    '''
+    loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
+
+    for tetrode in site.tetrodes:
+        oneTT = cluster_site(site, siteName, tetrode)
+        possibleClusters=np.unique(oneTT.clusters)
+
+        for indClust, cluster in enumerate(possibleClusters):
+
+
+            amFilename = site.get_mouse_relative_ephys_filenames()[amSessionInd]
+            amBehav = site.get_mouse_relative_behav_filenames()[amSessionInd]
+
+            plt.clf()
+
+            spikeData = loader.get_session_spikes(amFilename, tetrode, cluster=cluster)
+            spikeTimes = spikeData.timestamps
+
+            eventData = loader.get_session_events(amFilename)
+            eventOnsetTimes = loader.get_event_onset_times(eventData)
+            
+            bdata = loader.get_session_behavior(amBehav)
+
+            currentFreq = bdata['currentFreq']
+
+            dataplotter.plot_raster(spikeTimes, eventOnsetTimes, sortArray=currentFreq)
+            fig_path = oneTT.clustersDir
+            fig_name = 'TT{0}Cluster{1}_Amp_Mod.png'.format(tetrode, cluster)
+            full_fig_path = os.path.join(fig_path, fig_name)
+            print full_fig_path
+            plt.savefig(full_fig_path, format = 'png')

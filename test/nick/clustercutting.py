@@ -42,6 +42,7 @@ class ClusterCutter(object):
         #Make the fig and ax, and draw the initial plot
         self.fig=plt.figure()
         self.ax = self.fig.add_subplot(111)
+        self.ax.hold(True)
         self.draw_dimension(self.dimNumber)
 
         #Start the mouse handle.r and make an attribute to hold click pos
@@ -52,7 +53,7 @@ class ClusterCutter(object):
         self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
 
         #show the plot
-        plt.hold(True)
+        #plt.hold(True)
         self.fig.show()
 
     def on_click(self, event):

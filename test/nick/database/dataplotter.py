@@ -27,15 +27,6 @@ leave the actual plotting to outside methods. (I will have to move the method fo
 a heatmap to an outside method)
  '''
 
-#A method that can make rasters, sorted or not
-
-
-
-#This function does not replicate functionality. It allows you to pass spike timestamps and event
-#onset times, which are simple to get, as well as an array of any values that can be used to sort the
-#raster. This function wraps three other good functions and provides a way to use them easily
-
-#It should have a less ambiguous name though, since there is the function raster_plot in extraplots
 import numpy as np
 from matplotlib import pyplot as plt
 import functools
@@ -44,6 +35,11 @@ from jaratoolbox import spikesanalysis
 from jaratoolbox import spikesorting
 from jaratoolbox import behavioranalysis
 
+#This function does not replicate functionality. It allows you to pass spike timestamps and event
+#onset times, which are simple to get, as well as an array of any values that can be used to sort the
+#raster. This function wraps three other good functions and provides a way to use them easily
+
+#It should have a less ambiguous name though, since there is the function raster_plot in extraplots
 def plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = [], timeRange = [-0.5, 1], ms = 4, labels=None):
     '''
     Args:
@@ -66,10 +62,10 @@ def two_axis_sorted_raster(spikeTimestamps,
                            eventOnsetTimes,
                            firstSortArray,
                            secondSortArray,
-                           firstSortLabels,
-                           secondSortLabels,
-                           xLabel,
-                           plotTitle,
+                           firstSortLabels=None,
+                           secondSortLabels=None,
+                           xLabel=None,
+                           plotTitle=None,
                            flipFirstAxis=False,
                            flipSecondAxis=True, #Useful for making the highest intensity plot on top
                            timeRange=[-0.5, 1],
@@ -95,6 +91,16 @@ def two_axis_sorted_raster(spikeTimestamps,
         ms (int): The marker size to use for the raster plots
     '''
 
+    if not firstSortLabels:
+        firstSortLabels=[]
+    if not secondSortLabels:
+        secondSortLabels=[]
+    if not xlabel:
+        xlabel=''
+    if not ylabel:
+        ylabel=''
+    if not plotTitle:
+        plotTitle=''
     firstPossibleVals = np.unique(firstSortArray)
     secondPossibleVals = np.unique(secondSortArray)
 
@@ -143,7 +149,36 @@ def two_axis_heatmap(spikeTimestamps,
                      plotTitle=None,
                      flipFirstAxis=True, #Useful for making the highest intensity plot on top
                      flipSecondAxis=False, 
-                     timeRange=[-0, 0.1]):
+                     timeRange=[0, 0.1]):
+
+    '''
+    This function takes two arrays and uses them to sort spikes into trials by combinaion,
+    and then plots the average number of spikes after the stim in heatmap form.
+    The first sort array should be the intensity in a F/I tuning curve,
+    and the second sort array should be the frequency. 
+
+    Args:
+        spikeTimestamps (array): An array of spike timestamps to plot
+        eventOnsetTimes (array): An array of event onset times. Spikes will be plotted in raster form relative to these times
+        firstSortArray (array): An array of parameter values for each trial. Must be the same length as eventOnsetTimes.
+        secondSortArray (array): Another array of paramenter values the same length as eventOnsetTimes. Better if this array has less possible values.
+        firstSortLabels (list): A list containing strings to use as labels for the first sort array. Must contain one item for each possible value of the first sort array.
+        secondSortLabels (list): Same idea as above, must contain one element for each possible value of the second sort array.
+        xLabel (str): A string to use for the x label of the bottom raster plot
+        flipFirstAxis (bool): Whether to flip the first sorting axis. Will result in trials with high values for the first sort array appearing on the bottom of each raster.
+        flipSecondAxis (bool): Will result in trials with high values for the second sorting array appearing in the top raster plot
+        timeRange (list): A list containing the range of times relative to the stimulus onset over which the spike average will be computed
+    '''
+    if not firstSortLabels:
+        firstSortLabels=[]
+    if not secondSortLabels:
+        secondSortLabels=[]
+    if not xlabel:
+        xlabel=''
+    if not ylabel:
+        ylabel=''
+    if not plotTitle:
+        plotTitle=''
 
     firstPossibleVals = np.unique(firstSortArray)
     secondPossibleVals = np.unique(secondSortArray)
@@ -173,12 +208,12 @@ def two_axis_heatmap(spikeTimestamps,
     trialsEachCond = behavioranalysis.find_trials_each_combination(firstSortArray, firstPossibleVals, secondSortArray, secondPossibleVals)
     spikeArray = avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
     plot_array_as_heatmap(spikeArray, xlabel=xlabel, ylabel=ylabel, xtickLabels=secondSortLabels, ytickLabels=firstSortLabels, cbarLabel=cbarLabel)
+    
 
 def one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, sortArray, timeRange=[0, 0.1]):
     trialsEachCond = behavioranalysis.find_trials_each_type(sortArray, np.unique(sortArray))
     spikeArray = avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
     plt.plot(spikeArray, ls='-', lw=2, c='0.25')
-    pass
 
 def avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
 
@@ -206,6 +241,7 @@ def plot_array_as_heatmap(heatmapArray, xlabel=None, ylabel=None, xtickLabels=No
         ax.set_xlabel(xlabel)
     if ylabel:
         ax.set_ylabel(ylabel)
+
     cax = ax.imshow(heatmapArray, interpolation='none', aspect='auto', cmap=cmap)
     vmin, vmax = cax.get_clim()
     cbar=plt.colorbar(cax, format = '%.1f')
