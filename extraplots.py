@@ -5,6 +5,7 @@ Additional function for modifying plots.
 
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 def boxoff(ax,keep='left',yaxis=True):
     '''
@@ -145,7 +146,8 @@ def plot_psth(spikeCountMat,smoothWinSize,binsStartTime,trialsEachCond=[],
 
     #from scipy.signal import hanning
     #winShape = hanning(smoothWinSize) # Hanning
-    winShape = np.ones(smoothWinSize) # Square
+    #winShape = np.ones(smoothWinSize) # Square (non-causal)
+    winShape = np.concatenate((np.zeros(smoothWinSize),np.ones(smoothWinSize))) # Square (causal)
     winShape = winShape/np.sum(winShape)
 
 
@@ -195,6 +197,28 @@ def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,
     #plt.xlabel('Frequency (kHz)')
     #plt.ylabel('Rightward trials (%)')
     return (pline, pcaps, pbars, pdots)
+
+
+def set_log_ticks(ax,tickValues,axis='x'):
+    tickLogValues = np.log10(tickValues);
+    tickLabels = ['%d'%(1e-3*xt) for xt in tickValues];
+    if axis=='x':
+        ax.set_xticks(tickLogValues)
+        ax.set_xticklabels(tickLabels)
+    else:
+        ax.set_yticks(tickLogValues)
+        ax.set_yticklabels(tickLabels)
+
+
+def save_figure(filename, fileformat, figsize, outputDir='./'):
+    plt.gcf().set_size_inches(figsize)
+    figName = filename+'.{0}'.format(fileformat)
+    fullName = os.path.join(outputDir,figName)
+    print 'Saving figure to %s'%fullName
+    plt.gcf().set_frameon(False)
+    plt.savefig(fullName,format=fileformat,facecolor='none')
+    plt.gcf().set_frameon(True)
+    print '... figure saved.'
 
 
 class FlipThrough(object):
