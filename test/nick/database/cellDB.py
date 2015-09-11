@@ -1,26 +1,59 @@
 '''
 2015-07-24 Nick Ponvert
 
+
+### Goal ###
 Beginnings of the electrophysiology recording database for Jaralab.
 
-TODO:
+INPUTS:
 
+    To get the data from the database:
+    - Experimenter
+    - Subject
+    - Date
+    - Site (a string) (Have a func to get these if you dont know them)
+    - Tetrode
+    - Cluster
+    - Session Type (string) (Have a func to get these if you dont know them)
+
+    To create the database
+    - Experimenter (Will get rid of in the future)
+    - Paradigm
+
+OUTPUTS: Behavior and physiology for a cell (for a particular session)
+- All the sessions that were recorded for a cell
+- Behavior data
+- Phys data (both the spikes and the events)
+- Data filenames (one for behav, spikes, events, clusters)
+
+### Todo Stuff ###
 - What to do when sessions from the same site occur on different days?
+- We need to be able to create a database of sites in addition to a database of clusters
+We want to be able to run analyses on the multi unit data or recluster
+- Replace animalName with subject
+- Add paradigm and experimenter to database records
+- If data doesn't exist loader.get_cluster_data() does not fail. Just gives empty data.
+- Regarding use of str() and repr(). Maybe the default repr() should be to print every attribute.
+- Make the cluster repr more informative, including the mem location
+- CellDB should have an easy way to add a cluster (without creating all the other stuff).
+-- We need to be able to make clusters without making Experiments, sites, etc. 
+- cluster.get_data_filenames with no arguments should return the list of all
+-- This should probably be a dict with keys being the session type and values being a tuple of (ephysFn, behavFn)
+
+### Order of Arguments ###
+animalName, date, ephysSessionList, behavFileList, experimenter, paradigm,
+
+### Refile ###
+- We should be able to cluster just a single session and get clusters from it
+
+### Done stuff ###
 TESTED, DONT THINK SO- If we change the experimenter for an Experiment, will it change for all of
 the clusters because they are all pointing at the same place in memory?
 DONE -  Change tetrodes to just tetrodes
 DONE - Change behavFileIdentifier to something like behavSuffix
 DONE - Sessions need to know about the paradigm that was used
 DONE (I think)- Repeated arguments should be in the same order ('animalName', etc)
-
-animalName, date, ephysSessionList, behavFileList, experimenter, paradigm,
-
-- We should be able to cluster just a single session and get clusters from it
-- We need to have a database of sites in addition to a database of clusters
 DONE - Sessions need to hold the whole behavior file name, not just the suffix. We will still create them by specifying the suffix
-
-- Consider not separating the behav files by animal
-
 DONE- the database will ultimately give us back strings for the filenames of the ephys and behavior session, also cluster objects.
 DONE- Cluster may need to have methods for returning ephys and behav filenames
 
@@ -32,6 +65,18 @@ Design Decisions:
 Should experiment be an object if it just holds strings? It seems like we are not using the site list. However, if we want to add the clusters for all of the sites to a database at one time, it may be nice to have a list of all of the site objects
 
 Advantage: We are exlicitly creating site objects if the experiment is just a dict of strings. 
+
+It is possible to have each cluster hold the info about all of the sessions or to have each session hold all of the clusters that come from that session. So far we have chosen to have each cluster hold the info about what sessions it comes from.
+
+Pros:
+- Makes sense to think about the database as being a list of clusters, because we usually want to interact with a single cluster and get the info from all of the ephys sessions related to it.
+
+Cons:
+- This may be more redundant than having a hierarchical organization 
+
+At one point we decided that the best thing to do would be to have the database store information in a hierarchical way that minimizes the redundancy, and then have methods to convert this hierarchy into a list of clusters (with some redundancy) when we want to interact with the data. 
+
+
 
 '''
 
@@ -496,7 +541,7 @@ class Cluster(object):
                                    'TT{}'.format(self.tetrode),
                                    str(cluster)])
 
-    def get_data_filenames(self, sessionType=None, includeMouse=True):
+    def get_data_filenames(self, sessionType=None, includeMouse=True):#TODO: Change mouse to subject
         '''
         Returns the ephys session folder name, or a tuple containing both the ephys filename
         and the behavior file name
@@ -536,7 +581,7 @@ class Cluster(object):
 
         return ephysFile, behavFile
 
-    def __repr__(self):
+    def __repr__(self): #TODO: Make this repr give more information about the object, including the mem location
         return self.clusterID
 
     def __str__(self):

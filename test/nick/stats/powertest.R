@@ -27,6 +27,7 @@ for (i in 1:np){
 xrange <- range(d)
 yrange <- round(range(samsize))
 colors <- rainbow(length(p))
+png('/home/nick/src/jaratoolbox/test/nick/stats/ttestPower.png')
 plot(xrange, yrange, type="n",
   xlab="Cohen's D (d)",
   ylab="Sample Size (n)" )
@@ -44,3 +45,5 @@ title("Sample Size Estimation for Two-sample Unpaired t-Test\n
   Sig=0.05")
 legend("topright", title="Power", as.character(p),
    fill=colors)
+dev.off()
+
