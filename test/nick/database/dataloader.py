@@ -21,10 +21,17 @@ class DataLoader(object):
 
         '''
         I know you won't like the fact that we are including the paradigm here, but it allows us to
-        interactively work with data by just giving the suffix which is really nice
+        interactively work with data by just giving the behavior suffix which is really nice
 
         If mode == 'online', we will set the local ephys path and behav path using the experimenter and animalName.
         If mode == 'offline', we will assume that paths relative to settings.EPHYS_PATH and settings.BEHAVIOR_PATH are passed
+
+        Args: 
+            mode (str): Must be either 'online' or 'offline'
+            animalName (str): Name of the animal
+            date (str): Date of the experiment in the format "2015-06-24"
+            experimenter (str): Name of the experimenter for the behavior files
+            paradigm (str): Paradigm with which the data was collected
         '''
 
         print "FIXME: Hardcoded ephys sampling rate in DataLoader __init__"
@@ -81,16 +88,15 @@ class DataLoader(object):
         eventData=loadopenephys.Events(fullEventFilename)
 
         #Convert the timestamps to seconds
-        eventData.timestamps=np.array(eventData.timestamps)/self.EPHYS_SAMPLING_RATE
+        eventData.timestamps = np.array(eventData.timestamps)/self.EPHYS_SAMPLING_RATE
 
         return eventData
 
 
     @staticmethod
-    def get_event_onset_times(eventData, eventID=1, eventChannel=0):
+    def get_event_onset_times(eventData, eventID=1, eventChannel=0, minEventOnsetDiff=0.5):
         '''
         Calculate event onset times given an eventData object.
-
         Accepts a jaratoolbox.loadopenephys.Events object and finds the event onset times.
 
         '''
@@ -101,10 +107,9 @@ class DataLoader(object):
         eventTimes = np.array(eventData.timestamps)
         eventOnsetTimes=eventTimes[(evID==eventID)&(evChannel==eventChannel)]
 
-        #Restrict to events are seperated by more than 0.5 seconds
-        print "FIXME: Hardcoded minimum difference between event onset times"
+        #Restrict to events are seperated by more than the minimum event onset time
         evdiff = np.r_[1.0, np.diff(eventOnsetTimes)]
-        eventOnsetTimes=eventOnsetTimes[evdiff>0.5]
+        eventOnsetTimes=eventOnsetTimes[evdiff>minEventOnsetDiff]
 
         return eventOnsetTimes
 
