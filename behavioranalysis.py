@@ -338,6 +338,8 @@ def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
     firstValidEachBlock = np.concatenate(([0],lastValidEachBlock[:-1]))
     rightChoice = behavData['choice']==behavData.labels['choice']['right']
 
+    hPlots = []
+    plt.hold(True)
     for indb in range(nBlocks):
         trialsThisBlock = trialsEachBlock[:,indb]
         validThisBlock = validEachBlock[:,indb]
@@ -347,9 +349,9 @@ def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
             choiceVecThisFreq = np.ma.masked_array(rightChoice[validThisBlock])
             choiceVecThisFreq.mask = ~trialsThisFreq[validThisBlock]
             movAvChoice = extrafuncs.moving_average_masked(choiceVecThisFreq,winsize)
-            plt.plot(range(firstValidEachBlock[indb],lastValidEachBlock[indb]),100*movAvChoice,
-                 lw=lineWidth,color=thisColor)
-            plt.hold(True)
+            hp, = plt.plot(range(firstValidEachBlock[indb],lastValidEachBlock[indb]),100*movAvChoice,
+                           lw=lineWidth,color=thisColor)
+            hPlots.append(hp)
     plt.ylim([-5,105])
     plt.axhline(50,color='0.5',ls='--')
     plt.ylabel('% rightward',fontsize=fontsize)
@@ -357,7 +359,7 @@ def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
     extraplots.set_ticks_fontsize(ax,fontsize)
     plt.draw()
     plt.show()
-
+    return hPlots
 
 def calculate_psychometric(hitTrials,paramValueEachTrial,valid=None):
     '''

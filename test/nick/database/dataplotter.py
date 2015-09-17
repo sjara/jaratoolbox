@@ -144,7 +144,7 @@ def two_axis_heatmap(spikeTimestamps,
                      secondSortArray, #Should be frequency in F/I TC (X Axis)
                      firstSortLabels=None,
                      secondSortLabels=None,
-                     xlabel=None, #FIXME: Does not seem to be working. Is it necessary at all?
+                     xlabel=None,
                      ylabel=None,
                      plotTitle=None,
                      flipFirstAxis=True, #Useful for making the highest intensity plot on top
@@ -182,6 +182,18 @@ def two_axis_heatmap(spikeTimestamps,
 
     firstPossibleVals = np.unique(firstSortArray)
     secondPossibleVals = np.unique(secondSortArray)
+
+    if firstSortLabels==None:
+        firstSortLabels=[]
+
+    if secondSortLabels==None:
+        secondSortLabels=[]
+
+    if xlabel==None:
+        xlabel=''
+
+    if ylabel==None:
+        ylabel=''
 
     cbarLabel = 'Avg spikes in time range: {}'.format(timeRange)
 

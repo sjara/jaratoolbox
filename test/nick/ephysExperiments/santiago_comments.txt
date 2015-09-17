@@ -1,4 +1,32 @@
 
+=== 2015-08-15 ===
+x - 'animalName' should be replaced by 'subject'
+x - cellDB items don't have experimenter or paradigm?
+x - If data doesn't exist loader.get_cluster_data() does not fail. Just gives empty data.
+x - Regarding use of str() and expr(). Maybe the default expr() should be to print every attribute.
+  and str() have a shorter summary
+  for example for cellDB.Site
+  Reason: I find site5.clusterList misleading (it doesn't tell me what type the items are)
+x - CellDB should have an easy way to add a cluster (without creating all the other stuff).
+x - cellDB.Cluster should have a way to create a cluster easily from basic info.
+  Currently we need to create a site (add sessions and add clusters), and get clusterList to add it to CellDB.
+
+x- Easy way to see the files corresponding to each cell of interest (to copy them easily from jarahub)
+x - Why do we need to specify tetrodes when creating a site? (if we need to do it again when adding a cluster)
+  is it because we want to be able to do run analysis per site? (like spike-sorting)
+    This problem should be solved once we have a method for making clusters manually
+
+x - Why the underscores in repr of cluster?
+  This is just printing the cluster ID, which is a unique string for each cluster
+
+x - The fact that we have a different "experimenter" for different data sets sometimes gets on the way. Let's discuss the possibility of getting rid of experimenter.
+x - cluster.get_data_filenames with no arguments should return the list of all
+
+Related to the dataloader
+- loader did not work for test059 2015-06-26_15-46-23 T3c8. Different number of
+  behav and ephys trials. but the older method worked fine.
+- Not clear why dataloader.DataLoader() has param 'offline'
+
 === 2015-07-31 ===
 * loadopenephys.py
 - The goal is to load raw data from a file (in raw format?)
