@@ -102,6 +102,28 @@ def response_score(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEd
     return (zStatsEachRange,pValueEachRange,maxZvalue)
 
 
+def evaluate_modulation(spikeTimesFromEventOnset,indexLimitsEachTrial,responseRange,trialsEachCond):
+    '''
+    Evaluate the response for each of two conditions and the probability of observing this
+    difference by chance.
+
+    Args:
+       trialsEachCond: list of two arrays of indexes (either bool or int)
+
+    Returns:
+       (meanSpikes,pValue)
+    '''
+    from scipy import stats
+    nspkResp = []
+    for indcond,trialsThisCond in enumerate(trialsEachCond):
+        indexLimitsSubset = indexLimitsEachTrial[:,trialsThisCond]
+        nspkResp.append(spiketimes_to_spikecounts(spikeTimesFromEventOnset,
+                                                  indexLimitsSubset,responseRange).flatten())
+    meanSpikes = np.array([np.mean(n) for n in nspkResp])
+    [zStat,pValue] = stats.ranksums(nspkResp[0],nspkResp[1])
+    return (meanSpikes,pValue)
+
+
 """
 def calculate_psth(spikeRasterMat,timeVec,windowSize):
     '''Calculate Peri-Stimulus Time Histogram.
@@ -150,7 +172,7 @@ def count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRang
 
 
 if __name__ == "__main__":
-    CASE = 1
+    CASE = 2
     if CASE==1:
         timeStamps = np.array([4,10,25,27,29])
         eventOnsetTimes = np.array([5,15,25,35])
@@ -162,3 +184,13 @@ if __name__ == "__main__":
         print spikeIndices
         nSpikes = count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange)
         print nSpikes
+    if CASE==2:
+        timeStamps = np.array([4,10,25,27,29])
+        eventOnsetTimes = np.array([5,15,25,35])
+        timeRange = [-5,10]
+        (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial,spikeIndices) = eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange,spikeindex=True)
+        #nSpikes = spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange)
+        trialsEachCond = [[0,2],[1,3]]
+        responseRange = [-3,3]
+        (meanSpikes,pValue) = evaluate_modulation(spikeTimesFromEventOnset,indexLimitsEachTrial,responseRange,trialsEachCond)
+        print (meanSpikes,pValue)
