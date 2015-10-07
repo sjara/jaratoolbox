@@ -19,6 +19,8 @@ reload(spikesorting)
 SAMPLES_PER_SPIKE = 32
 N_CHANNELS = 4
 
+POSSIBLECOLORS = ['0.5','k','r','g','c','m']
+
 selectedChannel = 3
 
 class WaveformCutterSession(object):
@@ -134,7 +136,7 @@ class WaveformCutterSession(object):
         self.nClusters += 1
         if len(bounds)>0:
             for onebound in bounds:
-                self.clusters[-1].set_bound(onebound)
+                self.clusters[-1].add_bound(onebound)
             self.clusters[-1].find_spikes() ##### Maybe it should go somewhere else
             self.set_clusters_bool()
         self.activeCluster = self.nClusters-1
@@ -143,14 +145,27 @@ class WaveformCutterSession(object):
         self.activeCluster = clusterID
         self.activeSpikes = (self.dataTT.clusters==clusterID)
 
-    def add_bound(self,clusterID=None):
+    def add_bound(self,bounds,clusterID=None):
         if clusterID is None:
             clusterID = self.activeCluster
         else:
             clusterID = clusterID
-        self.clusters[clusterID].add_bound(self.channel)
+        for bound in bounds:
+            self.clusters[clusterID].add_bound(bound)
         self.clusters[clusterID].find_spikes() ##### Maybe it should go somewhere else
         self.set_clusters_bool()
+
+    def select_bound(self,clusterID=None,updateplot=True):
+        if clusterID is None:
+            clusterID = self.activeCluster
+        else:
+            clusterID = clusterID
+        self.clusters[clusterID].select_bound(self.channel)
+        self.clusters[clusterID].find_spikes() ##### Maybe it should go somewhere else
+        self.set_clusters_bool()
+        if updateplot:
+            newColor = POSSIBLECOLORS[len(self.clusters[clusterID].bounds)]
+            wc.plot_cluster_waveforms(clusterID,200,color=newColor)
 
     def plot_cluster_waveforms(self,clusterID,nTraces=100,color='k'):
         hp = self.clusters[clusterID].plot_waveforms(self.channel,nTraces=nTraces,color=color)
@@ -280,9 +295,9 @@ class Cluster(object):
         self.spikesInds = np.flatnonzero(self.spikesBool) #np.empty(0,dtype=int)
         self.nSpikes = len(self.spikesInds)
         self.bounds = [] # Array of bounds of the form (x,[y1,y2])
-    def set_bound(self,bound):
+    def add_bound(self,bound):
         self.bounds.append(bound)
-    def add_bound(self,channel):
+    def select_bound(self,channel):
         '''Asks for clicks to define a bound (chan, x,[y1,y2])'''
         print('Click two points (same x position) to define boundary')
         lims = np.array(ginput(2))
@@ -415,6 +430,7 @@ if __name__ == "__main__":
 
     wc.set_channel(0)
     wc.set_active_cluster(10)
+    wc.add_bound([Boundary(0,8,(-400,-280))])
 
     '''
     # -- Add cluster/bound graphically --
