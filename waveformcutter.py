@@ -19,7 +19,7 @@ reload(spikesorting)
 SAMPLES_PER_SPIKE = 32
 N_CHANNELS = 4
 
-POSSIBLECOLORS = ['0.5','k','r','g','c','m']
+POSSIBLECOLORS = ['0.5','r','g','c','m']
 
 selectedChannel = 3
 
@@ -53,16 +53,14 @@ class WaveformCutterSession(object):
             objstr += 'c%d  %s\n'%(indc,str(self.clusters[indc].bounds))
         return objstr
 
-    def bounds(self,clusterID):
-        return wc.clusters[clusterID].bounds
-
     def load_data(self,animalName,ephysSession,tetrode):
         print 'Loading data...'
         self.dataTT = loadopenephys.DataSpikes(self.tetrodeFile) #,readWaves=True)
-        self.nSpikes = self.dataTT.nRecords# FIXME: this is specific to the OpenEphys format
+        self.nSpikes = self.dataTT.samples.shape[0]# FIXME: this is specific to the OpenEphys format
         self.dataTT.samples = self.dataTT.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
         print 'Aligning to peak...'
-        self.dataTT.samples = spikesorting.align_waveforms(self.dataTT.samples)
+        #self.dataTT.samples = spikesorting.align_waveforms(self.dataTT.samples)
+        self.align_spikes()
         # FIXME: This assumes the gain is the same for all channels and records
         self.dataTT.samples = (1000.0/self.dataTT.gain[0,0]) * self.dataTT.samples
         self.dataTT.timestamps = self.dataTT.timestamps/self.dataTT.samplingRate
@@ -99,7 +97,7 @@ class WaveformCutterSession(object):
         hold(True)
         hp = plot(self.dataTT.samples[spikesToPlot,self.channel,:].T,color='0.5',lw=0.5)
         hold(False)
-        title('Channel %d'%self.channel)    
+        title('Channel {1}'.format(self.channel))
         show()
         return hp
 
@@ -145,14 +143,23 @@ class WaveformCutterSession(object):
         self.activeCluster = clusterID
         self.activeSpikes = (self.dataTT.clusters==clusterID)
 
-    def add_bound(self,bounds,clusterID=None):
+    def add_bounds(self,bounds,clusterID=None):
         if clusterID is None:
             clusterID = self.activeCluster
         else:
             clusterID = clusterID
         for bound in bounds:
             self.clusters[clusterID].add_bound(bound)
-        self.clusters[clusterID].find_spikes() ##### Maybe it should go somewhere else
+        self.clusters[clusterID].find_spikes()
+        self.set_clusters_bool()
+
+    def delete_bound(self,boundID,clusterID=None):
+        if clusterID is None:
+            clusterID = self.activeCluster
+        else:
+            clusterID = clusterID
+        self.clusters[clusterID].bounds.pop(boundID)
+        self.clusters[clusterID].find_spikes()
         self.set_clusters_bool()
 
     def select_bound(self,clusterID=None,updateplot=True):
@@ -161,15 +168,19 @@ class WaveformCutterSession(object):
         else:
             clusterID = clusterID
         self.clusters[clusterID].select_bound(self.channel)
-        self.clusters[clusterID].find_spikes() ##### Maybe it should go somewhere else
+        self.clusters[clusterID].find_spikes()
         self.set_clusters_bool()
         if updateplot:
             newColor = POSSIBLECOLORS[len(self.clusters[clusterID].bounds)]
-            wc.plot_cluster_waveforms(clusterID,200,color=newColor)
+            self.plot_cluster_waveforms(clusterID,200,color=newColor)
 
-    def plot_cluster_waveforms(self,clusterID,nTraces=100,color='k'):
-        hp = self.clusters[clusterID].plot_waveforms(self.channel,nTraces=nTraces,color=color)
-        title('Channel %d'%self.channel)    
+    def plot_cluster_waveforms(self,clusterID=None,n=100,color='k'):
+        if clusterID is None:
+            clusterID = self.activeCluster
+        else:
+            clusterID = clusterID
+        hp = self.clusters[clusterID].plot_waveforms(self.channel,nTraces=n,color=color)
+        title('Cluster {0}  Channel {1}'.format(clusterID,self.channel))
         return hp
 
     def show_report(self):
@@ -177,25 +188,41 @@ class WaveformCutterSession(object):
         self.dataTT.set_clusters(self.clusterEachSpike)
         spikesorting.ClusterReportFromData(self.dataTT,nrows=self.nClusters+1)
 
-    def show_report_onecluster(self,clusterID):
+    def show_report_onecluster(self,clusterID=None):
+        if clusterID is None:
+            clusterID = self.activeCluster
+        else:
+            clusterID = clusterID
         figure()
         subplot(1,2,1)
         self.clusters[clusterID].plot_isi()
         subplot(1,2,2)
         self.clusters[clusterID].plot_events_in_time()
+        title('Cluster {0}'.format(clusterID))
         show()
 
-    def align_to_peak(self):
+    def align_spikes(self,peakPosition=8):
+        minIndEachChannel = np.argmin(self.dataTT.samples,axis=2)
+        minValEachChannel = np.min(self.dataTT.samples,axis=2)
+        minChannelInd = np.argmin(minValEachChannel,axis=1)
+        minPos = np.choose(minChannelInd,minIndEachChannel.T)
+        nShift = peakPosition - minPos
+        for indc in range(self.dataTT.samples.shape[1]):
+            self.dataTT.samples[:,indc,:] = rolleachrow(self.dataTT.samples[:,indc,:],nShift)
+        
+
+    """
+    def OLDalign_spikes(self,peakPosition=8):
         nSpikes = len(self.dataTT.timestamps)
-        maxIndEachChannel = np.argmax(self.dataTT.samples,axis=1)
-        maxValEachChannel = np.max(self.dataTT.samples,axis=1) # Inefficient
-        #maxValEachChannel = dataTT.samples[0,:,:][(maxIndEachChannel[0,:],range(473828))]
-        maxChannelInd = np.argmax(maxValEachChannel,axis=0)
-        posOfMax = maxIndEachChannel[(maxChannelInd,range(self.nSpikes))]
-        nShift = 7 - posOfMax  ### HARDCODED
+        minIndEachChannel = np.argmin(self.dataTT.samples,axis=1)
+        minValEachChannel = np.min(self.dataTT.samples,axis=1) # Inefficient
+        minChannelInd = np.argmin(minValEachChannel,axis=0)
+        posOfMin = minIndEachChannel[(minChannelInd,range(self.nSpikes))]
+        nShift = peakPosition - posOfMin  ### HARDCODED
         print('Aligning to peak, please wait...')
         for inds in range(self.nSpikes):  # It takes >10sec
             self.dataTT.samples[inds,:,:] = np.roll(self.dataTT.samples[inds,:,:],nShift[inds],axis=1)
+
 
     def OLDfind_cluster_each_spike(self):
         '''
@@ -205,6 +232,7 @@ class WaveformCutterSession(object):
         self.clusterEachSpike = -np.ones(self.nSpikes,dtype=uint)
         for indc,onecluster in enumerate(reversed(self.clusters)):
             self.clusterEachSpike[onecluster.spikesInds] = self.nClusters-indc-1
+    """
 
     def find_cluster_each_spike(self):
         '''
@@ -292,6 +320,7 @@ class Cluster(object):
             self.spikesBool = np.zeros(self.nTotalSpikes,dtype=bool)
         else:
             self.spikesBool = spikesBool
+        self.spikesBoolOrig = spikesBool.copy()
         self.spikesInds = np.flatnonzero(self.spikesBool) #np.empty(0,dtype=int)
         self.nSpikes = len(self.spikesInds)
         self.bounds = [] # Array of bounds of the form (x,[y1,y2])
@@ -318,6 +347,7 @@ class Cluster(object):
         '''
         # FIXME: No need to re-do the whole thing everytime a new bound is set!
         #self.spikesBool = np.ones(self.nTotalSpikes,dtype=bool)
+        np.copyto(self.spikesBool,self.spikesBoolOrig)
         for onebound in self.bounds:
             selectedSpikes = self.spikes_in_bound(onebound)
             self.spikesBool = self.spikesBool & selectedSpikes
@@ -335,6 +365,13 @@ class Cluster(object):
         (hp,ISIhistogram,ISIbins) = spikesorting.plot_isi_loghist(self.dataTT.timestamps[self.spikesInds])
     def plot_events_in_time(self):
         hp = spikesorting.plot_events_in_time(self.dataTT.timestamps[self.spikesInds])
+
+def rolleachrow(atoroll,rollvec):
+    rows, column_indices = np.ogrid[:atoroll.shape[0], :atoroll.shape[1]]
+    rollvec[rollvec < 0] += atoroll.shape[1] # Makes all shifts positive
+    column_indices = column_indices - rollvec[:,np.newaxis]
+    return atoroll[rows, column_indices]
+
 
 """
 def load_waveforms():
@@ -423,86 +460,20 @@ def addbound(selspikes):
 
 if __name__ == "__main__":
     animalName   = 'test089'
-    ephysSession = '2015-08-21_16-16-16'
-    tetrode = 2
+    #ephysSession = '2015-08-21_16-16-16'; tetrode = 2; clusterID=5
+    ephysSession = '2015-07-31_14-40-40'; tetrode = 5; clusterID=6
+    
     wc = WaveformCutterSession(animalName,ephysSession,tetrode)
     dataTT = wc.dataTT
 
     wc.set_channel(0)
-    wc.set_active_cluster(10)
-    wc.add_bound([Boundary(0,8,(-400,-280))])
+    wc.set_active_cluster(clusterID)
+    #wc.add_bounds([Boundary(0,8,(-400,-280))])  # Add bounds by code
 
-    '''
-    # -- Add cluster/bound graphically --
-    wc.add_cluster()
-    wc.add_bound(0)
-    '''
+    # wc.select_bound()  # Add a bound graphically
 
-    clf()
-    #wc.plot_waveforms(200)
-    clf();wc.plot_cluster_waveforms(11-1,200)
-    # wc.show_report_onecluster(11-1)
-
-    #[Boundary(0,8,(-378.01,-268.72))]
+    clf();wc.plot_cluster_waveforms(n=200)
+    # wc.show_report_onecluster()
 
     show()
     sys.exit()
-
-    wc.add_cluster([Boundary(0,8,(-282.10,-82.51))])
-    wc.plot_cluster_waveforms(0)
-    # wc.show_report_onecluster(0)
-
-    '''
-    # -- Add cluster from code (T2) --
-    wc.add_cluster([Boundary(3,11,(-21000,-7900)), Boundary(3,15,(-4100,7500))])
-    wc.add_cluster([Boundary(3,11,(-11000,-1500)), Boundary(3,14,(-11635,-3730)),
-                    Boundary(3,15,(-10700,-3160)), Boundary(3,7,(8000,23500))])
-    wc.add_cluster([Boundary(3,7,(6000,13500)), Boundary(3,4,(-12800,-1760))])
-    # -- Add cluster from code (T8) --
-    wc.add_cluster([Boundary(0,7,(-11859.66,-1928.68)), Boundary(0,11,(3734.66,18075.15))])
-    wc.add_cluster([Boundary(0,12,(-10500,2047.55)), Boundary(0,7,(3734.66,25000))])
-    wc.add_cluster([Boundary(0,7,(-13649.03,-765.59)), Boundary(0,11,(-2332.85,5637.11)),
-                    Boundary(0,12,(-2645.71,6326.69))])
-
-    '''
-    #wc.plot_cluster_waveforms(0)
-    #wc.set_clusters_bool()
-
- 
-
-
-    figure(1)
-    clf()
-    ax1 = gca()
-    #wc.plot_waveforms(200)
-    wc.plot_waveforms(200,exclude=range(wc.nClusters)); draw()
-    show()
-
-    figure(2)
-    clf()
-    ax2 = axes(sharey=ax1)
-    colorEach = ['b','g','r','y','c','m']
-    hp = wc.nClusters*[0]
-    for indc in range(wc.nClusters):
-        hp[indc] = wc.plot_cluster_waveforms(indc,nTraces=100,color=colorEach[indc])
-
-    draw()
-    show()
-
-    #wc.save_clusters()
-
-    # wc.clusters[0].bounds
-    # wc.clusters[0].spikesBool
-    #sum(wc.clusters[0].spikesBool)
-
-
-    '''
-    clu = Cluster(wc.dataTT)
-    clu.add_bound(wc.channel)
-    clu.find_spikes()
-    clu.plot_waveforms(wc.channel)
-
-    clu.spikes_in_bound(wc.channel
-    '''
-
-
