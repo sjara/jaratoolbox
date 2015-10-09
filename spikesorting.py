@@ -339,6 +339,7 @@ def plot_waveforms(waveforms,ntraces=40,fontsize=8):
 def align_waveforms(waveforms,peakPosition=8):
     '''
     Shift waveforms so that peaks align.
+    Note that this should be applied to a SINGLE cluster, not the whole data set.
     '''
     meanWaveforms = np.mean(waveforms,axis=0)
     minEachChan = meanWaveforms.min(axis=1)
