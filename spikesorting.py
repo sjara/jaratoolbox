@@ -218,12 +218,16 @@ def calculate_features(waveforms,featureNames):
         if oneFeature=='peak':
             theseValues = waveforms.max(axis=2)
             featureValues = np.hstack((featureValues,theseValues))
-        if oneFeature=='peakFirstHalf':
+        elif oneFeature=='peakFirstHalf':
             halfSample = waveforms.shape[2]/2
             theseValues = waveforms[:,:,:halfSample].max(axis=2)
             featureValues = np.hstack((featureValues,theseValues))
         elif oneFeature=='valley':
             theseValues = waveforms.min(axis=2)
+            featureValues = np.hstack((featureValues,theseValues))
+        elif oneFeature=='valleyFirstHalf':
+            halfSample = waveforms.shape[2]/2
+            theseValues = waveforms[:,:,:halfSample].min(axis=2)
             featureValues = np.hstack((featureValues,theseValues))
         elif oneFeature=='energy':
             theseValues = np.sqrt(np.sum(waveforms.astype(float)**2,axis=2))
