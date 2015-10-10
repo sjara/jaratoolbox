@@ -98,7 +98,7 @@ class SessionToCluster(object):
 
         
 class TetrodeToCluster(object):
-    def __init__(self,animalName,ephysSession,tetrode):
+    def __init__(self,animalName,ephysSession,tetrode,features=None):
         self.animalName = animalName
         self.ephysSession = ephysSession
         self.tetrode = tetrode
@@ -123,7 +123,10 @@ class TetrodeToCluster(object):
         self.reportFileName = '{0}_{1}_T{2}.png'.format(self.animalName,ephysSession,tetrode)
         self.report = None
         
-        self.featureNames = ['peak','valley','energy']
+        if features is None:
+            self.featureNames = ['peak','valley','energy']
+        else:
+            self.featureNames = features
         self.nFeatures = len(self.featureNames)
         self.featureValues = None
 
@@ -202,7 +205,7 @@ def calculate_features(waveforms,featureNames):
     '''
     Parameters:
       waveforms: [nSpikes,nChannels,nSamples]
-      featureNames: list of strings: 'peak','valley','energy'
+      featureNames: list of strings: 'peak','peakFirstHalf','valley','energy'
 
     Returns:
       featureValues: [nSpikes, nFeatures*NChannels]
@@ -215,10 +218,14 @@ def calculate_features(waveforms,featureNames):
         if oneFeature=='peak':
             theseValues = waveforms.max(axis=2)
             featureValues = np.hstack((featureValues,theseValues))
+        if oneFeature=='peakFirstHalf':
+            halfSample = waveforms.shape[2]/2
+            theseValues = waveforms[:,:,:halfSample].max(axis=2)
+            featureValues = np.hstack((featureValues,theseValues))
         elif oneFeature=='valley':
             theseValues = waveforms.min(axis=2)
             featureValues = np.hstack((featureValues,theseValues))
-        if oneFeature=='energy':
+        elif oneFeature=='energy':
             theseValues = np.sqrt(np.sum(waveforms.astype(float)**2,axis=2))
             featureValues = np.hstack((featureValues,theseValues))
     return featureValues
