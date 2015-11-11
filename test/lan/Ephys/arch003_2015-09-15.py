@@ -108,3 +108,4 @@ site11.add_session('16-25-17', None, sessionTypes['lp']) #3mW,50ms pulses
 site11.add_session('16-27-09', 'x', sessionTypes['ls'], paradigm='lasersounds') #3.0mW, laser front overhang=0.01s, back overhang=0.01s, ITI=1.5s
 site11.add_session('16-29-56', 'y', sessionTypes['ls'], paradigm='lasersounds') #3.0mW, laser front overhang=0.05s, back overhang=0.01s, ITI=1.5s
 sitefuncs.nick_lan_daily_report(site11, 'site11', mainRasterInds=[0,1,2,3], mainSTRind=None, mainTCind=None)
+
