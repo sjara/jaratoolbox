@@ -10,11 +10,8 @@ import matplotlib.gridspec as gridspec
 
 
 '''
-Lan Guo 2015-08-12
-This script includes some extra plots for behavior test results. Can plot running average of intertrial intervals for leftward and rightward trials, and plot choice times for leftward and rightward trial. 
-Only takes single-blcok sessions at this point. Plots moving average.
-
-FIXME: did not need to use a masked array since already take subsets into a new array.
+Lan Guo 2015-11-11
+This script updates test006 to plot time of individual trials as dot plot instead of running average for ITI. Plot choice and reaction time using per-block running average. Only plotting leftward and rightward choice trials, not distinguishing between correct and error trials.
 '''
 
 
@@ -26,25 +23,24 @@ def plot_ITI_dynamics(bData, winsize=40, fontsize=12):
     lineWidth = 2
     trialStarts = bData['timeTrialStart']
     interTrialIntervals = np.hstack((0,np.diff(trialStarts)))
-
-    #Running average of ITI for the left- or right-rewarded trials, including invalid and error trials too 
-#    ITIVec = np.ma.masked_array(interTrialIntervals)
-    leftTrials = bData['rewardSide']==bData.labels['rewardSide']['left']
+    leftTrialIndex, = np.nonzero(bData['rewardSide']==bData.labels['rewardSide']['left'])
+    #leftTrialIndex = bData['rewardSide'].index(bData.labels['rewardSide']['left'])
+    plt.plot(interTrialIntervals, marker='.',linestyle='None',color='r')
+    plt.plot(leftTrialIndex, interTrialIntervals[leftTrialIndex], marker='.',linestyle='None',color='g')
     
-    leftTrialITIs = np.ma.masked_array(interTrialIntervals[leftTrials])
-    movAvITI_left = extrafuncs.moving_average_masked(leftTrialITIs, winsize)
-    rightTrialITIs = np.ma.masked_array(interTrialIntervals[~leftTrials])
-    movAvITI_right = extrafuncs.moving_average_masked(rightTrialITIs, winsize)
-    #plt.plot(range(0,len(leftTrials)),100*movAvChoice_left,
-    #             lw=lineWidth,color='g')
-    line1 = plt.plot(movAvITI_left,lw=lineWidth,color='g')
-    #plt.hold(1)
-    line2 = plt.plot(movAvITI_right,lw=lineWidth,color='r')
+    '''
+    leftTrialITIs=interTrialIntervals.copy()
+    leftTrialITIs[~leftTrials]=0
+    plt.plot(leftTrialITIs, marker='.',linestyle='None',color='g')
+    
+    rightTrialITIs = interTrialIntervals.copy() 
+    rightTrialITIs[leftTrials]=0
+    plt.plot(rightTrialITIs,marker='.',linestyle='None',color='r')
     #plt.hold(1)
     #(line1, line2) = plt.plot(range(0,len(leftTrials)), movAvITI_left, range(0,len(~leftTrials)), movAvITI_right)
     #plt.setp((line1,line2), color=('g','b'), linewidth=2.0)
     #plt.legend([line1, line2], ['Leftward trials', 'Rightward trials'])
-    
+    '''
     #plt.ylabel('Intertrial Interval(s)',fontsize=fontsize)
     plt.xlabel('Trial number',fontsize=fontsize)
     #plt.title('Intertrial Interval')
@@ -62,7 +58,7 @@ def plot_choicetime_dynamics(bData, winsize=40, fontsize=12):
     Choice time is defined as the time it took to get to the side ports to retrieve water from the time of leaving center port.
     '''
     lineWidth = 2
-#    reactionTime = bData['timeCenterOut']-bData['timeTarget']
+
     choiceTime = bData['timeSideIn']-bData['timeCenterOut']
     correctTrials = bData['outcome']==bData.labels['outcome']['correct']
     errorTrials = bData['outcome']==bData.labels['outcome']['error']
@@ -72,26 +68,36 @@ def plot_choicetime_dynamics(bData, winsize=40, fontsize=12):
 #Cannot use ~leftTrials for indexing since will include trials where choice is none and timeSideIn will be NaN
     rightTrials = bData['choice']==bData.labels['choice']['right']
 
-    choiceTCorrect = np.ma.masked_array(choiceTime[correctTrials])
-    movAvChoiceTime_correct = extrafuncs.moving_average_masked(choiceTCorrect, winsize)
-    choiceTError = np.ma.masked_array(choiceTime[errorTrials])
-    movAvChoiceTime_error = extrafuncs.moving_average_masked(choiceTError, winsize)
+    #choiceTCorrect = np.ma.masked_array(choiceTime[correctTrials])
+    #movAvChoiceTime_correct = extrafuncs.moving_average_masked(choiceTCorrect, winsize)
+    #choiceTError = np.ma.masked_array(choiceTime[errorTrials])
+    #movAvChoiceTime_error = extrafuncs.moving_average_masked(choiceTError, winsize)
+    bData.find_trials_each_block()
+    trialsEachBlock = bData.blocks['trialsEachBlock']
+    nBlocks = bData.blocks['nBlocks']
     choiceTLeft = np.ma.masked_array(choiceTime[leftTrials])
-    movAvChoiceTime_left = extrafuncs.moving_average_masked(choiceTLeft, winsize)
     choiceTRight = np.ma.masked_array(choiceTime[rightTrials])
-    movAvChoiceTime_right = extrafuncs.moving_average_masked(choiceTRight, winsize)
-   
-    plt.plot(movAvChoiceTime_correct,lw=lineWidth,color='m',alpha=1)
-    #plt.hold(1)
-    plt.plot(movAvChoiceTime_error,lw=lineWidth,color='b',alpha=1)
-    #plt.hold(1)
-    plt.plot(movAvChoiceTime_left,lw=lineWidth,color='g')
-    #plt.hold(1)
-    plt.plot(movAvChoiceTime_right,lw=lineWidth,color='r')
-    #plt.hold(1)
-    #plt.ylim([0,2.5])
-    #plt.axhline(50,color='0.5',ls='--')
-    #plt.ylabel('Choice time(s)',fontsize=fontsize)
+    for block in range(nBlocks):
+        choiceTimeThisBlock = choiceTime[trialsEachBlock[:,block]]
+        leftTrialsThisBlock = leftTrials[trialsEachBlock[:,block]]
+        rightTrialsThisBlock = rightTrials[trialsEachBlock[:,block]]
+        choiceTLeftThisBlock = np.ma.masked_array(choiceTimeThisBlock[leftTrialsThisBlock])
+        choiceTRightThisBlock = np.ma.masked_array(choiceTimeThisBlock[rightTrialsThisBlock])
+        #choiceTLeftThisBlock = choiceTLeft[trialsEachBlock[:,block]]
+        #choiceTRightThisBlock = choiceTRight[trialsEachBlock[:,block]]
+        movAvChoiceTime_right = extrafuncs.moving_average_masked(choiceTRightThisBlock, winsize)
+        movAvChoiceTime_left = extrafuncs.moving_average_masked(choiceTLeftThisBlock, winsize)
+        #plt.plot(movAvChoiceTime_correct,lw=lineWidth,color='m',alpha=1)
+        #plt.hold(1)
+        #plt.plot(movAvChoiceTime_error,lw=lineWidth,color='b',alpha=1)
+        xValues = range(block*150,block*150+len(movAvChoiceTime_left))
+        plt.plot(xValues,movAvChoiceTime_left,lw=lineWidth,color='g')
+        xValues = range(block*150,block*150+len(movAvChoiceTime_right))
+        plt.plot(xValues,movAvChoiceTime_right,lw=lineWidth,color='r')
+        #plt.hold(1)
+        #plt.ylim([0,2.5])
+        #plt.axhline(50,color='0.5',ls='--')
+        #plt.ylabel('Choice time(s)',fontsize=fontsize)
     plt.xlabel('Trial number',fontsize=fontsize)
     ax = plt.gca()
     extraplots.set_ticks_fontsize(ax,fontsize)
@@ -115,33 +121,43 @@ def plot_reactiontime_dynamics(bData, winsize=40, fontsize=12):
     leftTrials = bData['choice']==bData.labels['choice']['left']
 #Cannot use ~leftTrials for indexing since will include trials where choice is none and timeSideIn will be NaN
     rightTrials = bData['choice']==bData.labels['choice']['right']
+    
+    bData.find_trials_each_block()
+    trialsEachBlock = bData.blocks['trialsEachBlock']
+    nBlocks = bData.blocks['nBlocks']
 
-    reactionTCorrect = np.ma.masked_array(reactionTime[correctTrials])
-    movAvReactionTime_correct = extrafuncs.moving_average_masked(reactionTCorrect, winsize)
-    reactionTError = np.ma.masked_array(reactionTime[errorTrials])
-    movAvReactionTime_error = extrafuncs.moving_average_masked(reactionTError, winsize)
+    #reactionTCorrect = np.ma.masked_array(reactionTime[correctTrials])
+    #movAvReactionTime_correct = extrafuncs.moving_average_masked(reactionTCorrect, winsize)
+    #reactionTError = np.ma.masked_array(reactionTime[errorTrials])
+    #movAvReactionTime_error = extrafuncs.moving_average_masked(reactionTError, winsize)
+    
     reactionTLeft = np.ma.masked_array(reactionTime[leftTrials])
-    movAvReactionTime_left = extrafuncs.moving_average_masked(reactionTLeft, winsize)
     reactionTRight = np.ma.masked_array(reactionTime[rightTrials])
-    movAvReactionTime_right = extrafuncs.moving_average_masked(reactionTRight, winsize)
+
+    for block in range(nBlocks):
+        reactionTimeThisBlock = reactionTime[trialsEachBlock[:,block]]
+        leftTrialsThisBlock = leftTrials[trialsEachBlock[:,block]]
+        rightTrialsThisBlock = rightTrials[trialsEachBlock[:,block]]
+        reactionTLeftThisBlock = np.ma.masked_array(reactionTimeThisBlock[leftTrialsThisBlock])
+        reactionTRightThisBlock = np.ma.masked_array(reactionTimeThisBlock[rightTrialsThisBlock])
+        movAvReactionTime_left = extrafuncs.moving_average_masked(reactionTLeftThisBlock, winsize)
+        movAvReactionTime_right = extrafuncs.moving_average_masked(reactionTRightThisBlock, winsize)
    
-    line1,=plt.plot(movAvReactionTime_correct,lw=lineWidth,color='m',alpha=1,label='correct')
-    #plt.hold(1)
-    line2,=plt.plot(movAvReactionTime_error,lw=lineWidth,color='b',alpha=1,label='error')
-    #plt.hold(1)
-    line3,=plt.plot(movAvReactionTime_left,lw=lineWidth,color='g',label='left')
-    #plt.hold(1)
-    line4,=plt.plot(movAvReactionTime_right,lw=lineWidth,color='r',label='right')
-    #plt.hold(1)
-    #plt.ylim([0,2.5])
-    #plt.ylabel('Reaction time(s)',fontsize=fontsize)
+        #line1,=plt.plot(movAvReactionTime_correct,lw=lineWidth,color='m',alpha=1,label='correct')
+        #line2,=plt.plot(movAvReactionTime_error,lw=lineWidth,color='b',alpha=1,label='error')
+        xValues = range(block*150,block*150+len(movAvReactionTime_left))
+        line3,=plt.plot(xValues,movAvReactionTime_left,lw=lineWidth,color='g',label='left')
+        xValues = range(block*150,block*150+len(movAvReactionTime_right))
+        line4,=plt.plot(xValues,movAvReactionTime_right,lw=lineWidth,color='r',label='right')
+       
+        #plt.ylim([0,2.5])
+        
     plt.xlabel('Trial number',fontsize=fontsize)
-    plt.legend([line1,line2,line3,line4],['correct','error','left','right'],loc=1)
+    plt.legend([line3,line4],['left','right'],loc=1)
     ax = plt.gca()
     ax.set_ylabel('Reaction time(s)',fontsize=fontsize,labelpad=1)
     extraplots.set_ticks_fontsize(ax,fontsize)
-    #plt.draw()
-    #plt.show()
+ 
 
 
 if len(sys.argv)>1:
@@ -188,7 +204,7 @@ fig_path = outputDir
 if not os.path.exists(fig_path):
     os.makedirs(fig_path)
 sessionStr = '-'.join(sessions)
-fig_name = '{}_{}_behav_extra_graphs_20ave.png'.format(subject, sessionStr)
+fig_name = '{}_{}_reaction_per_block.png'.format(subject, sessionStr)
 full_fig_path = os.path.join(fig_path, fig_name)
 plt.gcf().set_size_inches((10,11))
 plt.gcf().savefig(full_fig_path)

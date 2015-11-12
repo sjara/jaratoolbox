@@ -11,6 +11,7 @@ from jaratoolbox import extraplots
 from jaratoolbox import loadbehavior
 from jaratoolbox import settings
 from jaratoolbox import colorpalette
+import matplotlib.lines as mlines
 
 EXPERIMENTER = 'santiago'
 #EXPERIMENTER = 'lan'
@@ -22,7 +23,7 @@ subjects = ['adap005', 'adap008']
 
 FREQCOLORS = [colorpalette.TangoPalette['Chameleon3'],
               colorpalette.TangoPalette['ScarletRed1'],
-              colorpalette.TangoPalette['SkyBlue2'] , 'g', 'r', 'b']
+              colorpalette.TangoPalette['SkyBlue2'] , 'g', 'm', 'k']
 
 if len(sys.argv)>1:
     sessions = sys.argv[1:]
@@ -62,12 +63,13 @@ for inds,thisSession in enumerate(sessions):
         thisPlotPos = thisAnimalPos+1*inds
         ax1=plt.subplot(gs[thisPlotPos])
         fontsize = 12
-
+        allPline = []
+        legendLabels = []
         for block in range(nBlocks):
             targetFrequencyThisBlock = targetFrequency[trialsEachBlock[:,block]]    
             validThisBlock = valid[trialsEachBlock[:,block]]
             choiceRightThisBlock = choiceRight[trialsEachBlock[:,block]]
-            currentBlockValue = currentBlock[trialsEachBlock[0,block]]
+            #currentBlockValue = currentBlock[trialsEachBlock[0,block]]
             (possibleValues,fractionHitsEachValue,ciHitsEachValue,nTrialsEachValue,nHitsEachValue)=\
                                                                                                     behavioranalysis.calculate_psychometric(choiceRightThisBlock,targetFrequencyThisBlock,validThisBlock)
             (pline, pcaps, pbars, pdots) = extraplots.plot_psychometric(1e-3*possibleValues,fractionHitsEachValue,
@@ -75,13 +77,23 @@ for inds,thisSession in enumerate(sessions):
             
             plt.setp((pline, pcaps, pbars), color=FREQCOLORS[block])
             plt.setp(pdots, mfc=FREQCOLORS[block], mec=FREQCOLORS[block])
+            #blockLine=mlines.Line2D([],[],color=FREQCOLORS[block],linewidth=2, label='block %d'%(block+1))   
+            legendLabels.append('block %d'%(block+1))
+            allPline.append(pline)
+            legend = plt.legend(allPline,legendLabels,loc=2)
+            # Add the legend manually to the current Axes.
+            ax = plt.gca().add_artist(legend)
             plt.hold(True)
+            
             if block == nBlocks-1: 
                 plt.xlabel('Frequency (kHz)',fontsize=fontsize)
                 plt.ylabel('Rightward trials (%)',fontsize=fontsize)
                 extraplots.set_ticks_fontsize(plt.gca(),fontsize)
+            
+            #plt.legend(bbox_to_anchor=(1, 1), bbox_transform=plt.gcf().transFigure)
             plt.show()
-       
+        plt.title('%s_%s'%(animalName,thisSession))   
+    
     outputDir='/home/languo/data/behavior_reports' 
     animalStr = '-'.join(subjects)
     sessionStr = '-'.join(sessions)
