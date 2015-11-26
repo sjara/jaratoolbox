@@ -116,9 +116,9 @@ class TetrodeToCluster(object):
 
         self.dataDir = os.path.join(settings.EPHYS_PATH,self.animalName,self.ephysSession)
         self.clustersDir = os.path.join(settings.EPHYS_PATH,self.animalName,self.ephysSession+'_kk')
-        self.reportDir = os.path.join(settings.EPHYS_PATH,self.animalName,'reports_clusters')
         self.tetrodeFile = os.path.join(self.dataDir,'Tetrode{0}.spikes'.format(tetrode))
         self.fetFilename = os.path.join(self.clustersDir,'Tetrode{0}.fet.1'.format(tetrode))
+        #self.reportDir = os.path.join(settings.EPHYS_PATH,self.animalName,'reports_clusters')
 
         self.reportFileName = '{0}_{1}_T{2}.png'.format(self.animalName,ephysSession,tetrode)
         self.report = None
@@ -185,12 +185,13 @@ class TetrodeToCluster(object):
             time.sleep(4)
         print 'Done!'
         '''
-    def save_report(self):
+    def save_report(self, dirname='reports_clusters'):
+        reportDir = os.path.join(settings.EPHYS_PATH,self.animalName,dirname)
         if self.dataTT is None:
             self.load_waveforms()
         self.dataTT.set_clusters(os.path.join(self.clustersDir,'Tetrode%d.clu.1'%self.tetrode))
         figTitle = self.dataDir+' (T%d)'%self.tetrode
-        self.report = ClusterReportFromData(self.dataTT,outputDir=self.reportDir,
+        self.report = ClusterReportFromData(self.dataTT,outputDir=reportDir,
                                             filename=self.reportFileName,figtitle=figTitle,
                                             showfig=False)
         
