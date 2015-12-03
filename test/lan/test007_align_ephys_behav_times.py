@@ -1,3 +1,7 @@
+'''
+Script to figure out the problem when ephys recording file and behav file don't have the same number of trials.
+'''
+
 from jaratoolbox import loadopenephys
 from jaratoolbox import loadbehavior
 import numpy as np

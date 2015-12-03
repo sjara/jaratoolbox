@@ -3,6 +3,7 @@
 
 This module will contain report plotting methods that act on entire sites
 
+Modulated to include function for plotting ephys data during 2afc behavior - Lan.
 '''
 from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
 reload(cms2)
@@ -460,7 +461,7 @@ def lan_2afc_ephys_plots(site, siteName, main2afcind):
 
 
 
-def lan_2afc_ephys_plots_debug(site, siteName, main2afcind):
+def lan_2afc_ephys_plots_debug(site, siteName, main2afcind, tetrodes):
     SAMPLING_RATE=30000.0
     soundTriggerChannel = 0 # channel 0 is the sound presentation, 1 is the trial
     binWidth = 0.010 # Size of each bin in histogram in seconds
@@ -469,79 +470,80 @@ def lan_2afc_ephys_plots_debug(site, siteName, main2afcind):
 
     loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
 
-    tetrode=7
+    tetrode=tetrodes  #should make this a list
 
-    oneTT = cluster_site(site, siteName, tetrode)
-    #possibleClusters=np.unique(oneTT.clusters)
-    cluster=5
+    for tetrode in enumerate(tetrodes):
+        oneTT = cluster_site(site, siteName, tetrode)
+        #possibleClusters=np.unique(oneTT.clusters)
+        cluster=5
 
-    #Iterate through the clusters, making a new figure for each cluster.
+        #Iterate through the clusters, making a new figure for each cluster.
 
-    main2afcsession = site.get_mouse_relative_ephys_filenames()[main2afcind]
-    main2afcbehavFilename = site.get_mouse_relative_behav_filenames()[main2afcind]
-    #mainTCtype = site.get_session_types()[main2afcind]
+        main2afcsession = site.get_mouse_relative_ephys_filenames()[main2afcind]
+        main2afcbehavFilename = site.get_mouse_relative_behav_filenames()[main2afcind]
+        #mainTCtype = site.get_session_types()[main2afcind]
 
-    bdata = loader.get_session_behavior(main2afcbehavFilename)
-    #plotTitle = loader.get_session_filename(main2afcsession)
-    eventData = loader.get_session_events(main2afcsession)
-    spikeData = loader.get_session_spikes(main2afcsession, tetrode)
-    #for indClust, cluster in enumerate(possibleClusters[3]):
-        
-    spikeTimestamps = spikeData.timestamps[spikeData.clusters==cluster]
+        bdata = loader.get_session_behavior(main2afcbehavFilename)
+        #plotTitle = loader.get_session_filename(main2afcsession)
+        eventData = loader.get_session_events(main2afcsession)
+        spikeData = loader.get_session_spikes(main2afcsession, tetrode)
+        #for indClust, cluster in enumerate(possibleClusters[3]):
 
-    #eventOnsetTimes=np.array(eventData.timestamps)/SAMPLING_RATE caused error since divided by sampling rate twice.
-    eventOnsetTimes=np.array(eventData.timestamps)
-    #eventOnsetTimes = loader.get_event_onset_times(eventData) #These are already only the sound onset events
-    soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
-    soundOnsetTimes = eventOnsetTimes[soundOnsetEvents]
+        spikeTimestamps = spikeData.timestamps[spikeData.clusters==cluster]
 
-    freqEachTrial = bdata['targetFrequency']
-    possibleFreq = np.unique(freqEachTrial)
+        #eventOnsetTimes=np.array(eventData.timestamps)/SAMPLING_RATE caused error since divided by sampling rate twice.
+        eventOnsetTimes=np.array(eventData.timestamps)
+        #eventOnsetTimes = loader.get_event_onset_times(eventData) #These are already only the sound onset events
+        soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
+        soundOnsetTimes = eventOnsetTimes[soundOnsetEvents]
 
-    rightward = bdata['choice']==bdata.labels['choice']['right']
-    leftward = bdata['choice']==bdata.labels['choice']['left']
-    invalid = bdata['outcome']==bdata.labels['outcome']['invalid']
-    correct = bdata['outcome']==bdata.labels['outcome']['correct']
-    incorrect = bdata['outcome']==bdata.labels['outcome']['error']  
+        freqEachTrial = bdata['targetFrequency']
+        possibleFreq = np.unique(freqEachTrial)
 
-    ######Split left and right trials into correct and  incorrect categories to look at error trials#########
-    rightcorrect = rightward&correct
-    leftcorrect = leftward&correct
-    righterror = rightward&incorrect
-    lefterror = leftward&incorrect
+        rightward = bdata['choice']==bdata.labels['choice']['right']
+        leftward = bdata['choice']==bdata.labels['choice']['left']
+        invalid = bdata['outcome']==bdata.labels['outcome']['invalid']
+        correct = bdata['outcome']==bdata.labels['outcome']['correct']
+        incorrect = bdata['outcome']==bdata.labels['outcome']['error']  
 
-    trialsEachCond = np.c_[invalid,leftcorrect,rightcorrect,lefterror,righterror] 
-    colorEachCond = ['0.75','g','r','b','m'] 
+        ######Split left and right trials into correct and  incorrect categories to look at error trials#########
+        rightcorrect = rightward&correct
+        leftcorrect = leftward&correct
+        righterror = rightward&incorrect
+        lefterror = leftward&incorrect
 
-    (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
-                                                                             spikesanalysis.eventlocked_spiketimes(spikeTimestamps,soundOnsetTimes,timeRange)
+        trialsEachCond = np.c_[invalid,leftcorrect,rightcorrect,lefterror,righterror] 
+        colorEachCond = ['0.75','g','r','b','m'] 
 
-    plt.clf()
+        (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
+                                                                                 spikesanalysis.eventlocked_spiketimes(spikeTimestamps,soundOnsetTimes,timeRange)
 
-    ax1 =  plt.subplot2grid((3,1), (0, 0), rowspan=2)
-    extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEachCond=trialsEachCond,
-               colorEachCond=colorEachCond,fillWidth=None,labels=None)
-    plt.ylabel('Trials')
-    #plt.ylabel('Trials/n G-leftcorrect, R-rightcorrect, B-lefterror, M-righterror')
-   
-    timeVec = np.arange(timeRange[0],timeRange[-1],binWidth)
+        plt.clf()
 
-    spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec)
-    smoothWinSize = 3
-    ax2 = plt.subplot2grid((3,1), (2, 0), sharex=ax1)
-    extraplots.plot_psth(spikeCountMat/binWidth,smoothWinSize,timeVec,trialsEachCond=trialsEachCond,
-             colorEachCond=colorEachCond,linestyle=None,linewidth=3,downsamplefactor=1)
+        ax1 =  plt.subplot2grid((3,1), (0, 0), rowspan=2)
+        extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEachCond=trialsEachCond,
+                   colorEachCond=colorEachCond,fillWidth=None,labels=None)
+        plt.ylabel('Trials')
+        #plt.ylabel('Trials/n G-leftcorrect, R-rightcorrect, B-lefterror, M-righterror')
 
-    plt.xlabel('Time from sound onset (s)')
-    plt.ylabel('Firing rate (spk/sec)')
+        timeVec = np.arange(timeRange[0],timeRange[-1],binWidth)
 
-    
-    fig_path = oneTT.clustersDir
-    fig_name = 'TT{0}Cluster{1}{2}.png'.format(tetrode, cluster, '_2afc plot')
-    full_fig_path = os.path.join(fig_path, fig_name)
-    print full_fig_path
-    #plt.tight_layout()
-    #plt.gcf().set_size_inches((8.5,11))
-    #plt.savefig(full_fig_path, format = 'png')
-    plt.show()
-    
+        spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec)
+        smoothWinSize = 3
+        ax2 = plt.subplot2grid((3,1), (2, 0), sharex=ax1)
+        extraplots.plot_psth(spikeCountMat/binWidth,smoothWinSize,timeVec,trialsEachCond=trialsEachCond,
+                 colorEachCond=colorEachCond,linestyle=None,linewidth=3,downsamplefactor=1)
+
+        plt.xlabel('Time from sound onset (s)')
+        plt.ylabel('Firing rate (spk/sec)')
+
+
+        fig_path = oneTT.clustersDir
+        fig_name = 'TT{0}Cluster{1}{2}.png'.format(tetrode, cluster, '_2afc plot')
+        full_fig_path = os.path.join(fig_path, fig_name)
+        print full_fig_path
+        #plt.tight_layout()
+        #plt.gcf().set_size_inches((8.5,11))
+        #plt.savefig(full_fig_path, format = 'png')
+        plt.show()
+
