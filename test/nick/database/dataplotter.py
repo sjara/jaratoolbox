@@ -35,27 +35,41 @@ from jaratoolbox import spikesanalysis
 from jaratoolbox import spikesorting
 from jaratoolbox import behavioranalysis
 
-#This function does not replicate functionality. It allows you to pass spike timestamps and event
-#onset times, which are simple to get, as well as an array of any values that can be used to sort the
-#raster. This function wraps three other good functions and provides a way to use them easily
 
-#It should have a less ambiguous name though, since there is the function raster_plot in extraplots
+#TODO: Give this function a different name, since raster_plot exists in extraplots
 def plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = [], timeRange = [-0.5, 1], ms = 4, labels=None):
     '''
+    Function to accept spike timestamps, event onset times, and an optional sorting array and plot a
+    raster plot (sorted if the sorting array is passed)
+
+    This function does not replicate functionality. It allows you to pass spike timestamps and event
+    onset times, which are simple to get, as well as an array of any values that can be used to sort the
+    raster. This function wraps three other good functions and provides a way to use them easily
+
     Args:
-        sortarray (array): an array of parameter values for each trial. output will be sorted by the possible values of the parameter. Must be the same length as the event onset times array
+        sortarray (array): An array of parameter values for each trial.
+                           Output will be sorted by the possible values of the parameter.
+                           Must be the same length as the event onset times array
 
     '''
+    # If a sort array is supplied, find the trials that correspond to each value of the array
     if len(sortArray)>0:
         trialsEachCond = behavioranalysis.find_trials_each_type(sortArray, np.unique(sortArray))
         if not labels:
             labels=['%.1f' % f for f in np.unique(sortArray)]
     else:
         trialsEachCond = []
-
-    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimes,timeRange)
-
-    pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsEachCond, labels=labels)
+    # Align spiketimestamps to the event onset times for plotting
+    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,
+                                                                                                                 eventOnsetTimes,
+                                                                                                                 timeRange)
+    #Plot the raster, which will sort if trialsEachCond is supplied
+    pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset,
+                                                 indexLimitsEachTrial,
+                                                 timeRange,
+                                                 trialsEachCond = trialsEachCond,
+                                                 labels=labels)
+    #Set the marker size for better viewing
     plt.setp(pRaster,ms=ms)
 
 def two_axis_sorted_raster(spikeTimestamps,
@@ -65,6 +79,7 @@ def two_axis_sorted_raster(spikeTimestamps,
                            firstSortLabels=None,
                            secondSortLabels=None,
                            xLabel=None,
+                           yLabel=None,
                            plotTitle=None,
                            flipFirstAxis=False,
                            flipSecondAxis=True, #Useful for making the highest intensity plot on top
@@ -73,6 +88,7 @@ def two_axis_sorted_raster(spikeTimestamps,
 
     '''
     This function takes two arrays and uses them to sort spikes into trials by combinaion, and then plots the spikes in raster form.
+
     The first sort array will be used to sort each raster plot, and there will be a separate raster plot for each possible value of the
     second sort array. This method was developed for plotting frequency-intensity tuning curve data in raster form, in which case the
     frequency each trial is passed as the first sort array, and the intensity each trial is passed as the second sort array.
@@ -81,63 +97,69 @@ def two_axis_sorted_raster(spikeTimestamps,
         spikeTimestamps (array): An array of spike timestamps to plot
         eventOnsetTimes (array): An array of event onset times. Spikes will be plotted in raster form relative to these times
         firstSortArray (array): An array of parameter values for each trial. Must be the same length as eventOnsetTimes.
-        secondSortArray (array): Another array of paramenter values the same length as eventOnsetTimes. Better if this array has less possible values.
-        firstSortLabels (list): A list containing strings to use as labels for the first sort array. Must contain one item for each possible value of the first sort array.
+        secondSortArray (array): Another array of paramenter values the same length as eventOnsetTimes.
+                                 Better if this array has less possible values.
+        firstSortLabels (list): A list containing strings to use as labels for the first sort array.
+                                Must contain one item for each possible value of the first sort array.
         secondSortLabels (list): Same idea as above, must contain one element for each possible value of the second sort array.
         xLabel (str): A string to use for the x label of the bottom raster plot
-        flipFirstAxis (bool): Whether to flip the first sorting axis. Will result in trials with high values for the first sort array appearing on the bottom of each raster.
+        flipFirstAxis (bool): Whether to flip the first sorting axis.
+                              Will result in trials with high values for the first sort array appearing on the bottom of each raster.
         flipSecondAxis (bool): Will result in trials with high values for the second sorting array appearing in the top raster plot
         timeRange (list): A list containing the range of times relative to the event onset times that will be plotted
         ms (int): The marker size to use for the raster plots
     '''
-
     if not firstSortLabels:
         firstSortLabels=[]
     if not secondSortLabels:
         secondSortLabels=[]
-    if not xlabel:
+    if not xLabel:
         xlabel=''
-    if not ylabel:
+    if not yLabel:
         ylabel=''
     if not plotTitle:
         plotTitle=''
+    #Set first and second possible val arrays and invert them if desired for plotting
     firstPossibleVals = np.unique(firstSortArray)
     secondPossibleVals = np.unique(secondSortArray)
-
     if flipFirstAxis:
         firstPossibleVals=firstPossibleVals[::-1]
         firstSortLabels=firstSortLabels[::-1]
-
     if flipSecondAxis:
         secondPossibleVals=secondPossibleVals[::-1]
         secondSortLabels=secondSortLabels[::-1]
-
-    trialsEachCond = behavioranalysis.find_trials_each_combination(firstSortArray, firstPossibleVals, secondSortArray, secondPossibleVals)
-    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,eventOnsetTimes,timeRange)
-
+    #Find the trials that correspond to each pair of sorting values
+    trialsEachCond = behavioranalysis.find_trials_each_combination(firstSortArray,
+                                                                   firstPossibleVals,
+                                                                   secondSortArray,
+                                                                   secondPossibleVals)
+    #Calculate the spike times relative to event onset times
+    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,
+                                                                                                                 eventOnsetTimes,
+                                                                                                                 timeRange)
+    #Grab the current figure and clear it for plotting
     fig = plt.gcf()
     plt.clf()
-
+    #Make a new plot for each unique value of the second sort array, and then plot a raster on that plot sorted by this second array
     for ind, secondArrayVal in enumerate(secondPossibleVals):
-
         if ind == 0:
             fig.add_subplot(len(secondPossibleVals), 1, ind+1)
             plt.title(plotTitle)
         else:
             fig.add_subplot(len(secondPossibleVals), 1, ind+1, sharex=fig.axes[0], sharey=fig.axes[0])
-
         trialsThisSecondVal = trialsEachCond[:, :, ind]
-
-        pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond = trialsThisSecondVal, labels = firstSortLabels)
+        pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset,
+                                                     indexLimitsEachTrial,
+                                                     timeRange,
+                                                     trialsEachCond = trialsThisSecondVal,
+                                                     labels = firstSortLabels)
         plt.setp(pRaster,ms=ms)
-
-        plt.ylabel(secondSortLabels[ind])
-
+        if secondSortLabels:
+            plt.ylabel(secondSortLabels[ind])
         if ind == len(secondPossibleVals)-1:
             plt.xlabel(xLabel)
 
-
-
+#TODO: The Freq and Intensity should always be first and second sort arrays between this function and the previous one
 def two_axis_heatmap(spikeTimestamps,
                      eventOnsetTimes,
                      firstSortArray, #Should be intensity in F/I TC (Y axis)
@@ -148,24 +170,28 @@ def two_axis_heatmap(spikeTimestamps,
                      ylabel=None,
                      plotTitle=None,
                      flipFirstAxis=True, #Useful for making the highest intensity plot on top
-                     flipSecondAxis=False, 
+                     flipSecondAxis=False,
                      timeRange=[0, 0.1]):
-
     '''
     This function takes two arrays and uses them to sort spikes into trials by combinaion,
     and then plots the average number of spikes after the stim in heatmap form.
     The first sort array should be the intensity in a F/I tuning curve,
-    and the second sort array should be the frequency. 
+    and the second sort array should be the frequency.
 
     Args:
         spikeTimestamps (array): An array of spike timestamps to plot
-        eventOnsetTimes (array): An array of event onset times. Spikes will be plotted in raster form relative to these times
-        firstSortArray (array): An array of parameter values for each trial. Must be the same length as eventOnsetTimes.
-        secondSortArray (array): Another array of paramenter values the same length as eventOnsetTimes. Better if this array has less possible values.
-        firstSortLabels (list): A list containing strings to use as labels for the first sort array. Must contain one item for each possible value of the first sort array.
+        eventOnsetTimes (array): An array of event onset times.
+                                 Spikes will be plotted in raster form relative to these times
+        firstSortArray (array): An array of parameter values for each trial.
+                                Must be the same length as eventOnsetTimes.
+        secondSortArray (array): Another array of paramenter values the same length as eventOnsetTimes.
+                                 Better if this array has less possible values.
+        firstSortLabels (list): A list containing strings to use as labels for the first sort array.
+                                Must contain one item for each possible value of the first sort array.
         secondSortLabels (list): Same idea as above, must contain one element for each possible value of the second sort array.
         xLabel (str): A string to use for the x label of the bottom raster plot
-        flipFirstAxis (bool): Whether to flip the first sorting axis. Will result in trials with high values for the first sort array appearing on the bottom of each raster.
+        flipFirstAxis (bool): Whether to flip the first sorting axis.
+                              Will result in trials with high values for the first sort array appearing on the bottom of each raster.
         flipSecondAxis (bool): Will result in trials with high values for the second sorting array appearing in the top raster plot
         timeRange (list): A list containing the range of times relative to the stimulus onset over which the spike average will be computed
     '''
@@ -179,36 +205,29 @@ def two_axis_heatmap(spikeTimestamps,
         ylabel=''
     if not plotTitle:
         plotTitle=''
-
     firstPossibleVals = np.unique(firstSortArray)
     secondPossibleVals = np.unique(secondSortArray)
-
     if firstSortLabels==None:
         firstSortLabels=[]
-
     if secondSortLabels==None:
         secondSortLabels=[]
-
     if xlabel==None:
         xlabel=''
-
     if ylabel==None:
         ylabel=''
-
     cbarLabel = 'Avg spikes in time range: {}'.format(timeRange)
-
     if flipFirstAxis:
         firstPossibleVals=firstPossibleVals[::-1]
         firstSortLabels=firstSortLabels[::-1]
-
     if flipSecondAxis:
         secondPossibleVals=secondPossibleVals[::-1]
         secondSortLabels=secondSortLabels[::-1]
-
+    #Find trials each combination
     trialsEachCond = behavioranalysis.find_trials_each_combination(firstSortArray, firstPossibleVals, secondSortArray, secondPossibleVals)
+    #Make an aray of the average number of spikes in the timerange after the stim for each condition
     spikeArray = avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
+    #Plot the array as a heatmap
     plot_array_as_heatmap(spikeArray, xlabel=xlabel, ylabel=ylabel, xtickLabels=secondSortLabels, ytickLabels=firstSortLabels, cbarLabel=cbarLabel)
-    
 
 def one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, sortArray, timeRange=[0, 0.1]):
     trialsEachCond = behavioranalysis.find_trials_each_type(sortArray, np.unique(sortArray))
@@ -216,7 +235,6 @@ def one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, sortArray, timeRange=[0
     plt.plot(spikeArray, ls='-', lw=2, c='0.25')
 
 def avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
-
     if len(eventOnsetTimes)!=np.shape(trialsEachCond)[0]:
         eventOnsetTimes=eventOnsetTimes[:-1]
         print "FIXME: Using bad hack to make event onset times equal number of trials"
@@ -225,7 +243,6 @@ def avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCo
     return spikeArray
 
 def avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCond):
-
     numSpikesInTimeRangeEachTrial = np.squeeze(np.diff(indexLimitsEachTrial, axis=0))
     conditionMatShape = np.shape(trialsEachCond)
     numRepeats = np.product(conditionMatShape[1:])
@@ -257,7 +274,6 @@ def plot_array_as_heatmap(heatmapArray, xlabel=None, ylabel=None, xtickLabels=No
     return ax, cax, cbar
 
 def plot_waveforms_in_event_locked_timerange(spikeSamples, spikeTimes, eventOnsetTimes, timeRange):
-    
     spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial,spikeIndices = spikesanalysis.eventlocked_spiketimes(spikeTimes, eventOnsetTimes, timeRange, spikeindex=True)
     samplesToPlot=spikeSamples[spikeIndices]
     ax=plt.gca()
@@ -333,7 +349,7 @@ class FlipT(object):
     flipper = dataplotter.FlipT(function, dataList)
 
     The disadvantage is that we need to assign a handle to the object instance to prevent it from
-    being garbage collected, which is not obvious to the user. 
+    being garbage collected, which is not obvious to the user.
 
     Args:
         plottingFn (function): A function that can accept one item in the data list and make the plot that you want.

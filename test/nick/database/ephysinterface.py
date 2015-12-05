@@ -49,7 +49,7 @@ class EphysInterface(object):
         print ' '.join(transferCommand)
         subprocess.call(transferCommand)
 
-    def plot_session_raster(self, session, tetrode, cluster = None, sortArray = [], replace=0, ms=4):
+    def plot_session_raster(self, session, tetrode, cluster = None, sortArray = [], timeRange=[-0.5, 1], replace=0, ms=4):
 
         plotTitle = self.loader.get_session_filename(session)
         spikeData= self.loader.get_session_spikes(session, tetrode)
@@ -65,10 +65,17 @@ class EphysInterface(object):
         else:
             plt.figure()
 
-        dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, ms=ms)
+        dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, ms=ms)
 
         plt.show()
 
+    def plot_am_tuning(self, session, tetrode, behavSuffix, replace=1, timeRange=[-0.5, 1], ms=1):
+
+        '''Helper fxn to plot AM modulation tuning rasters'''
+
+        bdata=self.loader.get_session_behavior(behavSuffix)
+        freqEachTrial = bdata['currentFreq']
+        self.plot_session_raster(session, tetrode, sortArray=freqEachTrial, replace=replace, timeRange=timeRange, ms=ms)
 
     def plot_array_freq_tuning(self, session, behavSuffix, replace=0, tetrodes=None, timeRange=[0, 0.1]):
 
@@ -112,7 +119,7 @@ class EphysInterface(object):
 
 
             plt.ylabel('TT {}'.format(tetrode))
-            
+
 
         plt.figtext(0.05, 0.5, 'Average number of spikes in range {}'.format(timeRange), rotation='vertical', va='center', ha='center')
         plt.show()
@@ -126,46 +133,34 @@ class EphysInterface(object):
         In this case, we get the event data once, and then loop through the tetrodes, getting the
         spike data and calling the plotting code for each tetrode.
         '''
-
         if not tetrodes:
             tetrodes=self.defaultTetrodes
-
         numTetrodes = len(tetrodes)
         eventData = self.loader.get_session_events(session)
         eventOnsetTimes = self.loader.get_event_onset_times(eventData)
         plotTitle = self.loader.get_session_filename(session)
-
         if replace:
             fig = plt.gcf()
             plt.clf()
         else:
             fig = plt.figure()
-
-
         for ind , tetrode in enumerate(tetrodes):
-
             spikeData = self.loader.get_session_spikes(session, tetrode)
-
             if ind == 0:
                 ax = fig.add_subplot(numTetrodes,1,ind+1)
             else:
                 ax = fig.add_subplot(numTetrodes,1,ind+1, sharex = fig.axes[0], sharey = fig.axes[0])
-
             spikeTimestamps = spikeData.timestamps
             dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray=sortArray, ms=ms, timeRange = timeRange)
-
             if ind == 0:
                 plt.title(plotTitle)
-
             plt.ylabel('TT {}'.format(tetrode))
-
         plt.xlabel('time (sec)')
         plt.show()
 
-
-
     def plot_sorted_tuning_raster(self, session, tetrode, behavSuffix, cluster = None, replace=0, timeRange = [-0.5, 1], ms = 1):
         '''
+        Plot the tuning of a tetrode as a sorted tuning raster
         '''
         bdata = self.loader.get_session_behavior(behavSuffix)
         plotTitle = self.loader.get_session_filename(session)
@@ -247,6 +242,12 @@ class EphysInterface(object):
 
         plt.show()
 
+
+
+
+
+
+
     #Relies on module for clustering multiple sessions
     #Also relies on methods for plotting rasters and cluster waveforms
     def cluster_sessions_and_plot_rasters_for_each_cluster(self, ):
@@ -257,7 +258,7 @@ class EphysInterface(object):
 
         if not tetrodes:
             tetrodes=self.defaultTetrodes
-        
+
         plotTitle = self.loader.get_session_filename(session)
 
         spikesList=[]
@@ -265,7 +266,7 @@ class EphysInterface(object):
         freqList=[]
         rasterRangeList=[]
         tcRangeList=[]
-        
+
         bdata = self.loader.get_session_behavior(behavSuffix)
         freqEachTrial = bdata['currentFreq']
         eventData = self.loader.get_session_events(session)
@@ -283,19 +284,22 @@ class EphysInterface(object):
 
         dataList=zip(spikesList, eventsList, freqList, tetrodes, rasterRangeList, tcRangeList)
 
-        self._tetrode_tuning(dataList)
+        # self._tetrode_tuning(dataList)
+        flipper=dataplotter.FlipT(self._tetrode_tuning, dataList)
+        return flipper
 
-        
-    
-    @dataplotter.FlipThroughData    
-    def _tetrode_tuning(spikeTimestamps, eventOnsetTimes, freqEachTrial, tetrode, rasterRange, tcRange): 
+
+
+    # @dataplotter.FlipThroughData
+    @staticmethod
+    def _tetrode_tuning(dataTuple):
 
         '''
-        Fix this so that
+        The data tuple must be exactly this: (spikeTimestamps, eventOnsetTimes, freqEachTrial, tetrode, rasterRange, tcRange)
         '''
 
         #Unpack the data tuple (Watch out - make sure things from the above method are in the right order)
-        # spikeTimestamps, eventOnsetTimes, freqEachTrial, tetrode, rasterRange, tcRange = dataTuple
+        spikeTimestamps, eventOnsetTimes, freqEachTrial, tetrode, rasterRange, tcRange = dataTuple
 
         possibleFreq=np.unique(freqEachTrial)
         freqLabels = ['{0:.1f}'.format(freq/1000.0) for freq in possibleFreq]
@@ -314,3 +318,4 @@ class EphysInterface(object):
         ax2.set_xticks(range(len(freqLabels)))
         ax2.set_xticklabels(freqLabels, rotation='vertical')
         ax2.set_xlabel('Freq (kHz)')
+
