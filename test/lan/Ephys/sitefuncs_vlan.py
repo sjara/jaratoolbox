@@ -4,15 +4,19 @@
 This module will contain report plotting methods that act on entire sites
 
 Modulated to include function for plotting ephys data during 2afc behavior - Lan.
+
+LG 20151202 modified to use new features for clustering (peak, valleyFirstHalf)
 '''
-from jaratoolbox.test.nick.ephysExperiments import clusterManySessions_v2 as cms2
+from jaratoolbox.test.lan.Ephys import clusterManySessions_vlan as cms2 #this version uses new features for clustering
 reload(cms2)
 from jaratoolbox.test.nick.database import dataloader
-from jaratoolbox.test.nick.database import dataplotter
+from jaratoolbox.test.lan.Ephys import dataplotter_vlan as dataplotter
 reload(dataplotter)
 from jaratoolbox import extraplots
 from jaratoolbox import spikesorting
 from jaratoolbox import spikesanalysis
+from jaratoolbox import loadbehavior
+from jaratoolbox import behavioranalysis
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -210,7 +214,8 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind, mainSTRind)
                     xlabel='Time relative to event onset (s)'
                     #ylabel='Intensity (dB SPL)'
 
-                    freqLabels = ["%.1f" % freq for freq in possibleFreq]#this is amplitude modulation freq for santiago's more sounds paradigm
+                    #freqLabels = ["%.1f" % freq for freq in possibleFreq]#this is amplitude modulation freq for santiago's more sounds paradigm
+                    freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0] #freq of sine/chord presented
                     intenLabels = ["%.1f" % inten for inten in possibleIntensity]
                                
                     plt.figure()
@@ -364,9 +369,9 @@ def nick_lan_daily_report_short(site, siteName, mainRasterInds):
 
 
 
-def lan_2afc_ephys_plots(site, siteName, main2afcind):
+def lan_2afc_ephys_plots(site, siteName, main2afcind, tetrodes):
     '''
-    Plot for each cluster in the site, plot a summary for activity during 2afc behavior. spike rasters/psths are algined to sound onset. 
+    Plot for each cluster in the site, plot a summary for activity during 2afc behavior. spike rasters/psths are algined to sound onset. Data are split into leftward and rightward trials.
     Right now it assumes the behav data is saved under 'lan'(Experiment.experimenter) folder and not 'santiago' folder.
     '''
     SAMPLING_RATE=30000.0
@@ -378,7 +383,7 @@ def lan_2afc_ephys_plots(site, siteName, main2afcind):
 
     loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
 
-    for tetrode in site.tetrodes:
+    for tetrode in tetrodes:
         oneTT = cluster_site(site, siteName, tetrode)
         possibleClusters=np.unique(oneTT.clusters)
 
@@ -421,10 +426,10 @@ def lan_2afc_ephys_plots(site, siteName, main2afcind):
                 #rightward &= correct
                 #leftward &= correct
             
-            #trialsEachCond = np.c_[invalid,leftward,rightward] 
-            #colorEachCond = ['0.75','g','r']
-            trialsEachCond = np.c_[invalid,leftcorrect,rightcorrect,lefterror,righterror] 
-            colorEachCond = ['0.75','g','r','b','m'] 
+            trialsEachCond = np.c_[invalid,leftcorrect,rightcorrect] 
+            colorEachCond = ['0.75','g','r']
+            #trialsEachCond = np.c_[invalid,leftcorrect,rightcorrect,lefterror,righterror] 
+            #colorEachCond = ['0.75','g','r','b','m'] 
 
             (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
     spikesanalysis.eventlocked_spiketimes(spikeTimestamps,soundOnsetTimes,timeRange)
@@ -460,6 +465,224 @@ def lan_2afc_ephys_plots(site, siteName, main2afcind):
             plt.savefig(full_fig_path, format = 'png')
 
 
+
+def lan_2afc_ephys_plots_each_type(site, siteName, main2afcind, tetrodes):
+    '''
+    Plots ephys data during behavior (reward_change_freq_discrim paradigm), data split according to the type of block in behavior (more_left or more_right) and the choice (left or right). only plotting correct trials.
+    '''
+    
+    SAMPLING_RATE=30000.0
+    soundTriggerChannel = 0 # channel 0 is the sound presentation, 1 is the trial
+    binWidth = 0.010 # Size of each bin in histogram in seconds
+
+    #timeRange = [-0.2,0.8] # In seconds. Time range for rastor plot to plot spikes (around some event onset as 0)
+    timeRange = [-0.25,1.0]
+
+    loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
+
+    for tetrode in tetrodes:
+        oneTT = cluster_site(site, siteName, tetrode)
+        possibleClusters=np.unique(oneTT.clusters)
+
+
+        #Iterate through the clusters, making a new figure for each cluster.
+               
+        main2afcsession = site.get_mouse_relative_ephys_filenames()[main2afcind]
+        main2afcbehavFilename = site.get_mouse_relative_behav_filenames()[main2afcind]
+        #mainTCtype = site.get_session_types()[main2afcind]
+        behavDir = '/home/languo/data/behavior/lan/'  #this is specific to lan's mice
+        behavFullFilePath = os.path.join(behavDir, main2afcbehavFilename)
+        loadingClass = loadbehavior.FlexCategBehaviorData  #using this bdata class so we get 'blocks'
+        #bdata = loader.get_session_behavior(main2afcbehavFilename)
+        bdata = loadingClass(behavFullFilePath,readmode='full')
+        currentBlock = bdata['currentBlock']
+        blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
+        #blockLabels = ['more_left', 'more_right']
+        trialsEachType = behavioranalysis.find_trials_each_type(currentBlock,blockTypes)
+        
+        #plotTitle = loader.get_session_filename(main2afcsession)
+        eventData = loader.get_session_events(main2afcsession)
+        spikeData = loader.get_session_spikes(main2afcsession, tetrode)
+        for indClust, cluster in enumerate(possibleClusters):
+            spikeTimestamps = spikeData.timestamps[spikeData.clusters==cluster]
+
+            eventOnsetTimes=np.array(eventData.timestamps)  #already divided by SAMPLING_RATE and has seconds as its unit
+            #eventOnsetTimes = loader.get_event_onset_times(eventData) #These are already only the sound onset events
+            soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
+            soundOnsetTimes = eventOnsetTimes[soundOnsetEvents]
+            
+            freqEachTrial = bdata['targetFrequency']
+            possibleFreq = np.unique(freqEachTrial)
+            
+            rightward = bdata['choice']==bdata.labels['choice']['right']
+            leftward = bdata['choice']==bdata.labels['choice']['left']
+            invalid = bdata['outcome']==bdata.labels['outcome']['invalid']
+            correct = bdata['outcome']==bdata.labels['outcome']['correct'] 
+            incorrect = bdata['outcome']==bdata.labels['outcome']['error']  
+
+            ######Split left and right trials into correct and  incorrect categories to look at error trials#########
+            rightcorrect = rightward&correct
+            leftcorrect = leftward&correct
+            righterror = rightward&incorrect
+            lefterror = leftward&incorrect
+            
+            rightcorrectBlockMoreLeft = rightcorrect&trialsEachType[:,0] 
+            rightcorrectBlockMoreRight = rightcorrect&trialsEachType[:,1]
+            leftcorrectBlockMoreLeft = leftcorrect&trialsEachType[:,0]
+            leftcorrectBlockMoreRight = leftcorrect&trialsEachType[:,1]
+            
+            trialsEachCond = np.c_[leftcorrectBlockMoreLeft,rightcorrectBlockMoreLeft,leftcorrectBlockMoreRight,rightcorrectBlockMoreRight] 
+            
+            
+            colorEachCond = ['g','r','b','m']
+            #trialsEachCond = np.c_[invalid,leftcorrect,rightcorrect,lefterror,righterror] 
+            #colorEachCond = ['0.75','g','r','b','m'] 
+
+            (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
+    spikesanalysis.eventlocked_spiketimes(spikeTimestamps,soundOnsetTimes,timeRange)
+
+            plt.clf()
+            ###########Added more categories of trials to plot, using longer time range#################
+            ax1 =  plt.subplot2grid((3,1), (0, 0), rowspan=2)
+            extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEachCond=trialsEachCond,
+                       colorEachCond=colorEachCond,fillWidth=None,labels=None)
+            plt.ylabel('Trials')
+
+            #dataplotter.two_axis_sorted_raster(spikeTimestamps, soundOnsetTimes, secondSortArray=trialsEachCond, secondSortLabels=['invalid', 'leftward', 'rightward'], timeRange=timeRange) #this doesn't work because trialsEachCond is a boolean array of shape [nTrials,nConditions]
+            
+
+            timeVec = np.arange(timeRange[0],timeRange[-1],binWidth)
+
+            spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec)
+            smoothWinSize = 3
+            ax2 = plt.subplot2grid((3,1), (2, 0), sharex=ax1)
+            extraplots.plot_psth(spikeCountMat/binWidth,smoothWinSize,timeVec,trialsEachCond=trialsEachCond,
+                     colorEachCond=colorEachCond,linestyle=None,linewidth=3,downsamplefactor=1)
+
+            plt.xlabel('Time from sound onset (s)')
+            plt.ylabel('Firing rate (spk/sec)')
+
+            #plt.show()
+            fig_path = oneTT.clustersDir
+            fig_name = 'TT{0}Cluster{1}{2}.png'.format(tetrode, cluster, '_2afc plot_each_type')
+            full_fig_path = os.path.join(fig_path, fig_name)
+            print full_fig_path
+            #plt.tight_layout()
+            #plt.gcf().set_size_inches((8.5,11))
+            plt.savefig(full_fig_path, format = 'png')
+
+def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetrodes):
+    '''
+    Plots ephys data during behavior (reward_change_freq_discrim paradigm), data split according to the block in behavior and the choice (left or right). only plotting correct trials.
+    '''
+    
+    SAMPLING_RATE=30000.0
+    soundTriggerChannel = 0 # channel 0 is the sound presentation, 1 is the trial
+    binWidth = 0.010 # Size of each bin in histogram in seconds
+
+    #timeRange = [-0.2,0.8] # In seconds. Time range for rastor plot to plot spikes (around some event onset as 0)
+    timeRange = [-0.25,1.0]
+
+    loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
+
+    main2afcsession = site.get_mouse_relative_ephys_filenames()[main2afcind]
+        
+    main2afcbehavFilename = site.get_mouse_relative_behav_filenames()[main2afcind]
+        
+    #mainTCtype = site.get_session_types()[main2afcind]
+    behavDir = '/home/languo/data/behavior/lan/'  #this is specific to lan's mice
+    behavFullFilePath = os.path.join(behavDir, main2afcbehavFilename)
+    loadingClass = loadbehavior.FlexCategBehaviorData  #using this bdata class so we get 'blocks'
+    #bdata = loader.get_session_behavior(main2afcbehavFilename)
+    bdata = loadingClass(behavFullFilePath,readmode='full')
+    currentBlock = bdata['currentBlock']
+    blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
+
+    bdata.find_trials_each_block()
+    trialsEachBlock = bdata.blocks['trialsEachBlock']
+    #print trialsEachBlock
+    nBlocks = bdata.blocks['nBlocks']
+
+    #blockLabels = ['more_left', 'more_right']
+    rightward = bdata['choice']==bdata.labels['choice']['right']
+    leftward = bdata['choice']==bdata.labels['choice']['left']
+    invalid = bdata['outcome']==bdata.labels['outcome']['invalid']
+    correct = bdata['outcome']==bdata.labels['outcome']['correct'] 
+    incorrect = bdata['outcome']==bdata.labels['outcome']['error'] 
+######Split left and right trials into correct and  incorrect categories to look at error trials#########
+    rightcorrect = rightward&correct
+    leftcorrect = leftward&correct
+    #righterror = rightward&incorrect
+    #lefterror = leftward&incorrect
+    
+    for block in range(nBlocks):
+        rightcorrectThisBlock = rightcorrect&trialsEachBlock[:,block]
+        leftcorrectThisBlock = leftcorrect&trialsEachBlock[:,block]
+        #trialTypeVec = leftcorrect*1+rightcorrect*2
+        #trialTypePossibleValues = [1,2] #1 stands for left correct, 2 stands for right correct
+
+        #trialsEachTypeEachBlock = behavioranalysis.find_trials_each_type_each_block(trialTypeVec, trialTypePossibleValues,currentBlock,blockTypes)
+        
+        if block==0:
+            trialsEachCond=np.c_[leftcorrectThisBlock,rightcorrectThisBlock] 
+            #colorEachCond=['g','r']
+        else:
+            trialsEachCond=np.c_[trialsEachCond,leftcorrectThisBlock,rightcorrectThisBlock]
+            #colorEachCond+=['g','r']
+        colorEachCond=['g','r','b','m','g','r','b','m','g','r','b','m']
+
+    for tetrode in tetrodes:
+        oneTT = cluster_site(site, siteName, tetrode)
+        possibleClusters=np.unique(oneTT.clusters)
+
+        #Iterate through the clusters, making a new figure for each cluster.
+     
+        #plotTitle = loader.get_session_filename(main2afcsession)
+        eventData = loader.get_session_events(main2afcsession)
+        spikeData = loader.get_session_spikes(main2afcsession, tetrode)
+        for indClust, cluster in enumerate(possibleClusters):
+            spikeTimestamps = spikeData.timestamps[spikeData.clusters==cluster]
+
+            eventOnsetTimes=np.array(eventData.timestamps)  #already divided by SAMPLING_RATE and has seconds as its unit
+            #eventOnsetTimes = loader.get_event_onset_times(eventData) #These are already only the sound onset events
+            soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
+            soundOnsetTimes = eventOnsetTimes[soundOnsetEvents]
+            
+            freqEachTrial = bdata['targetFrequency']
+            possibleFreq = np.unique(freqEachTrial)
+            
+            (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
+    spikesanalysis.eventlocked_spiketimes(spikeTimestamps,soundOnsetTimes,timeRange)
+
+            plt.clf()
+            ###########Added more categories of trials to plot, using longer time range#################
+            ax1 =  plt.subplot2grid((3,1), (0, 0), rowspan=2)
+            extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEachCond=trialsEachCond,
+                       colorEachCond=colorEachCond,fillWidth=None,labels=None)
+            plt.ylabel('Trials')
+
+            #dataplotter.two_axis_sorted_raster(spikeTimestamps, soundOnsetTimes, secondSortArray=trialsEachCond, secondSortLabels=['invalid', 'leftward', 'rightward'], timeRange=timeRange) #this doesn't work because trialsEachCond is a boolean array of shape [nTrials,nConditions]
+            
+
+            timeVec = np.arange(timeRange[0],timeRange[-1],binWidth)
+
+            spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec)
+            smoothWinSize = 3
+            ax2 = plt.subplot2grid((3,1), (2, 0), sharex=ax1)
+            extraplots.plot_psth(spikeCountMat/binWidth,smoothWinSize,timeVec,trialsEachCond=trialsEachCond,
+                     colorEachCond=colorEachCond,linestyle=None,linewidth=3,downsamplefactor=1)
+
+            plt.xlabel('Time from sound onset (s)')
+            plt.ylabel('Firing rate (spk/sec)')
+
+            #plt.show()
+            fig_path = oneTT.clustersDir
+            fig_name = 'TT{0}Cluster{1}{2}.png'.format(tetrode, cluster, '_2afc plot_eachblock_eachtype')
+            full_fig_path = os.path.join(fig_path, fig_name)
+            print full_fig_path
+            #plt.tight_layout()
+            #plt.gcf().set_size_inches((8.5,11))
+            plt.savefig(full_fig_path, format = 'png')
 
 def lan_2afc_ephys_plots_debug(site, siteName, main2afcind, tetrodes):
     SAMPLING_RATE=30000.0
@@ -543,7 +766,7 @@ def lan_2afc_ephys_plots_debug(site, siteName, main2afcind, tetrodes):
         full_fig_path = os.path.join(fig_path, fig_name)
         print full_fig_path
         #plt.tight_layout()
-        #plt.gcf().set_size_inches((8.5,11))
-        #plt.savefig(full_fig_path, format = 'png')
+        plt.gcf().set_size_inches((8.5,11))
+        plt.savefig(full_fig_path, format = 'png')
         plt.show()
 
