@@ -6,20 +6,24 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from jaratoolbox import behavioranalysis
+#from jaratoolbox import behavioranalysis
+from jaratoolbox.test.lan import behavioranalysis_vlan as behavioranalysis
+reload(behavioranalysis)
 from jaratoolbox import extraplots
 from jaratoolbox import loadbehavior
-from jaratoolbox import settings
+from jaratoolbox import settings_2 as settings
+reload(settings)
 from jaratoolbox import colorpalette
 import matplotlib.lines as mlines
 
-EXPERIMENTER = 'santiago'
-#EXPERIMENTER = 'lan'
-settings.BEHAVIOR_PATH = '/home/languo/data/mnt/jarahubdata'
+#EXPERIMENTER = 'santiago'
+EXPERIMENTER = 'lan'
+#settings.BEHAVIOR_PATH = '/home/languo/data/mnt/jarahubdata'
 #settings.BEHAVIOR_PATH = '/var/tmp/data/'
 
-subjects = ['adap005', 'adap008']
+subjects = ['adap005','adap011']
 #subjects = ['test']
+#subjects = ['adap011']
 
 FREQCOLORS = [colorpalette.TangoPalette['Chameleon3'],
               colorpalette.TangoPalette['ScarletRed1'],

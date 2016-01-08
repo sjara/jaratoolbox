@@ -25,6 +25,7 @@ site1.add_session('11-49-36', 'a', sessionTypes['2afc'], paradigm='2afc')
 
 #sitefuncs.nick_lan_daily_report(site1, 'site1', mainRasterInds=[0], mainTCind=1, mainSTRind=3)
 #sitefuncs.lan_2afc_ephys_plots(site1, 'site1', main2afcind=4, tetrodes=[1,3,5,6,7,8]) 
-#sitefuncs.lan_2afc_ephys_plots_each_type(site1, 'site1', main2afcind=4, tetrodes=[1,3,5,6,7,8]) 
-sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=4, tetrodes=[2]) 
-
+sitefuncs.lan_2afc_ephys_plots_each_type(site1, 'site1', main2afcind=4, tetrodes=[2],trialLimit=[0,886]) 
+sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=4, tetrodes=[2],trialLimit=[0,886],choiceSide='both') #block1-4 (eliminate block5 due to few trials)
+sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=4, tetrodes=[2],trialLimit=[0,886],choiceSide='left')
+sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=4, tetrodes=[2],trialLimit=[0,886],choiceSide='right')

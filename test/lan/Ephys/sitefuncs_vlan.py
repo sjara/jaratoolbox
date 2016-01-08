@@ -466,7 +466,7 @@ def lan_2afc_ephys_plots(site, siteName, main2afcind, tetrodes):
 
 
 
-def lan_2afc_ephys_plots_each_type(site, siteName, main2afcind, tetrodes):
+def lan_2afc_ephys_plots_each_type(site, siteName, main2afcind, tetrodes, trialLimit=[]):
     '''
     Plots ephys data during behavior (reward_change_freq_discrim paradigm), data split according to the type of block in behavior (more_left or more_right) and the choice (left or right). only plotting correct trials.
     '''
@@ -498,6 +498,12 @@ def lan_2afc_ephys_plots_each_type(site, siteName, main2afcind, tetrodes):
         currentBlock = bdata['currentBlock']
         blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
         #blockLabels = ['more_left', 'more_right']
+        if(not len(trialLimit)):
+            validTrials = np.ones(len(currentBlock),dtype=bool)
+        else:
+            validTrials = np.zeros(len(currentBlock),dtype=bool)
+            validTrials[trialLimit[0]:trialLimit[1]] = 1
+
         trialsEachType = behavioranalysis.find_trials_each_type(currentBlock,blockTypes)
         
         #plotTitle = loader.get_session_filename(main2afcsession)
@@ -521,10 +527,10 @@ def lan_2afc_ephys_plots_each_type(site, siteName, main2afcind, tetrodes):
             incorrect = bdata['outcome']==bdata.labels['outcome']['error']  
 
             ######Split left and right trials into correct and  incorrect categories to look at error trials#########
-            rightcorrect = rightward&correct
-            leftcorrect = leftward&correct
-            righterror = rightward&incorrect
-            lefterror = leftward&incorrect
+            rightcorrect = rightward&correct&validTrials
+            leftcorrect = leftward&correct&validTrials
+            #righterror = rightward&incorrect&validTrials
+            #lefterror = leftward&incorrect&validTrials
             
             rightcorrectBlockMoreLeft = rightcorrect&trialsEachType[:,0] 
             rightcorrectBlockMoreRight = rightcorrect&trialsEachType[:,1]
@@ -534,7 +540,7 @@ def lan_2afc_ephys_plots_each_type(site, siteName, main2afcind, tetrodes):
             trialsEachCond = np.c_[leftcorrectBlockMoreLeft,rightcorrectBlockMoreLeft,leftcorrectBlockMoreRight,rightcorrectBlockMoreRight] 
             
             
-            colorEachCond = ['g','r','b','m']
+            colorEachCond = ['g','r','m','b']
             #trialsEachCond = np.c_[invalid,leftcorrect,rightcorrect,lefterror,righterror] 
             #colorEachCond = ['0.75','g','r','b','m'] 
 
@@ -571,9 +577,13 @@ def lan_2afc_ephys_plots_each_type(site, siteName, main2afcind, tetrodes):
             #plt.gcf().set_size_inches((8.5,11))
             plt.savefig(full_fig_path, format = 'png')
 
-def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetrodes):
+def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetrodes, trialLimit=[], choiceSide='both'):
     '''
     Plots ephys data during behavior (reward_change_freq_discrim paradigm), data split according to the block in behavior and the choice (left or right). only plotting correct trials.
+    'site' is a cellDB recording site object.
+    'main2afcind' is the index of the recording corresponding to 2afc behavior in the whole list of recordings in this site.
+    'trialLimit' (e.g. [0, 600]) is the indecies of trials wish to be plotted.
+    'choiceSide' is a string, either 'left' or 'right', to plot leftward and rightward trials, respectively. If not provided, will plot both sides.
     '''
     
     SAMPLING_RATE=30000.0
@@ -597,6 +607,11 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
     bdata = loadingClass(behavFullFilePath,readmode='full')
     currentBlock = bdata['currentBlock']
     blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
+    if(not len(trialLimit)):
+        validTrials = np.ones(len(currentBlock),dtype=bool)
+    else:
+        validTrials = np.zeros(len(currentBlock),dtype=bool)
+        validTrials[trialLimit[0]:trialLimit[1]] = 1
 
     bdata.find_trials_each_block()
     trialsEachBlock = bdata.blocks['trialsEachBlock']
@@ -610,10 +625,10 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
     correct = bdata['outcome']==bdata.labels['outcome']['correct'] 
     incorrect = bdata['outcome']==bdata.labels['outcome']['error'] 
 ######Split left and right trials into correct and  incorrect categories to look at error trials#########
-    rightcorrect = rightward&correct
-    leftcorrect = leftward&correct
-    #righterror = rightward&incorrect
-    #lefterror = leftward&incorrect
+    rightcorrect = rightward&correct&validTrials
+    leftcorrect = leftward&correct&validTrials
+    #righterror = rightward&incorrect&validTrials
+    #lefterror = leftward&incorrect&validTrials
     
     for block in range(nBlocks):
         rightcorrectThisBlock = rightcorrect&trialsEachBlock[:,block]
@@ -624,12 +639,29 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
         #trialsEachTypeEachBlock = behavioranalysis.find_trials_each_type_each_block(trialTypeVec, trialTypePossibleValues,currentBlock,blockTypes)
         
         if block==0:
-            trialsEachCond=np.c_[leftcorrectThisBlock,rightcorrectThisBlock] 
-            #colorEachCond=['g','r']
+            #trialsEachCond=np.c_[leftcorrectThisBlock,rightcorrectThisBlock] 
+            if choiceSide=='right':
+                trialsEachCond=np.c_[rightcorrectThisBlock]
+            elif choiceSide=='left':
+                trialsEachCond=np.c_[leftcorrectThisBlock]              
+            elif choiceSide=='both':
+                trialsEachCond=np.c_[leftcorrectThisBlock,rightcorrectThisBlock]
+
         else:
-            trialsEachCond=np.c_[trialsEachCond,leftcorrectThisBlock,rightcorrectThisBlock]
-            #colorEachCond+=['g','r']
-        colorEachCond=['g','r','b','m','g','r','b','m','g','r','b','m']
+            if choiceSide=='right':
+                trialsEachCond=np.c_[trialsEachCond,rightcorrectThisBlock]
+            elif choiceSide=='left':
+                trialsEachCond=np.c_[trialsEachCond,leftcorrectThisBlock]              
+            elif choiceSide=='both':
+                trialsEachCond=np.c_[trialsEachCond,leftcorrectThisBlock,rightcorrectThisBlock]
+
+        if choiceSide=='right':
+            colorEachCond=['r','b','r','b','r','b','r','b']
+        elif choiceSide=='left':
+            colorEachCond=['g','m','g','m','g','m','g','m']
+        elif choiceSide=='both':
+            colorEachCond=['g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b']
+        
 
     for tetrode in tetrodes:
         oneTT = cluster_site(site, siteName, tetrode)
@@ -657,8 +689,9 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
             plt.clf()
             ###########Added more categories of trials to plot, using longer time range#################
             ax1 =  plt.subplot2grid((3,1), (0, 0), rowspan=2)
-            extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEachCond=trialsEachCond,
+            pRaster,hcond,zline =extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEachCond=trialsEachCond,
                        colorEachCond=colorEachCond,fillWidth=None,labels=None)
+            plt.setp(pRaster, ms=0.8)
             plt.ylabel('Trials')
 
             #dataplotter.two_axis_sorted_raster(spikeTimestamps, soundOnsetTimes, secondSortArray=trialsEachCond, secondSortLabels=['invalid', 'leftward', 'rightward'], timeRange=timeRange) #this doesn't work because trialsEachCond is a boolean array of shape [nTrials,nConditions]
@@ -670,14 +703,14 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
             smoothWinSize = 3
             ax2 = plt.subplot2grid((3,1), (2, 0), sharex=ax1)
             extraplots.plot_psth(spikeCountMat/binWidth,smoothWinSize,timeVec,trialsEachCond=trialsEachCond,
-                     colorEachCond=colorEachCond,linestyle=None,linewidth=3,downsamplefactor=1)
+                     colorEachCond=colorEachCond,linestyle=None,linewidth=1.5,downsamplefactor=1)
 
             plt.xlabel('Time from sound onset (s)')
             plt.ylabel('Firing rate (spk/sec)')
 
             #plt.show()
             fig_path = oneTT.clustersDir
-            fig_name = 'TT{0}Cluster{1}{2}.png'.format(tetrode, cluster, '_2afc plot_eachblock_eachtype')
+            fig_name = 'TT{0}Cluster{1}{2}{3}.png'.format(tetrode, cluster, '_2afc plot_eachblock_eachtype_',choiceSide)
             full_fig_path = os.path.join(fig_path, fig_name)
             print full_fig_path
             #plt.tight_layout()

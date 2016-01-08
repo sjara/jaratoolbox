@@ -45,6 +45,7 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
         
         #self.featureNames = ['peak','valley','energy']  
         self.featureNames = ['peak','valleyFirstHalf']  #new features used for clustering
+        #self.featureNames = ['peak','energy']
         self.nFeatures = len(self.featureNames)
         self.featureValues = None
 
