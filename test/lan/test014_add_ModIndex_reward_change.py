@@ -39,7 +39,8 @@ timeRange = [-0.2,0.8] # In seconds. Time range for rastor plot to plot spikes (
 subject = allcells.cellDB[0].animalName
 ephysRootDir = settings.EPHYS_PATH
 outputDir = '/home/languo/data/ephys/'+mouseName
-nameOfFile = 'modIndex_'+mouseName
+nameOfmodIFile = 'modIndex_'+mouseName
+nameOfmodSFile = 'modSig_'+mouseName
 finalOutputDir = outputDir+'/'+subject+'_stats'
 
 experimenter = 'lan'
@@ -51,7 +52,7 @@ behavSession = ''
 #processedDir = os.path.join(settings.EPHYS_PATH,subject+'_processed')
 
 ###############FOR USING MODIDICT WITH ALL FREQS############################################
-class nestedDict(dict):#This is to create maxZDict
+class nestedDict(dict):
     def __getitem__(self, item):
         try:
             return super(nestedDict, self).__getitem__(item)
@@ -63,7 +64,7 @@ class nestedDict(dict):#This is to create maxZDict
 
 modIList = []#List of behavior sessions that already have modI values calculated
 try:
-    modI_file = open("%s/%s.txt" % (finalOutputDir,nameOfFile), 'r+') #open a text file to read and write in
+    modI_file = open("%s/%s.txt" % (finalOutputDir,nameOfmodIFile), 'r+') #open a text file to read and write in
     behavName = ''
     for line in modI_file:
         behavLine = line.split(':')
@@ -72,7 +73,15 @@ try:
             modIList.append(behavName)
     
 except:
-    modI_file = open("%s/%s.txt" % (finalOutputDir,nameOfFile), 'w') #when file dosenot exit then create it, but will truncate the existing file
+    modI_file = open("%s/%s.txt" % (finalOutputDir,nameOfmodIFile), 'w') #when file dosenot exit then create it, but will truncate the existing file
+
+
+#No need to initialize modIList again since all behav sessions in modI file should be the same as the ones in modSig file.
+try:
+    modSig_file = open("%s/%s.txt" % (finalOutputDir,nameOfmodSFile), 'r+') #open a text file to read and write in
+   
+except:
+    modSig_file = open("%s/%s.txt" % (finalOutputDir,nameOfmodSFile), 'w') #when file dosenot exit then create it, but will truncate the existing file
 
 
 badSessionList = [] #Makes sure sessions that crash don't get modI values printed
@@ -191,23 +200,23 @@ for bSession in modIDict:
 
 bSessionList.sort()
 for bSession in bSessionList:
-    modI_file.write("Behavior Session:%s\n" % bSession)
-
+    modI_file.write("Behavior Session:%s" % bSession)
     for freq in modIDict[bSession]:
-        modI_file.write("modIndex at %s:" % str(freq))
+        modI_file.write("\n%s " % freq)
         for modInd in modIDict[bSession][freq]:
             modI_file.write("%s," % modInd)
-            modI_file.write("\n")
-        modI_file.write("modSig at %s:" % str(freq))
+    modI_file.write("\n")
+    modSig_file.write("Behavior Session:%s" % bSession)
+    for freq in modSigDict[bSession]:
+        modSig_file.write("\n%s " % freq) 
         for modSig in modSigDict[bSession][freq]:
-            modI_file.write("%s," % modSig)
-            modI_file.write("\n")
-        modI_file.write("\n")
+            modSig_file.write("%s," % modSig)
+    modSig_file.write("\n")
 
-#Important for data read out: the format of this modI file is one line for behav session starting with 'Behavior Session:'; one line for modInd starting with 'modIndex at 6200:', modIndex for each cell separated by ','; followed by a line for modSig for the same frequency starting with 'modSig at 6200:', modSig for each cell separated by ','
+#Important for data read out: the format of the modI and modSig files are very similar to maxZ files. one line for behav session starting with 'Behavior Session:'; one line for modInd/modSig starting with the frequency followed by space, then modIndex/modSig for each cell separated by ','
 
 modI_file.close()
-
+modSig_file.close()
 #########################################################################################
 
 print 'error with sessions: '
