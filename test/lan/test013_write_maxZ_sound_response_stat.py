@@ -12,6 +12,7 @@ import numpy as np
 from jaratoolbox import loadopenephys
 from jaratoolbox import spikesanalysis
 from jaratoolbox import extraplots
+from jaratoolbox import celldatabase as cellDB
 import matplotlib.pyplot as plt
 import sys
 import importlib
@@ -26,6 +27,7 @@ SAMPLING_RATE=30000.0
 
 outputDir = '/home/languo/data/ephys/'+mouseName
 nameOfFile = 'maxZVal_'+mouseName
+finalOutputDir = outputDir+'/'+subject+'_stats'
 soundTriggerChannel = 0 # channel 0 is the sound presentation, 1 is the trial
 binWidth = 0.010 # Size of each bin in histogram in seconds
 
@@ -38,6 +40,8 @@ ephysRootDir = settings.EPHYS_PATH
 
 experimenter = 'lan'
 paradigm = '2afc'
+
+Zthreshold = 3
 
 numOfCells = len(allcells.cellDB) #number of cells that were clustered on all sessions clustered
 subject = allcells.cellDB[0].animalName
@@ -53,10 +57,6 @@ responseTime = responseTimeRange[1]-responseTimeRange[0]
 binEdges = np.arange(0,5)*binTime  # Edges of bins to calculate response (in seconds)
 ################################################################################################
 
-
-finalOutputDir = outputDir+'/'+subject+'_stats'
-
-
 class nestedDict(dict):#This is to create maxZDict
     def __getitem__(self, item):
         try:
@@ -67,6 +67,7 @@ class nestedDict(dict):#This is to create maxZDict
 
 
 maxZDict = nestedDict()
+#ZscoreArray = np.array([])
 maxZList = [] #List of behavior sessions that already have maxZ values calculated
 
 try:
@@ -144,9 +145,16 @@ for cellID in range(0,numOfCells):
 
 
             [zStat,pValue,maxZ] = spikesanalysis.response_score(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEdges) #computes z score for each bin. zStat is array of z scores. maxZ is maximum value of z in timeRange
+           
             clusterNumber = (tetrode-1)*clusNum+(cluster-1)
             #maxZArray[clusterNumber].append(maxZ)
             maxZDict[behavSession][Freq][clusterNumber] = maxZ
+            #if abs(maxZ)=<Zthreshold & onecell.soundResponsive!=True:
+                #oneCell.soundResponsive=False
+            #elif abs(maxZ)>Zthreshold:
+                #oneCell.soundResponsive=True
+
+            #ZscoreArray[:,Frequency,cellID] = zStat
     except:
         #print "error with session "+oneCell.behavSession
         if (oneCell.behavSession not in badSessionList):
