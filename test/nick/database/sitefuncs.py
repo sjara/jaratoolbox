@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-def cluster_site(site, siteName, tetrode, report=True): 
+def cluster_site(site, siteName, tetrode, report=True):
     oneTT = cms2.MultipleSessionsToCluster(site.animalName, site.get_session_ephys_filenames(), tetrode, '{}_{}'.format(site.date, siteName))
     oneTT.load_all_waveforms()
 
@@ -37,12 +37,81 @@ def cluster_site(site, siteName, tetrode, report=True):
     return oneTT #This is a little bit lazy, it should really spit out some attributes not the whole object
 
 
+def calculate_site_ISI_violations(site, siteName):
+
+    siteClusterISIViolations = {}
+
+        
+    for tetrode in site.tetrodes:
+        oneTT = cluster_site(site, siteName, tetrode, report=False)
+        possibleClusters=np.unique(oneTT.clusters)
+
+        for indClust, cluster in enumerate(possibleClusters):
+
+            tsThisCluster = oneTT.timestamps[oneTT.clusters==cluster]
+            tetClustName = '{0}T{1}c{2}'.format(siteName, tetrode, cluster)
+            isiThisCluster = calculate_isi_violations(tsThisCluster)
+            siteClusterISIViolations[tetClustName] = isiThisCluster
+
+    return siteClusterISIViolations
+
+
+def calculate_site_response(site, siteName, sessionInd):
+    
+    from jaratoolbox import spikesanalysis
+
+    #Zscore settings from billy
+
+    baseRange = [-0.050,-0.025]              # Baseline range (in seconds)
+    binTime = baseRange[1]-baseRange[0]         # Time-bin size
+    responseTimeRange = [-0.5,1]       #Time range to calculate z value for (should be divisible by binTime
+    responseTime = responseTimeRange[1]-responseTimeRange[0]
+    numBins = responseTime/binTime
+    binEdges = np.arange(responseTimeRange[0], responseTimeRange[1], binTime)
+    timeRange = [-0.5, 1]
+
+    loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
+
+    sessionEphys = site.get_mouse_relative_ephys_filenames()[sessionInd]
+
+    siteClusterMaxZ = {}
+    siteClusterPval = {}
+    siteClusterZstat = {}
+
+    for tetrode in site.tetrodes:
+        oneTT = cluster_site(site, siteName, tetrode, report=False)
+        possibleClusters=np.unique(oneTT.clusters)
+
+
+        for indClust, cluster in enumerate(possibleClusters):
+
+            rasterSpikes = loader.get_session_spikes(sessionEphys, tetrode)
+            spikeTimes = rasterSpikes.timestamps[rasterSpikes.clusters==cluster]
+            rasterEvents = loader.get_session_events(sessionEphys)
+            eventOnsetTimes = loader.get_event_onset_times(rasterEvents)
+
+
+            (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
+            spikesanalysis.eventlocked_spiketimes(spikeTimes,eventOnsetTimes,timeRange)
+
+
+            [zStat,pValue,maxZ] = spikesanalysis.response_score(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEdges) #computes z score for each bin. zStat is array of z scores. maxZ is maximum value of z in timeRange
+            
+            tetClustName = '{0}T{1}c{2}'.format(siteName, tetrode, cluster)
+            siteClusterMaxZ[tetClustName] = maxZ
+            siteClusterPval[tetClustName] = pValue
+            siteClusterZstat[tetClustName] = zStat
+
+
+    return siteClusterZstat, siteClusterPval, siteClusterMaxZ
+
 def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
     '''
 
     '''
 
     loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
+
 
     for tetrode in site.tetrodes:
         oneTT = cluster_site(site, siteName, tetrode)
@@ -146,6 +215,8 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
 
             tsThisCluster = oneTT.timestamps[oneTT.clusters==cluster]
             wavesThisCluster = oneTT.samples[oneTT.clusters==cluster]
+
+            
             # -- Plot ISI histogram --
             plt.subplot2grid((6,6), (4,0), rowspan=1, colspan=3)
             spikesorting.plot_isi_loghist(tsThisCluster)
@@ -174,6 +245,27 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
             #plt.show()
             # plt.close()
 
+
+def calculate_isi_violations(timeStamps,nBins=350):
+    '''
+    Returns the proportion of ISIs less than 2msec 
+    '''
+
+    ISI = np.diff(timeStamps)
+    if np.any(ISI<0):
+        raise 'Times of events are not ordered (or there is at least one repeated).'
+    if len(ISI)==0:  # Hack in case there is only one spike
+        ISI = np.array(10)
+    logISI = np.log10(ISI)
+    [ISIhistogram,ISIbinsLog] = np.histogram(logISI,bins=nBins)
+    ISIbins = 1000*(10**ISIbinsLog[:-1]) # Conversion to msec
+    # fractionViolation = np.mean(ISI<1e-3) # We are not using this one
+    fractionViolation2 = np.mean(ISI<2e-3) # Assumes ISI in usec
+
+    return fractionViolation2
+
+
+
 def am_mod_report(site, siteName, amSessionInd):
     '''
 
@@ -197,7 +289,7 @@ def am_mod_report(site, siteName, amSessionInd):
 
             eventData = loader.get_session_events(amFilename)
             eventOnsetTimes = loader.get_event_onset_times(eventData)
-            
+
             bdata = loader.get_session_behavior(amBehav)
 
             currentFreq = bdata['currentFreq']
@@ -208,3 +300,6 @@ def am_mod_report(site, siteName, amSessionInd):
             full_fig_path = os.path.join(fig_path, fig_name)
             print full_fig_path
             plt.savefig(full_fig_path, format = 'png')
+
+
+
