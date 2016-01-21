@@ -27,8 +27,7 @@ def cluster_site(site, siteName, tetrode, report=True):
         oneTT.create_multisession_fet_files()
         oneTT.run_clustering()
         oneTT.set_clusters_from_file()
-
-    oneTT.save_single_session_clu_files()
+        oneTT.save_single_session_clu_files()
 
     if report:
         plt.clf()
@@ -56,7 +55,7 @@ def calculate_site_ISI_violations(site, siteName):
     return siteClusterISIViolations
 
 
-def calculate_site_response(site, siteName, sessionInd):
+def calculate_site_response(site, siteName, sessionInd, maxZonly=False):
     
     from jaratoolbox import spikesanalysis
 
@@ -103,8 +102,26 @@ def calculate_site_response(site, siteName, sessionInd):
             siteClusterZstat[tetClustName] = zStat
 
 
-    return siteClusterZstat, siteClusterPval, siteClusterMaxZ
+    if maxZonly:
+        return siteClusterMaxZ
+    else:
+      return siteClusterZstat, siteClusterPval, siteClusterMaxZ
 
+
+def find_good_clusters(site, siteName, soundInd, laserInd, maxISI=0.02, minSoundZ=2, minLaserZ=2):
+
+
+    isi = calculate_site_ISI_violations(site,siteName)
+    soundMaxZ = calculate_site_response(site,siteName, sessionInd = soundInd, maxZonly=True)
+    laserMaxZ = calculate_site_response(site,siteName, sessionInd = laserInd, maxZonly=True)
+
+    goodISI = [cell for cell, val in isi.iteritems() if val<maxISI]
+    soundResponsive = [cell for cell, val in soundMaxZ.iteritems() if val>minSoundZ]
+    laserResponsive = [cell for cell, val in laserMaxZ.iteritems() if val>minLaserZ]
+    
+    return list(set(goodISI) & set(soundResponsive) & set(laserResponsive))
+
+      
 def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
     '''
 
