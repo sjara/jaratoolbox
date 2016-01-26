@@ -5,12 +5,14 @@ Here the persistent firing rate criterion is only based on looking at the ephy s
 
 from jaratoolbox import celldatabase
 reload(celldatabase)
+import numpy as np
+
 eSession = celldatabase.EphysSessionInfo  # Shorter name to simplify code
 
 
 cellDB = celldatabase.CellDatabase()
 
-
+'''
 oneES = eSession(animalName='adap005',
                  ephysSession = '2015-12-14_16-23-21',
                  clustersEachTetrode = {1:[4,8],3:[4,6,10,11,12]},
@@ -19,24 +21,27 @@ cellDB.append_session(oneES)
 
 #clusterQuality = {1:[3,4,2,1,2,4,2,1,3,2,2,2],2:[0,0,0,0,0,0,0,0,0,0,0,0],3:[3,4,2,1,3,1,2,2,2,1,1,1],4:[0,0,0,0,0,0,0,0,0,0,0,0],5:[0,0,0,0,0,0,0,0,0,0,0,0],6:[0,0,0,0,0,0,0,0,0,0,0,0],7:[3,4,4,4,4,4,2,4,3,4,4,4],8:[0,0,0,0,0,0,0,0,0,0,0,0]}
 
+
 oneES = eSession(animalName='adap005',
                  ephysSession = '2015-12-15_14-02-08',
-                 clustersEachTetrode = {1: array([2, 4]), 2: array([], dtype=int64), 3: array([], dtype=int64), 4: array([], dtype=int64), 5: array([2, 4, 6, 7, 8]), 6: array([ 2,  3,  4,  6,  8,  9, 10, 12]), 7: array([ 4, 10, 11]), 8: array([ 3,  6,  7, 10])},
+                 clustersEachTetrode = {1: np.array([2, 4]), 2: [], 3: [], 4: [], 5: np.array([2, 4, 6, 7, 8]), 6: np.array([ 2,  3,  4,  6,  8,  9, 10, 12]), 7: np.array([ 4, 10, 11]), 8: np.array([ 3,  6,  7, 10])},
                  behavSession = '20151215a')
 cellDB.append_session(oneES)
 #clusterQuality = {1:[3,1,2,1,3,2,2,2,3,2,3,4],2:[3,2,2,2,2,2,3,4,4,2,2,4],3:[3,2,2,2,2,2,2,2,3,2,2,4],4:[2,0,0,0,0,0,0,0,0,0,0,0],5:[3,1,2,1,2,1,1/4,1/4,2,2,4,3],6:[3,1,1,1,4,1,2,1,1,1,3,1],7:[3,2,2,1,3,3,4,2,2,1,1,4],8:[3,4,1,4,4,1,1,4,2,1,2,0]},
+'''
 
 oneES = eSession(animalName='adap005',
                  ephysSession = '2015-12-16_16-15-56',
-                 clustersEachTetrode = {1: array([10, 12]), 2: array([], dtype=int64), 3: array([ 2,  5, 11]), 4: array([1]), 5: array([ 5,  7,  9, 11]), 6: array([ 4, 11]), 7: array([12]), 8: array([ 2,  3,  4,  5,  6,  7,  8,  9, 10])},
+                 clustersEachTetrode = {1: np.array([10, 12]), 2: [], 3: np.array([ 2,  5, 11]), 4: np.array([1]), 5: np.array([ 5,  7,  9, 11]), 6: np.array([ 4, 11]), 7: np.array([12]), 8: np.array([ 2,  3,  4,  5,  6,  7,  8,  9, 10])},
                  behavSession = '20151216a')
 cellDB.append_session(oneES)
 #clusterQuality = {1:[3,2,2,2,4,2,3,2,2,1,3,1],2:[3,2,2,2,4,2,2,2,2,3,3,2],3:[3,1,2,2,1,2,2,2,3,2,1,0],4:[1,0,0,0,0,0,0,0,0,0,0,0],5:[3,2,7,2,1,7,1,3,1,2,1,7],6:[3,4,2,1,3,2,4,3,2,2,1,4],7:[3,3,4,2,1/4,2,3,3,2,4,2,1],8:[3,1,1,1,1,1,1,1,1,1,2,4]},
 
 
+
 oneES = eSession(animalName='adap005',
                  ephysSession = '2015-12-17_15-19-45',
-                 clustersEachTetrode = {1: array([5, 6]), 2: array([], dtype=int64), 3: array([4, 8, 9]), 4: array([ 3,  4,  6, 10, 11]), 5: array([ 3,  6,  7,  8,  9, 11, 12]), 6: array([6]), 7: array([ 3,  4,  5, 12]), 8: array([ 2,  4,  6,  7,  8,  9, 10])},
+                 clustersEachTetrode = {1: np.array([5, 6]), 2: [], 3: np.array([4, 8, 9]), 4: np.array([ 3,  4,  6, 10, 11]), 5: np.array([ 3,  6,  7,  8,  9, 11, 12]), 6: np.array([6]), 7: np.array([ 3,  4,  5, 12]), 8: np.array([ 2,  4,  6,  7,  8,  9, 10])},
                  behavSession = '20151217a')
 cellDB.append_session(oneES)
 #clusterQuality = {1:[3,2,2,4,1,1,2,2,4,4,2,2],2:[3,0,0,0,0,0,0,0,0,0,0,0],3:[3,2,3,1,2,4,4,1,1,2,2,3],4:[3,4,1,1,2,1,2,3,2,1,1,4],5:[3,7,1,7,7,1,1,1,1,2,1,1],6:[3,4,2,2,3,1,2,4,2,2,4],7:[3,2,1,1,1,2,3,4,3,4,4,1],8:[3,1,2,1,4,1,1,1,1,1,4,0]},
@@ -76,7 +81,7 @@ cellDB.append_session(oneES)
 
 oneES = eSession(animalName='adap005',
                  ephysSession = '2015-12-23_14-41-00',
-                 clustersEachTetrode = {1:[3,4,5,7,8,12],3:[2,3,4,5,7,8,9,11,12],4:[3,4,7,8,9,10],5:[3,4,6,7,8,9,10,11],6:[7],7[2,3,4,5,11],8:[2,4,5,8,9,10,11]},
+                 clustersEachTetrode = {1:[3,4,5,7,8,12],3:[2,3,4,5,7,8,9,11,12],4:[3,4,7,8,9,10],5:[3,4,6,7,8,9,10,11],6:[7],7:[2,3,4,5,11],8:[2,4,5,8,9,10,11]},
                  behavSession = '20151223a')
 cellDB.append_session(oneES)
 #clusterQuality = {1:[3,2,1,1,1,4,1,1,2,2,4,1/4],2:[3,0,0,0,0,0,0,0,0,0,0,0],3:[3,1,1,1,1,3,1,1,1,6,1,1],4:[3,2,1,1,3,6,1,1,1,1,2,4],5:[3,6,1,1,6,1,1,1,1,1,1,0],6:[3,4,4,3,3,4,1,4,4,4,2,0],7:[3,1,1/4,1,1,4,4,2,3,3,1/4,6],8:[3,1,4,1,1,6,3,1,1,1,1,4]},
@@ -100,7 +105,7 @@ cellDB.append_session(oneES)
 
 oneES = eSession(animalName='adap005',
                  ephysSession = '2016-01-09_14-21-47',
-                 clustersEachTetrode ={1: array([ 2,  4,  5,  6,  7,  8, 12]), 2: array([], dtype=int64), 3: array([ 2,  3,  5,  8,  9, 10, 12]), 4: array([ 2,  3,  4,  5,  6,  8,  9, 10, 11, 12]), 5: array([ 2,  3,  4,  5,  6,  7,  8,  9, 10, 11]), 6: array([ 4,  5, 12]), 7: array([11]), 8: array([ 2,  4,  5,  7,  8,  9, 10, 11])},
+                 clustersEachTetrode ={1: np.array([ 2,  4,  5,  6,  7,  8, 12]), 2: [], 3: np.array([ 2,  3,  5,  8,  9, 10, 12]), 4: np.array([ 2,  3,  4,  5,  6,  8,  9, 10, 11, 12]), 5: np.array([ 2,  3,  4,  5,  6,  7,  8,  9, 10, 11]), 6: np.array([ 4,  5, 12]), 7: np.array([11]), 8: np.array([ 2,  4,  5,  7,  8,  9, 10, 11])},
                  behavSession = '20160109a')
 cellDB.append_session(oneES)
 #clusterQuality = {1:[3,1,4,1,1,1,1,1,2,4,2,1],2:[4,0,0,0,0,0,0,0,0,0,0,0],3:[3,1,1,4,1,2,4,1,1,1,2,1],4:[3,1,1,1,1,1,2,1,1,1,1,1],5:[3,1,1,1,1,1,1,1,1,1,1,0],6:[3,4,4,1,1,4,4,4,3,3,2,1],7:[3,4,3,4,2,4,4,2,4,2,1,2],8:[3,1,4,1,1,4,1,1,1,1,1,4]}
@@ -108,7 +113,9 @@ cellDB.append_session(oneES)
 
 oneES = eSession(animalName='adap005',
                  ephysSession = '2016-01-10_15-55-57',
-                 clustersEachTetrode ={1: array([2, 9]), 2: array([], dtype=int64), 3: array([2, 3, 4, 5, 6, 7, 8]), 4: array([ 6, 10, 11]), 5: array([ 2,  3,  5,  6,  7,  8,  9, 10, 11, 12]), 6: array([11]), 7: array([4]), 8: array([ 4,  7,  8,  9, 10, 11])},
+                 clustersEachTetrode ={1: np.array([2, 9]), 2: [], 3: np.array([2, 3, 4, 5, 6, 7, 8]), 4: np.array([ 6, 10, 11]), 5: np.array([ 2,  3,  5,  6,  7,  8,  9, 10, 11, 12]), 6: np.array([11]), 7: np.array([4]), 8: np.array([ 4,  7,  8,  9, 10, 11])},
                  behavSession = '20160110a')
 cellDB.append_session(oneES)
 #clusterQuality={1:[3,1,2,2,4,3,2,4,1,4,2],2:[4,0,0,0,0,0,0,0,0,0,0,0],3:[3,1,1,1,1,1,1,1,4,2,4,3],4:[3,2,4,2,4,1,4,4,2,1,1,4],5:[3,1,1,3,1,1,1,1,1,1,1,1],6:[3,4,4,4,4,4,4,3,4,4,1,0],7:[3,3,3,1,3,3,2,3,2,4,4,3],8:[3,3,4,1,4,4,1,1,1,1,1,4]}
+
+

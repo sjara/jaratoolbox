@@ -28,8 +28,8 @@ SAMPLING_RATE=30000.0
 soundTriggerChannel = 0 # channel 0 is the sound presentation, 1 is the trial
 binWidth = 0.020 # Size of each bin in histogram in seconds
 #Frequency = 1 #This chooses which frequency to look at, numbered out of possible frequencies starting with the lowest frequency as number 0
-countTimeRange = [0,0.1] #time range in which to count spikes for modulation index and modulation significance tests
-#countTimeRange = [0,0.4] #longer time window than sound response
+#countTimeRange = [0,0.1] #time range in which to count spikes for modulation index and modulation significance tests
+countTimeRange = [0,0.4] #longer time window than sound response
 stimulusRange = [0.0,0.1] # The time range that the stimulus is being played, used in statistic test for modulation significance
 
 clusNum = 12 #Number of clusters that Klustakwik speparated into
@@ -40,10 +40,10 @@ timeRange = [-0.2,0.8] # In seconds. Time range for rastor plot to plot spikes (
 subject = allcells.cellDB[0].animalName
 ephysRootDir = settings.EPHYS_PATH
 outputDir = '/home/languo/data/ephys/'+mouseName
-nameOfmodIFile = 'modIndex_'+mouseName
-#nameOfmodIFile = 'modIndex_longWindow_'+mouseName
-nameOfmodSFile = 'modSig_'+mouseName
-#nameOfmodSFile = 'modSig_longWindow_'+mouseName
+#nameOfmodIFile = 'modIndex_'+mouseName
+nameOfmodIFile = 'modIndex_longWindow_'+mouseName
+#nameOfmodSFile = 'modSig_'+mouseName
+nameOfmodSFile = 'modSig_longWindow_'+mouseName
 finalOutputDir = outputDir+'/'+subject+'_stats'
 
 experimenter = 'lan'

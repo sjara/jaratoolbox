@@ -12,12 +12,12 @@ from jaratoolbox import loadbehavior
 from jaratoolbox import settings
 from jaratoolbox import colorpalette
 
-EXPERIMENTER = 'santiago'
-#EXPERIMENTER = 'lan'
-settings.BEHAVIOR_PATH = '/home/languo/data/mnt/jarahubdata'
+#EXPERIMENTER = 'santiago'
+EXPERIMENTER = 'lan'
+#settings.BEHAVIOR_PATH = '/home/languo/data/mnt/jarahubdata'
 #settings.BEHAVIOR_PATH = '/var/tmp/data/'
 
-subjects = ['adap005', 'adap008']
+subjects = ['adap011']
 #subjects = ['test']
 
 FREQCOLORS = [colorpalette.TangoPalette['Chameleon3'],
@@ -53,27 +53,28 @@ for inda, thisAnimal in enumerate(subjects):
     allPline = []
     legendLabels = []
     for blockType in range(nBlocks):
-        targetFrequencyThisBlock = targetFrequency[trialsEachType[:,blockType]]    
-        validThisBlock = valid[trialsEachType[:,blockType]]
-        choiceRightThisBlock = choiceRight[trialsEachType[:,blockType]]
-        #currentBlockValue = currentBlock[trialsEachBlock[0,block]]
-        (possibleValues,fractionHitsEachValue,ciHitsEachValue,nTrialsEachValue,nHitsEachValue)=\
-                                                                                                behavioranalysis.calculate_psychometric(choiceRightThisBlock,targetFrequencyThisBlock,validThisBlock)
-        (pline, pcaps, pbars, pdots) = extraplots.plot_psychometric(1e-3*possibleValues,fractionHitsEachValue,
-                                                            ciHitsEachValue,xTickPeriod=1)
+        if np.any(trialsEachType[:,blockType]):
+            targetFrequencyThisBlock = targetFrequency[trialsEachType[:,blockType]]    
+            validThisBlock = valid[trialsEachType[:,blockType]]
+            choiceRightThisBlock = choiceRight[trialsEachType[:,blockType]]
+            #currentBlockValue = currentBlock[trialsEachBlock[0,block]]
+            (possibleValues,fractionHitsEachValue,ciHitsEachValue,nTrialsEachValue,nHitsEachValue)=\
+                                                                                                    behavioranalysis.calculate_psychometric(choiceRightThisBlock,targetFrequencyThisBlock,validThisBlock)
+            (pline, pcaps, pbars, pdots) = extraplots.plot_psychometric(1e-3*possibleValues,fractionHitsEachValue,
+                                                                ciHitsEachValue,xTickPeriod=1)
 
-        plt.setp((pline, pcaps, pbars), color=FREQCOLORS[blockType])
-        plt.setp(pdots, mfc=FREQCOLORS[blockType], mec=FREQCOLORS[blockType])
-        allPline.append(pline)
+            plt.setp((pline, pcaps, pbars), color=FREQCOLORS[blockType])
+            plt.setp(pdots, mfc=FREQCOLORS[blockType], mec=FREQCOLORS[blockType])
+            allPline.append(pline)
      
-        if blockType == nBlocks-1: 
-            plt.xlabel('Frequency (kHz)',fontsize=fontsize)
-            plt.ylabel('Rightward trials (%)',fontsize=fontsize)
-            extraplots.set_ticks_fontsize(plt.gca(),fontsize)
-            legend = plt.legend(allPline,blockLabels,loc=2)
-            # Add the legend manually to the current Axes.
-            ax = plt.gca().add_artist(legend)
-            #plt.hold(True)
+            if blockType == nBlocks-1: 
+                plt.xlabel('Frequency (kHz)',fontsize=fontsize)
+                plt.ylabel('Rightward trials (%)',fontsize=fontsize)
+                extraplots.set_ticks_fontsize(plt.gca(),fontsize)
+                legend = plt.legend(allPline,blockLabels,loc=2)
+                # Add the legend manually to the current Axes.
+                ax = plt.gca().add_artist(legend)
+                #plt.hold(True)
         #plt.legend(bbox_to_anchor=(1, 1), bbox_transform=plt.gcf().transFigure)
         plt.show()
     plt.title('%s_%sto%s'%(thisAnimal,sessions[0],sessions[-1]))   

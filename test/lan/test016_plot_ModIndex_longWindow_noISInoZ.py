@@ -1,6 +1,6 @@
 '''
-Modified from Billy's file. Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (either all_cells file only contain good quality cells or has 'oneCell.quality' indicating whether it's a good cell). Generates responsiveCellDB (Z score >=3) and modulatedCellDB (mod sig <= 0.05) without considering ISI violations.
--Lan Guo 20160114
+Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (all_cells file only contain good quality cells), not considering whether sound responsive or not since using modulation calculations from a longer time winder [0,400ms]. Generates modulatedCellDB (without considering ISI)
+-Lan Guo 20150115
 '''
 
 from jaratoolbox import loadbehavior
@@ -32,13 +32,13 @@ clusNum = 12 #Number of clusters that Klustakwik speparated into
 numTetrodes = 8 #Number of tetrodes
 
 CellInfo = celldatabase.CellInfo  #This is for creating subdatabase for responsive and modulated cells
-responsiveCellDB = celldatabase.CellDatabase()
+allCellDB = celldatabase.CellDatabase()
 modulatedCellDB = celldatabase.CellDatabase()
 
 ################################################################################################
 ##############################-----Minimum Requirements------###################################
 ################################################################################################
-#qualityList = [1,6]#[1,4,5,6,7]#range(1,10)
+qualityList = [1,6] #[1,4,5,6,7]#range(1,10)
 minZVal = 3.0
 #maxISIviolation = 0.02
 minPValue = 0.05
@@ -48,10 +48,10 @@ minPValue = 0.05
 subject = allcells.cellDB[0].animalName
 behavSession = ''
 processedDir = os.path.join(outputDir,subject+'_stats')
-maxZFilename = os.path.join(processedDir,'maxZVal_'+subject+'.txt')
+#maxZFilename = os.path.join(processedDir,'maxZVal_'+subject+'.txt')
 #ISIFilename = os.path.join(processedDir,'ISI_Violations_'+subject+'.txt')
-modIFilename = os.path.join(processedDir,'modIndex_'+subject+'.txt')
-modSFilename = os.path.join(processedDir,'modSig_'+subject+'.txt')
+modIFilename = os.path.join(processedDir,'modIndex_longWindow_'+subject+'.txt')
+modSFilename = os.path.join(processedDir,'modSig_longWindow_'+subject+'.txt')
 
 class nestedDict(dict):#This is for maxZDict
     def __getitem__(self, item):
@@ -62,20 +62,20 @@ class nestedDict(dict):#This is for maxZDict
             return value
 
 
-maxZFile = open(maxZFilename, 'r')
+#maxZFile = open(maxZFilename, 'r')
 #ISIFile = open(ISIFilename, 'r')
 modIFile = open(modIFilename, 'r')
 modSFile = open(modSFilename, 'r')
 
-maxZDict = nestedDict()
-behavName = ''
-for line in maxZFile:
-    behavLine = line.split(':')
-    freqLine = line.split()
-    if (behavLine[0] == 'Behavior Session'):
-        behavName = behavLine[1][:-1]
-    else:
-        maxZDict[behavName][freqLine[0]] = freqLine[1].split(',')[0:-1]
+#maxZDict = nestedDict()
+#behavName = ''
+#for line in maxZFile:
+    #behavLine = line.split(':')
+    #freqLine = line.split()
+    #if (behavLine[0] == 'Behavior Session'):
+        #behavName = behavLine[1][:-1]
+    #else:
+        #maxZDict[behavName][freqLine[0]] = freqLine[1].split(',')[0:-1]
 
 '''
 ISIDict = {}
@@ -128,10 +128,8 @@ for line in modIFile:
         #modDirectionScoreDict[behavName] = [float(x) for x in splitLine[1].split(',')[0:-1]]
 '''
 
-
-
 #ISIFile.close()
-maxZFile.close()
+#maxZFile.close()
 modIFile.close()
 modSFile.close()
 ########################CHOOSE WHICH CELLS TO PLOT################################################
@@ -144,15 +142,15 @@ for cellID in range(0,numOfCells):
     ephysSession = oneCell.ephysSession
     tetrode = oneCell.tetrode
     cluster = oneCell.cluster
-    #clusterQuality = oneCell.quality[cluster-1]
+    clusterQuality = oneCell.quality
 
 
-    #if clusterQuality not in qualityList:
-        #continue
-    
-    if behavSession not in maxZDict:
+    if clusterQuality not in qualityList:
         continue
-    elif behavSession not in modIDict:
+    
+    #if behavSession not in maxZDict:
+        #continue
+    if behavSession not in modIDict:
         continue
     #elif ephysSession not in ISIDict:
         #continue
@@ -161,26 +159,24 @@ for cellID in range(0,numOfCells):
     #midFreq = minTrialDict[behavSession][0]
     #Here we are using all frequencies tested (usually two freqs per recording session), but one cell will not likely be responsive (Zscore outside 3) for both low and high frequencies.
     sigModI=[]
-    for freq in maxZDict[behavSession]:
+    for freq in modIDict[behavSession]:
         #if ((abs(float(maxZDict[behavSession][freq][clusterNumber])) < minZVal) | (ISIDict[ephysSession][tetrode-1][cluster-1] > maxISIviolation)):
        
-        if (abs(float(maxZDict[behavSession][freq][clusterNumber]))>= minZVal):
-            modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
-            oneCell=CellInfo(animalName=subject,
-                             ephysSession = ephysSession,
-                             tetrode=tetrode,
-                             cluster=cluster,
-                             behavSession = behavSession)
-            responsiveCellDB.append(oneCell)
+        #if (abs(float(maxZDict[behavSession][freq][clusterNumber]))>= minZVal):
+        modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
+        oneCell=CellInfo(animalName=subject,
+                         ephysSession = ephysSession,
+                         tetrode=tetrode,
+                         cluster=cluster,
+                         behavSession = behavSession)
+        allCellDB.append(oneCell)
 
-            if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
-                sigModI.append(modIDict[behavSession][freq][clusterNumber])
-                modulatedCellDB.append(oneCell)
-        else:
-            continue
-
+        if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
+            sigModI.append(modIDict[behavSession][freq][clusterNumber])
+            modulatedCellDB.append(oneCell)
+        
         #print 'behavior ',behavSession,' tetrode ',tetrode,' cluster ',cluster
-    print responsiveCellDB, modulatedCellDB, sigModI
+    print allCellDB, modulatedCellDB, sigModI
 ##########################THIS IS TO PLOT HISTOGRAM################################################
 modIndBinVec = np.arange(-1,1,binWidth)
 binModIndexArraySig = np.empty(len(modIndBinVec))
@@ -213,11 +209,11 @@ plt.xlim((-(maxMI+binWidth),maxMI+binWidth))
 
 plt.xlabel('Modulation Index')
 plt.ylabel('Number of Cells')
-plt.title('%s responsive cells without checking ISI, %s cells significantly modulated' %(cellNum,sigNum))
+plt.title('%s cells without checking ISI or sound response, %s cells sig modulated (0-400ms)' %(cellNum,sigNum))
 
 plt.gcf().set_size_inches((8.5,11))
 figformat = 'png'
-filename = 'modIndex_%s_noISIcheck.%s'%(subject,figformat)
+filename = 'modIndex_%s_noISIcheck_noZscore.%s'%(subject,figformat)
 fulloutputDir = processedDir
 fullFileName = os.path.join(fulloutputDir,filename)
 
@@ -255,8 +251,9 @@ for cellID in range(0,numOfModulatedCells):
     newFileNameRight =subject+'_'+behavSession+'TT'+str(tetrode)+'C'+str(cluster)+'_2afc plot_eachblock_eachtype_right'+'.png'
 
     srcDir = os.path.join(outputDir, 'multisession_'+date+'_'+'site1')
-    dstDir = processedDir
-    
+    dstDir = processedDir+'/all_cells_400ms_significantly_modulated/'
+    if not os.path.exists(dstDir):
+        os.makedirs(dstDir)
     srcFile = os.path.join(srcDir, oldFileNameCluster)
     shutil.copy(srcFile,dstDir)
     dstFile = os.path.join(dstDir, oldFileNameCluster)

@@ -1,5 +1,5 @@
 '''
-Modified from Billy's file. Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (either all_cells file only contain good quality cells or has 'oneCell.quality' indicating whether it's a good cell). Generates responsiveCellDB (Z score >=3) and modulatedCellDB (mod sig <= 0.05) without considering ISI violations.
+Modified from Billy's file. Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (either all_cells file only contain good quality cells or has 'oneCell.quality' indicating whether it's a good cell). Generates responsiveCellDB (Z score >=3) and nonModulatedCellDB (mod sig > 0.05) without considering ISI violations.
 -Lan Guo 20160114
 '''
 
@@ -33,7 +33,7 @@ numTetrodes = 8 #Number of tetrodes
 
 CellInfo = celldatabase.CellInfo  #This is for creating subdatabase for responsive and modulated cells
 responsiveCellDB = celldatabase.CellDatabase()
-modulatedCellDB = celldatabase.CellDatabase()
+nonModulatedCellDB = celldatabase.CellDatabase()
 
 ################################################################################################
 ##############################-----Minimum Requirements------###################################
@@ -160,7 +160,7 @@ for cellID in range(0,numOfCells):
     clusterNumber = (tetrode-1)*clusNum+(cluster-1)
     #midFreq = minTrialDict[behavSession][0]
     #Here we are using all frequencies tested (usually two freqs per recording session), but one cell will not likely be responsive (Zscore outside 3) for both low and high frequencies.
-    sigModI=[]
+    nonSigModI=[]
     for freq in maxZDict[behavSession]:
         #if ((abs(float(maxZDict[behavSession][freq][clusterNumber])) < minZVal) | (ISIDict[ephysSession][tetrode-1][cluster-1] > maxISIviolation)):
        
@@ -173,14 +173,14 @@ for cellID in range(0,numOfCells):
                              behavSession = behavSession)
             responsiveCellDB.append(oneCell)
 
-            if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
-                sigModI.append(modIDict[behavSession][freq][clusterNumber])
-                modulatedCellDB.append(oneCell)
+            if (modSigDict[behavSession][freq][clusterNumber]>minPValue):
+                nonSigModI.append(modIDict[behavSession][freq][clusterNumber])
+                nonModulatedCellDB.append(oneCell)
         else:
             continue
 
         #print 'behavior ',behavSession,' tetrode ',tetrode,' cluster ',cluster
-    print responsiveCellDB, modulatedCellDB, sigModI
+    print responsiveCellDB, nonModulatedCellDB, nonSigModI
 ##########################THIS IS TO PLOT HISTOGRAM################################################
 modIndBinVec = np.arange(-1,1,binWidth)
 binModIndexArraySig = np.empty(len(modIndBinVec))
@@ -232,9 +232,9 @@ plt.show()
 
 
 ####Copy plots of modulated cells to the stats folder and rename them
-numOfModulatedCells = len(modulatedCellDB)
-for cellID in range(0,numOfModulatedCells):
-    oneCell = modulatedCellDB[cellID]
+numOfNonModulatedCells = len(nonModulatedCellDB)
+for cellID in range(0,numOfNonModulatedCells):
+    oneCell = nonModulatedCellDB[cellID]
     
     behavSession = oneCell.behavSession
     date = behavSession[0:4]+'-'+behavSession[4:6]+'-'+behavSession[6:8]
@@ -255,8 +255,10 @@ for cellID in range(0,numOfModulatedCells):
     newFileNameRight =subject+'_'+behavSession+'TT'+str(tetrode)+'C'+str(cluster)+'_2afc plot_eachblock_eachtype_right'+'.png'
 
     srcDir = os.path.join(outputDir, 'multisession_'+date+'_'+'site1')
-    dstDir = processedDir
-    
+    dstDir = processedDir+'/responsive_cells_not_modulated/'
+    if not os.path.exists(dstDir):
+        os.makedirs(dstDir)
+
     srcFile = os.path.join(srcDir, oldFileNameCluster)
     shutil.copy(srcFile,dstDir)
     dstFile = os.path.join(dstDir, oldFileNameCluster)
