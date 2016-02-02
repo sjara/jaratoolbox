@@ -72,9 +72,6 @@ for indinten, inten in enumerate( possibleIntensity ):
         freqIndexEachTrial = np.concatenate([freqIndexEachTrial, array([indfreq]).repeat(len(spikeNumsThisCombo))])
         meanSpikesEachTrial = np.concatenate([meanSpikesEachTrial, array([mean(spikeNumsThisCombo)]) ])
 
-       #Calculate z score on spikes from this combination 
-
-
 
 
     subplot(len( possibleIntensity ), 1, indinten+1)
@@ -114,8 +111,25 @@ for indInt, intensity in enumerate(possibleIntensity):
         [zStat,pValue,maxZ] = spikesanalysis.response_score(spikeTimesThisCombo,indexLimitsThisCombo,baseRange,binEdges) #computes z score for each bin. zStat is array of z scores. maxZ is maximum value of z in timeRange
 
         maxZarray[indInt, indFreq] = maxZ
-        print indInt
-        print indFreq
+
+
+
+
+#Testing the above method
+testfreq = possibleFreq[6]
+testinten = 60
+
+trialsThisCombo = np.flatnonzero((currentFreq==testfreq)&(currentIntensity==testinten))
+
+timeRange = [-0.5, 1]
+spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
+    spikeTimestamps, eventOnsetTimes, timeRange)
+
+testspikes = spikeTimesFromEventOnset[np.in1d(trialIndexForEachSpike, trialsThisCombo)]
+freq4inds = trialIndexForEachSpike[np.in1d(trialIndexForEachSpike, trialsThisCombo)]
+
+
+
 
 
 
