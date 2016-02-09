@@ -24,14 +24,16 @@ def plot_cluster_tuning(clusterObj, indTC, experimenter='nick'):
     freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0]
     intenLabels = ["%.1f" % inten for inten in possibleIntensity]
 
-    plt.clf()
-    dataplotter.two_axis_heatmap(spikeTimestamps,
+    # plt.clf()
+    ax, cax, cbar = dataplotter.two_axis_heatmap(spikeTimestamps,
                                 eventOnsetTimes,
                                 firstSortArray=intensityEachTrial,
                                 secondSortArray=freqEachTrial,
                                 firstSortLabels=intenLabels,
                                 secondSortLabels=freqLabels,
-                                timeRange=[0, 0.1])
+                                 timeRange=[0, 0.1])
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.show()
+
+    return ax, cax, cbar
+    # plt.show()
