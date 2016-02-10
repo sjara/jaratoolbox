@@ -36,7 +36,7 @@ We want to be able to run analyses on the multi unit data or recluster
 - Regarding use of str() and repr(). Maybe the default repr() should be to print every attribute.
 - Make the cluster repr more informative, including the mem location
 - CellDB should have an easy way to add a cluster (without creating all the other stuff).
--- We need to be able to make clusters without making Experiments, sites, etc. 
+-- We need to be able to make clusters without making Experiments, sites, etc.
 - cluster.get_data_filenames with no arguments should return the list of all
 -- This should probably be a dict with keys being the session type and values being a tuple of (ephysFn, behavFn)
 
@@ -64,7 +64,7 @@ Design Decisions:
 
 Should experiment be an object if it just holds strings? It seems like we are not using the site list. However, if we want to add the clusters for all of the sites to a database at one time, it may be nice to have a list of all of the site objects
 
-Advantage: We are exlicitly creating site objects if the experiment is just a dict of strings. 
+Advantage: We are exlicitly creating site objects if the experiment is just a dict of strings.
 
 It is possible to have each cluster hold the info about all of the sessions or to have each session hold all of the clusters that come from that session. So far we have chosen to have each cluster hold the info about what sessions it comes from.
 
@@ -72,9 +72,9 @@ Pros:
 - Makes sense to think about the database as being a list of clusters, because we usually want to interact with a single cluster and get the info from all of the ephys sessions related to it.
 
 Cons:
-- This may be more redundant than having a hierarchical organization 
+- This may be more redundant than having a hierarchical organization
 
-At one point we decided that the best thing to do would be to have the database store information in a hierarchical way that minimizes the redundancy, and then have methods to convert this hierarchy into a list of clusters (with some redundancy) when we want to interact with the data. 
+At one point we decided that the best thing to do would be to have the database store information in a hierarchical way that minimizes the redundancy, and then have methods to convert this hierarchy into a list of clusters (with some redundancy) when we want to interact with the data.
 
 
 
@@ -89,8 +89,7 @@ class CellDB(list):
     def __init__(self):
 
         '''
-        This list subclass acts as a container for stored cluster objects. 
-
+        This list subclass acts as a container for stored cluster objects.
         Current Problems: If you index the list, it generates a regular list instead of a new version of this object.
         '''
         super(CellDB, self).__init__()
@@ -101,7 +100,7 @@ class CellDB(list):
         The safe way to append clusters. Will not add a cluster if it already exists in the database.
 
         Args:
-            clusters (list of Cluster objects): A list containing all of the cluster objects to be added. 
+            clusters (list of Cluster objects): A list containing all of the cluster objects to be added.
         '''
 
         for cluster in clusters:
@@ -115,7 +114,7 @@ class CellDB(list):
         '''
         Will return a list containing the cluster id for each cluster in the database
         '''
-        
+
         return [c.clusterID for c in self]
 
     def query(self, lookup_dict, verbose=True):
@@ -219,8 +218,8 @@ class CellDB(list):
 
         DEPRECATED: We should simply get an array of feature values so that we can do any arbitrary
         calculation. This should be combined with a method for efficently getting certain indices
-        from the database. 
-        
+        from the database.
+
         This method allows you to query using a custom comparison opeartor, like operator.gt()
         The operator function must compare the feature val of a cluster with the val you supply and
         return True or False.
@@ -242,7 +241,7 @@ class CellDB(list):
 
         Args:
             featuresDict (dict): A dictionary of feature names and values (example: {"coolness": "extra cool"})
-            indsToSet (list): The indices of clusters in the database for which to set the features. 
+            indsToSet (list): The indices of clusters in the database for which to set the features.
         '''
         if not indsToSet:
             indsToSet = range(len(self))
@@ -268,7 +267,7 @@ class CellDB(list):
         '''CAUTION: This will currently overwrite the json file. You should always load the most current
         database work with it, and then write the updated version when you are done.
 
-        Args: 
+        Args:
             filename (str): The path to the json file
             force (bool): Whether or not to proceed with overwriting the database file without asking for confirmation
         '''
@@ -313,7 +312,7 @@ class CellDB(list):
         for ind, cluster in enumerate(self):
             objStrs.append('Cell {}\nID: {}\nComments: {}\n\n'.format(ind, cluster.clusterID, cluster.comments))
         return ''.join(objStrs)
-    
+
 class Experiment(object):
     '''
     Experiment is a container of Sites.
@@ -377,10 +376,10 @@ class Site(object):
 
         self.depth = depth
         self.tetrodes = tetrodes
-        self.animalName = animalName #Provided by Recording
-        self.date = date #Provided by Recording
-        self.experimenter = experimenter #Provided by Recording
-        self.defaultParadigm = defaultParadigm #Provided by Recording
+        self.animalName = animalName #Provided by Experiment
+        self.date = date #Provided by Experiment
+        self.experimenter = experimenter #Provided by Experiment
+        self.defaultParadigm = defaultParadigm #Provided by Experiment
         self.sessionList = []
         self.clusterList = []
 
@@ -397,13 +396,13 @@ class Site(object):
             paradigm = self.defaultParadigm
 
         if behavFileSuffix:
-            if len(behavFileSuffix)==1: #This is just the suffix - need to add the date
-                datestr = ''.join(self.date.split('-'))
-                behavFileNameBaseName = '_'.join([self.animalName, paradigm, datestr])
-                fullBehavFileName = '{}{}.h5'.format(behavFileNameBaseName, behavFileSuffix)
-            elif len(behavFileSuffix)==9: #Has the date but no paradigm - add the rest
-                behavFileNameBaseName = '_'.join([self.animalName, paradigm])
-                fullBehavFileName = '{}_{}.h5'.format(behavFileNameBaseName, behavFileSuffix)
+            # if len(behavFileSuffix)==1: #This is just the suffix - need to add the date
+            datestr = ''.join(self.date.split('-'))
+            behavFileNameBaseName = '_'.join([self.animalName, paradigm, datestr])
+            fullBehavFileName = '{}{}.h5'.format(behavFileNameBaseName, behavFileSuffix)
+            # elif len(behavFileSuffix)==9: #Has the date but no paradigm - add the rest ##EDIT: I dont think we need this any more
+            #     behavFileNameBaseName = '_'.join([self.animalName, paradigm])
+            #     fullBehavFileName = '{}_{}.h5'.format(behavFileNameBaseName, behavFileSuffix)
         else:
             fullBehavFileName=None
 
@@ -473,7 +472,7 @@ class Site(object):
                 fnList.append(os.path.join(self.animalName, fn))
             else:
                 fnList.append(None)
-                              
+
         return fnList
 
     def get_session_types(self):
@@ -540,6 +539,10 @@ class Cluster(object):
                                    str(depth),
                                    'TT{}'.format(self.tetrode),
                                    str(cluster)])
+
+    def get_session_types(self):
+        for ind, sessionType in enumerate(self.sessionTypes):
+            print '{} - {}'.format(ind, sessionType)
 
     def get_data_filenames(self, sessionType=None, includeMouse=True):#TODO: Change mouse to subject
         '''

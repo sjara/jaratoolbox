@@ -37,7 +37,14 @@ from jaratoolbox import behavioranalysis
 
 
 #TODO: Give this function a different name, since raster_plot exists in extraplots
-def plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = [], timeRange = [-0.5, 1], ms = 4, labels=None):
+def plot_raster(spikeTimestamps,
+                eventOnsetTimes,
+                sortArray=[],
+                timeRange=[-0.5, 1],
+                ms=4,
+                labels=None,
+                *args,
+                **kwargs):
     '''
     Function to accept spike timestamps, event onset times, and an optional sorting array and plot a
     raster plot (sorted if the sorting array is passed)
@@ -53,24 +60,25 @@ def plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = [], timeRange = [-
 
     '''
     # If a sort array is supplied, find the trials that correspond to each value of the array
-    if len(sortArray)>0:
-        trialsEachCond = behavioranalysis.find_trials_each_type(sortArray, np.unique(sortArray))
+    if len(sortArray) > 0:
+        trialsEachCond = behavioranalysis.find_trials_each_type(
+            sortArray, np.unique(sortArray))
         if not labels:
-            labels=['%.1f' % f for f in np.unique(sortArray)]
+            labels = ['%.1f' % f for f in np.unique(sortArray)]
     else:
         trialsEachCond = []
     # Align spiketimestamps to the event onset times for plotting
-    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,
-                                                                                                                 eventOnsetTimes,
-                                                                                                                 timeRange)
+    spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
+        spikeTimestamps, eventOnsetTimes, timeRange)
     #Plot the raster, which will sort if trialsEachCond is supplied
-    pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset,
-                                                 indexLimitsEachTrial,
-                                                 timeRange,
-                                                 trialsEachCond = trialsEachCond,
-                                                 labels=labels)
+    pRaster, hcond, zline = extraplots.raster_plot(
+        spikeTimesFromEventOnset,
+        indexLimitsEachTrial,
+        timeRange,
+        trialsEachCond=trialsEachCond,
+        labels=labels, *args, **kwargs)
     #Set the marker size for better viewing
-    plt.setp(pRaster,ms=ms)
+    plt.setp(pRaster, ms=ms)
 
 def two_axis_sorted_raster(spikeTimestamps,
                            eventOnsetTimes,
@@ -85,7 +93,6 @@ def two_axis_sorted_raster(spikeTimestamps,
                            flipSecondAxis=True, #Useful for making the highest intensity plot on top
                            timeRange=[-0.5, 1],
                            ms=4):
-
     '''
     This function takes two arrays and uses them to sort spikes into trials by combinaion, and then plots the spikes in raster form.
 
@@ -110,54 +117,58 @@ def two_axis_sorted_raster(spikeTimestamps,
         ms (int): The marker size to use for the raster plots
     '''
     if not firstSortLabels:
-        firstSortLabels=[]
+        firstSortLabels = []
     if not secondSortLabels:
-        secondSortLabels=[]
+        secondSortLabels = []
     if not xLabel:
-        xlabel=''
+        xlabel = ''
     if not yLabel:
-        ylabel=''
+        ylabel = ''
     if not plotTitle:
-        plotTitle=''
+        plotTitle = ''
     #Set first and second possible val arrays and invert them if desired for plotting
     firstPossibleVals = np.unique(firstSortArray)
     secondPossibleVals = np.unique(secondSortArray)
     if flipFirstAxis:
-        firstPossibleVals=firstPossibleVals[::-1]
-        firstSortLabels=firstSortLabels[::-1]
+        firstPossibleVals = firstPossibleVals[::-1]
+        firstSortLabels = firstSortLabels[::-1]
     if flipSecondAxis:
-        secondPossibleVals=secondPossibleVals[::-1]
-        secondSortLabels=secondSortLabels[::-1]
+        secondPossibleVals = secondPossibleVals[::-1]
+        secondSortLabels = secondSortLabels[::-1]
     #Find the trials that correspond to each pair of sorting values
-    trialsEachCond = behavioranalysis.find_trials_each_combination(firstSortArray,
-                                                                   firstPossibleVals,
-                                                                   secondSortArray,
-                                                                   secondPossibleVals)
+    trialsEachCond = behavioranalysis.find_trials_each_combination(
+        firstSortArray, firstPossibleVals, secondSortArray, secondPossibleVals)
     #Calculate the spike times relative to event onset times
-    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,
-                                                                                                                 eventOnsetTimes,
-                                                                                                                 timeRange)
+    spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
+        spikeTimestamps, eventOnsetTimes, timeRange)
     #Grab the current figure and clear it for plotting
     fig = plt.gcf()
     plt.clf()
     #Make a new plot for each unique value of the second sort array, and then plot a raster on that plot sorted by this second array
     for ind, secondArrayVal in enumerate(secondPossibleVals):
         if ind == 0:
-            fig.add_subplot(len(secondPossibleVals), 1, ind+1)
+            fig.add_subplot(len(secondPossibleVals), 1, ind + 1)
             plt.title(plotTitle)
         else:
-            fig.add_subplot(len(secondPossibleVals), 1, ind+1, sharex=fig.axes[0], sharey=fig.axes[0])
+            fig.add_subplot(
+                len(secondPossibleVals),
+                1,
+                ind + 1,
+                sharex=fig.axes[0],
+                sharey=fig.axes[0])
         trialsThisSecondVal = trialsEachCond[:, :, ind]
-        pRaster,hcond,zline = extraplots.raster_plot(spikeTimesFromEventOnset,
-                                                     indexLimitsEachTrial,
-                                                     timeRange,
-                                                     trialsEachCond = trialsThisSecondVal,
-                                                     labels = firstSortLabels)
-        plt.setp(pRaster,ms=ms)
+        pRaster, hcond, zline = extraplots.raster_plot(
+            spikeTimesFromEventOnset,
+            indexLimitsEachTrial,
+            timeRange,
+            trialsEachCond=trialsThisSecondVal,
+            labels=firstSortLabels)
+        plt.setp(pRaster, ms=ms)
         if secondSortLabels:
             plt.ylabel(secondSortLabels[ind])
-        if ind == len(secondPossibleVals)-1:
+        if ind == len(secondPossibleVals) - 1:
             plt.xlabel(xLabel)
+
 
 #TODO: The Freq and Intensity should always be first and second sort arrays between this function and the previous one
 def two_axis_heatmap(spikeTimestamps,
@@ -196,62 +207,91 @@ def two_axis_heatmap(spikeTimestamps,
         timeRange (list): A list containing the range of times relative to the stimulus onset over which the spike average will be computed
     '''
     if not firstSortLabels:
-        firstSortLabels=[]
+        firstSortLabels = []
     if not secondSortLabels:
-        secondSortLabels=[]
+        secondSortLabels = []
     if not xlabel:
-        xlabel=''
+        xlabel = ''
     if not ylabel:
-        ylabel=''
+        ylabel = ''
     if not plotTitle:
-        plotTitle=''
+        plotTitle = ''
     firstPossibleVals = np.unique(firstSortArray)
     secondPossibleVals = np.unique(secondSortArray)
-    if firstSortLabels==None:
-        firstSortLabels=[]
-    if secondSortLabels==None:
-        secondSortLabels=[]
-    if xlabel==None:
-        xlabel=''
-    if ylabel==None:
-        ylabel=''
+    if firstSortLabels == None:
+        firstSortLabels = []
+    if secondSortLabels == None:
+        secondSortLabels = []
+    if xlabel == None:
+        xlabel = ''
+    if ylabel == None:
+        ylabel = ''
     cbarLabel = 'Avg spikes in time range: {}'.format(timeRange)
     if flipFirstAxis:
-        firstPossibleVals=firstPossibleVals[::-1]
-        firstSortLabels=firstSortLabels[::-1]
+        firstPossibleVals = firstPossibleVals[::-1]
+        firstSortLabels = firstSortLabels[::-1]
     if flipSecondAxis:
-        secondPossibleVals=secondPossibleVals[::-1]
-        secondSortLabels=secondSortLabels[::-1]
+        secondPossibleVals = secondPossibleVals[::-1]
+        secondSortLabels = secondSortLabels[::-1]
     #Find trials each combination
-    trialsEachCond = behavioranalysis.find_trials_each_combination(firstSortArray, firstPossibleVals, secondSortArray, secondPossibleVals)
+    trialsEachCond = behavioranalysis.find_trials_each_combination(
+        firstSortArray, firstPossibleVals, secondSortArray, secondPossibleVals)
     #Make an aray of the average number of spikes in the timerange after the stim for each condition
-    spikeArray = avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
+    spikeArray = avg_spikes_in_event_locked_timerange_each_cond(
+        spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
     #Plot the array as a heatmap
-    plot_array_as_heatmap(spikeArray, xlabel=xlabel, ylabel=ylabel, xtickLabels=secondSortLabels, ytickLabels=firstSortLabels, cbarLabel=cbarLabel)
+    ax, cax, cbar = plot_array_as_heatmap(spikeArray,
+                                          xlabel=xlabel,
+                                          ylabel=ylabel,
+                                          xtickLabels=secondSortLabels,
+                                          ytickLabels=firstSortLabels,
+                                          cbarLabel=cbarLabel)
+    return ax, cax, cbar
 
-def one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, sortArray, timeRange=[0, 0.1]):
-    trialsEachCond = behavioranalysis.find_trials_each_type(sortArray, np.unique(sortArray))
-    spikeArray = avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
+
+def one_axis_tc_or_rlf(spikeTimestamps,
+                       eventOnsetTimes,
+                       sortArray,
+                       timeRange=[0, 0.1]):
+    trialsEachCond = behavioranalysis.find_trials_each_type(
+        sortArray, np.unique(sortArray))
+    spikeArray = avg_spikes_in_event_locked_timerange_each_cond(
+        spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
     plt.plot(spikeArray, ls='-', lw=2, c='0.25')
 
-def avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
-    if len(eventOnsetTimes)!=np.shape(trialsEachCond)[0]:
-        eventOnsetTimes=eventOnsetTimes[:-1]
+
+def avg_spikes_in_event_locked_timerange_each_cond(
+        spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
+    if len(eventOnsetTimes) != np.shape(trialsEachCond)[0]:
+        eventOnsetTimes = eventOnsetTimes[:-1]
         print "FIXME: Using bad hack to make event onset times equal number of trials"
-    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(spikeTimestamps, eventOnsetTimes, timeRange)
-    spikeArray = avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCond)
+    spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
+        spikeTimestamps, eventOnsetTimes, timeRange)
+    spikeArray = avg_locked_spikes_per_condition(indexLimitsEachTrial,
+                                                 trialsEachCond)
     return spikeArray
 
+
 def avg_locked_spikes_per_condition(indexLimitsEachTrial, trialsEachCond):
-    numSpikesInTimeRangeEachTrial = np.squeeze(np.diff(indexLimitsEachTrial, axis=0))
+    numSpikesInTimeRangeEachTrial = np.squeeze(np.diff(indexLimitsEachTrial,
+                                                       axis=0))
     conditionMatShape = np.shape(trialsEachCond)
     numRepeats = np.product(conditionMatShape[1:])
-    nSpikesMat = np.reshape(numSpikesInTimeRangeEachTrial.repeat(numRepeats), conditionMatShape)
-    spikesFilteredByTrialType = nSpikesMat*trialsEachCond
-    avgSpikesArray = np.sum(spikesFilteredByTrialType, 0)/np.sum(trialsEachCond, 0).astype('float')
+    nSpikesMat = np.reshape(
+        numSpikesInTimeRangeEachTrial.repeat(numRepeats), conditionMatShape)
+    spikesFilteredByTrialType = nSpikesMat * trialsEachCond
+    avgSpikesArray = np.sum(spikesFilteredByTrialType, 0) / np.sum(
+        trialsEachCond, 0).astype('float')
     return avgSpikesArray
 
-def plot_array_as_heatmap(heatmapArray, xlabel=None, ylabel=None, xtickLabels=None, ytickLabels=None, cbarLabel=None, cmap='Blues'):
+
+def plot_array_as_heatmap(heatmapArray,
+                          xlabel=None,
+                          ylabel=None,
+                          xtickLabels=None,
+                          ytickLabels=None,
+                          cbarLabel=None,
+                          cmap='Blues'):
 
     ax = plt.gca()
     if xlabel:
@@ -259,29 +299,38 @@ def plot_array_as_heatmap(heatmapArray, xlabel=None, ylabel=None, xtickLabels=No
     if ylabel:
         ax.set_ylabel(ylabel)
 
-    cax = ax.imshow(heatmapArray, interpolation='none', aspect='auto', cmap=cmap)
+    cax = ax.imshow(heatmapArray,
+                    interpolation='none',
+                    aspect='auto',
+                    cmap=cmap)
     vmin, vmax = cax.get_clim()
-    cbar=plt.colorbar(cax, format = '%.1f')
+    cbar = plt.colorbar(cax, format='%.1f')
     if cbarLabel is not None:
         cbar.ax.set_ylabel(cbarLabel)
     if xtickLabels is not None:
         ax.set_xticks(range(len(xtickLabels)))
-        ax.set_xticklabels(xtickLabels, rotation = 'vertical')
+        ax.set_xticklabels(xtickLabels, rotation='vertical')
     if ytickLabels:
         ax.set_yticks(range(len(ytickLabels)))
         ax.set_yticklabels(ytickLabels)
 
     return ax, cax, cbar
 
-def plot_waveforms_in_event_locked_timerange(spikeSamples, spikeTimes, eventOnsetTimes, timeRange):
-    spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial,spikeIndices = spikesanalysis.eventlocked_spiketimes(spikeTimes, eventOnsetTimes, timeRange, spikeindex=True)
-    samplesToPlot=spikeSamples[spikeIndices]
-    ax=plt.gca()
+
+def plot_waveforms_in_event_locked_timerange(spikeSamples, spikeTimes,
+                                             eventOnsetTimes, timeRange):
+    spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial, spikeIndices = spikesanalysis.eventlocked_spiketimes(
+        spikeTimes,
+        eventOnsetTimes,
+        timeRange,
+        spikeindex=True)
+    samplesToPlot = spikeSamples[spikeIndices]
+    ax = plt.gca()
     spikesorting.plot_waveforms(samplesToPlot)
     plt.title('Waveforms in range {} to {}'.format(*timeRange))
 
-class FlipThroughData(object):
 
+class FlipThroughData(object):
     '''
     Decorator class that can wrap a plotting function and allow it to flip through a list of data using the < / > keys.
 
@@ -297,18 +346,20 @@ class FlipThroughData(object):
 
     def __init__(self, plottingFn):
         self.plotter = plottingFn
-        functools.update_wrapper(self, plottingFn) #Make this a well-behaved decorator
+        functools.update_wrapper(self, plottingFn
+                                 )  #Make this a well-behaved decorator
 
     def __call__(self, data):
 
         self.data = data
-        self.counter=0
-        self.maxDataInd = len(data)-1
+        self.counter = 0
+        self.maxDataInd = len(data) - 1
         self.fig = plt.gcf()
 
         self.redraw()
         self.title_plot()
-        self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+        self.kpid = self.fig.canvas.mpl_connect('key_press_event',
+                                                self.on_key_press)
         #The kpid will now know the size of the data and what to do with it.
         plt.show()
 
@@ -326,24 +377,25 @@ class FlipThroughData(object):
         '''
         Method to listen for keypresses and change the slice
         '''
-        if event.key=='<' or event.key==',' or event.key=='left':
-            if self.counter>0:
-                self.counter-=1
+        if event.key == '<' or event.key == ',' or event.key == 'left':
+            if self.counter > 0:
+                self.counter -= 1
             else:
-                self.counter=self.maxDataInd
+                self.counter = self.maxDataInd
             self.redraw()
-        elif event.key=='>' or event.key=='.' or event.key=='right':
-            if self.counter<self.maxDataInd:
-                self.counter+=1
+        elif event.key == '>' or event.key == '.' or event.key == 'right':
+            if self.counter < self.maxDataInd:
+                self.counter += 1
             else:
-                self.counter=0
+                self.counter = 0
             self.redraw()
 
     def title_plot(self):
-        plt.suptitle("{}/{}: Press < or > to flip through data".format(self.counter,
-                                                                        self.maxDataInd))
-class FlipT(object):
+        plt.suptitle("{}/{}: Press < or > to flip through data".format(
+            self.counter, self.maxDataInd))
 
+
+class FlipT(object):
     '''
     The advantage of this version is that we only need to write one line:
     flipper = dataplotter.FlipT(function, dataList)
@@ -357,11 +409,12 @@ class FlipT(object):
 
     def __init__(self, plottingFn, data):
         self.plotter = plottingFn
-        functools.update_wrapper(self, plottingFn) #Make this a well-behaved decorator
+        functools.update_wrapper(self, plottingFn
+                                 )  #Make this a well-behaved decorator
 
         self.data = data
-        self.counter=0
-        self.maxDataInd = len(data)-1
+        self.counter = 0
+        self.maxDataInd = len(data) - 1
         self.fig = plt.gcf()
 
         self.plotter(self.data[self.counter])
@@ -373,7 +426,8 @@ class FlipT(object):
 
         self.title_plot()
 
-        self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+        self.kpid = self.fig.canvas.mpl_connect('key_press_event',
+                                                self.on_key_press)
         #The kpid will now know the size of the data and what to do with it.
         plt.show()
 
@@ -391,19 +445,19 @@ class FlipT(object):
         '''
         Method to listen for keypresses and change the slice
         '''
-        if event.key=='<' or event.key==',' or event.key=='left':
-            if self.counter>0:
-                self.counter-=1
+        if event.key == '<' or event.key == ',' or event.key == 'left':
+            if self.counter > 0:
+                self.counter -= 1
             else:
-                self.counter=self.maxDataInd
+                self.counter = self.maxDataInd
             self.redraw()
-        elif event.key=='>' or event.key=='.' or event.key=='right':
-            if self.counter<self.maxDataInd:
-                self.counter+=1
+        elif event.key == '>' or event.key == '.' or event.key == 'right':
+            if self.counter < self.maxDataInd:
+                self.counter += 1
             else:
-                self.counter=0
+                self.counter = 0
             self.redraw()
 
     def title_plot(self):
-        plt.suptitle("{}/{}: Press < or > to flip through data".format(self.counter,
-                                                                        self.maxDataInd))
+        plt.suptitle("{}/{}: Press < or > to flip through data".format(
+            self.counter, self.maxDataInd))

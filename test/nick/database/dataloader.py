@@ -113,7 +113,7 @@ class DataLoader(object):
 
         return eventOnsetTimes
 
-    def get_session_spikes(self, session, tetrode, cluster=None):
+    def get_session_spikes(self, session, tetrode, cluster=None, electrodeName='Tetrode'):
         '''
         Get the spike data for one session, one tetrode.
 
@@ -126,17 +126,17 @@ class DataLoader(object):
 
             tetrode (int): The tetrode number to retrieve
 
-            convert_to_seconds (bool): Whether or not to divide by the value stored in self.SAMPLING_RATE before returning spike timestamps
+            electrodeName (str): The name preceeding the electrode number, saved by openephys eg 'Tetrode6.spikes' needs 'Tetrode'
 
         Returns:
             spikeData (object of type jaratoolbox.loadopenephys.DataSpikes)
         '''
         if self.mode=='online':
             ephysSession = self.get_session_filename(session)
-            spikeFilename = os.path.join(self.onlineEphysPath, ephysSession, 'Tetrode{}.spikes'.format(tetrode))
+            spikeFilename = os.path.join(self.onlineEphysPath, ephysSession, '{0}{1}.spikes'.format(electrodeName, tetrode))
 
         elif self.mode=='offline': #The session should already be relative to the mouse
-            spikeFilename = os.path.join(settings.EPHYS_PATH, session, 'Tetrode{}.spikes'.format(tetrode))
+            spikeFilename = os.path.join(settings.EPHYS_PATH, session, '{0}{1}.spikes'.format(electrodeName, tetrode))
 
         spikeData = loadopenephys.DataSpikes(spikeFilename)
 
