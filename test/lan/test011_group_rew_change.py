@@ -17,7 +17,7 @@ EXPERIMENTER = 'lan'
 #settings.BEHAVIOR_PATH = '/home/languo/data/mnt/jarahubdata'
 #settings.BEHAVIOR_PATH = '/var/tmp/data/'
 
-subjects = ['adap011']
+subjects = ['adap005','adap008']
 #subjects = ['test']
 
 FREQCOLORS = [colorpalette.TangoPalette['Chameleon3'],
@@ -42,7 +42,7 @@ for inda, thisAnimal in enumerate(subjects):
     choiceRight = choice==allBehavDataThisAnimal.labels['choice']['right']
     currentBlock = allBehavDataThisAnimal['currentBlock']
     blockTypes = [allBehavDataThisAnimal.labels['currentBlock']['same_reward'],allBehavDataThisAnimal.labels['currentBlock']['more_left'],allBehavDataThisAnimal.labels['currentBlock']['more_right']]
-    blockLabels = ['same_reward','more_left', 'more_right']
+    blockLabels = ['same_reward','more_left','more_right']
     trialsEachType = behavioranalysis.find_trials_each_type(currentBlock,blockTypes)
     
     #print trialsEachType
@@ -51,7 +51,7 @@ for inda, thisAnimal in enumerate(subjects):
     ax1=plt.subplot(gs[thisAnimalPos])
     fontsize = 12
     allPline = []
-    legendLabels = []
+    blockLegends = []
     for blockType in range(nBlocks):
         if np.any(trialsEachType[:,blockType]):
             targetFrequencyThisBlock = targetFrequency[trialsEachType[:,blockType]]    
@@ -66,12 +66,13 @@ for inda, thisAnimal in enumerate(subjects):
             plt.setp((pline, pcaps, pbars), color=FREQCOLORS[blockType])
             plt.setp(pdots, mfc=FREQCOLORS[blockType], mec=FREQCOLORS[blockType])
             allPline.append(pline)
-     
+            blockLegends.append(blockLabels[blockType])
+            
             if blockType == nBlocks-1: 
                 plt.xlabel('Frequency (kHz)',fontsize=fontsize)
                 plt.ylabel('Rightward trials (%)',fontsize=fontsize)
                 extraplots.set_ticks_fontsize(plt.gca(),fontsize)
-                legend = plt.legend(allPline,blockLabels,loc=2)
+                legend = plt.legend(allPline,blockLegends,loc=2)
                 # Add the legend manually to the current Axes.
                 ax = plt.gca().add_artist(legend)
                 #plt.hold(True)
