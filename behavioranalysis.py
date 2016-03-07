@@ -93,6 +93,28 @@ def find_trials_each_type_each_block(psyCurveParameter,psyCurveParameterPossible
     return trialsEachType
 
 
+def find_missing_trials(ephysEventTimes,behavEventTimes,threshold=0.5):
+    '''
+    Verify that the number of trials in behavior data is the same as ephys data.
+    threshold (sec): max difference between ephys time and behav time.
+    '''
+    evEphys = ephysEventTimes-ephysEventTimes[0]
+    evBehav = behavEventTimes-behavEventTimes[0]
+    minNtrials = min(len(evEphys),len(evBehav))
+    tRange = np.arange(0,minNtrials-1)
+    missingTrials = []
+    while True:
+        tDiff = evBehav[tRange]-evEphys[tRange]
+        firstIndex = np.flatnonzero(abs(tDiff)>0.4)  # HARDCODED!
+        if len(firstIndex):
+            missingTrials.append(firstIndex[0]+len(missingTrials))
+            evBehav = np.delete(evBehav,firstIndex[0])
+            minNtrials = min(len(evEphys),len(evBehav))
+            tRange = np.arange(0,minNtrials-1)
+            tDiff = evBehav[tRange]-evEphys[tRange]
+        else:
+            break
+    return missingTrials
 
 
 def load_many_sessions(animalNames,sessions,paradigm='2afc',datesRange=None):

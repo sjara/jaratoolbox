@@ -117,6 +117,15 @@ class BehaviorData(dict):
                 print "{0} has no key '{1}'".format(self.filename,thisparam)
                 self[thisparam] = 0
     
+    def remove_trials(self,trialslist):
+        '''
+        Delete a subset of trials.
+        Note that self.events is not modified. This is trickier, and maybe changing
+        only events['indexLastEventEachTrial'] would work.
+        '''
+        for varname in self.iterkeys():
+            self[varname] = np.delete(self[varname],trialslist)
+
     def __str__(self):
         objStrings = []
         for key,value in sorted(self.iteritems()):
@@ -130,13 +139,16 @@ class BehaviorData(dict):
                 objStrings.append('%s : %s\n'%(key,str(type(value))))
         return ''.join(objStrings)
 
+
 class FlexCategBehaviorData(BehaviorData):
     '''This class adds methods specific to the flexible categorization paradigm.'''
     def __init__(self,behavFileName,readmode='full',varlist=[]):
         BehaviorData.__init__(self,behavFileName,readmode,varlist)
+        # FIXME: Not sure nTrials should be defined here. What is trials are removed?
         self.nTrials = len(self['currentBlock'])
         self.blocks = {}
     def find_boundaries_each_block(self):
+        print len(self['currentBlock'])
         blockBoundaries = np.flatnonzero(np.diff(self['currentBlock']))
         lastTrialEachBlock = np.hstack((blockBoundaries,self.nTrials))
         firstTrialEachBlock = np.hstack((0,lastTrialEachBlock[:-1]+1))
@@ -153,7 +165,10 @@ class FlexCategBehaviorData(BehaviorData):
                            self.blocks['lastTrialEachBlock'][block]+1)
             self.blocks['trialsEachBlock'][bSlice,block]=True
             self.blocks['blockEachTrial'][bSlice]=block
-
+    def remove_trials(self,trialslist):
+        super(FlexCategBehaviorData,self).remove_trials(trialslist)
+        self.nTrials = len(self['currentBlock'])
+        
 
 if __name__ == "__main__":
 
