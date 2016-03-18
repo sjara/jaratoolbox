@@ -2,6 +2,8 @@
 Spike times aligned to Side In:
 Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (all_cells file only contain good quality cells), not considering whether sound responsive or not. Generates modulatedCellDB (without considering ISI)
 -Lan Guo 20160303
+Implemented: write to a text file the cell name, cell ID (index in allcells file), frequency modulated, and modulation index (only for the significantly modulated ones). -LG0305
+Implemented: can pick out only sound-responsive cells that are significantly modulated during 0-600ms from side-in, or look at all 'good-quality' cells that are significantly modulated.This is done by choosing true or false for the variable 'checkSoundResponse' -LG0307
 '''
 
 from jaratoolbox import loadbehavior
@@ -51,10 +53,14 @@ minPValue = 0.05
 subject = allcells.cellDB[0].animalName
 behavSession = ''
 processedDir = os.path.join(outputDir,subject+'_stats')
-#maxZFilename = os.path.join(processedDir,'maxZVal_'+subject+'.txt')
+maxZFilename = os.path.join(processedDir,'maxZVal_'+subject+'.txt')
 #ISIFilename = os.path.join(processedDir,'ISI_Violations_'+subject+'.txt')
 modIFilename = os.path.join(processedDir,'modIndex_alignedSideIn_'+subject+'.txt')
 modSFilename = os.path.join(processedDir,'modSig_alignedSideIn_'+subject+'.txt')
+
+########Can isolate only sound-responsive cell or look at all good cells#######
+checkSoundResponse = False #Decide here whether to examine only sound-responsive cells
+#######
 
 class nestedDict(dict):#This is for maxZDict
     def __getitem__(self, item):
@@ -65,20 +71,20 @@ class nestedDict(dict):#This is for maxZDict
             return value
 
 
-#maxZFile = open(maxZFilename, 'r')
+maxZFile = open(maxZFilename, 'r')
 #ISIFile = open(ISIFilename, 'r')
 modIFile = open(modIFilename, 'r')
 modSFile = open(modSFilename, 'r')
 
-#maxZDict = nestedDict()
-#behavName = ''
-#for line in maxZFile:
-    #behavLine = line.split(':')
-    #freqLine = line.split()
-    #if (behavLine[0] == 'Behavior Session'):
-        #behavName = behavLine[1][:-1]
-    #else:
-        #maxZDict[behavName][freqLine[0]] = freqLine[1].split(',')[0:-1]
+maxZDict = nestedDict()
+behavName = ''
+for line in maxZFile:
+    behavLine = line.split(':')
+    freqLine = line.split()
+    if (behavLine[0] == 'Behavior Session'):
+        behavName = behavLine[1][:-1]
+    else:
+        maxZDict[behavName][freqLine[0]] = freqLine[1].split(',')[0:-1]
 
 '''
 ISIDict = {}
@@ -132,7 +138,7 @@ for line in modIFile:
 '''
 sigModIDict={}
 #ISIFile.close()
-#maxZFile.close()
+maxZFile.close()
 modIFile.close()
 modSFile.close()
 ########################CHOOSE WHICH CELLS TO PLOT################################################
@@ -151,8 +157,8 @@ for cellID in range(0,numOfCells):
     if clusterQuality not in qualityList:
         continue
     
-    #if behavSession not in maxZDict:
-        #continue
+    if behavSession not in maxZDict:
+        continue
     if behavSession not in modIDict:
         continue
     #elif ephysSession not in ISIDict:
@@ -165,15 +171,24 @@ for cellID in range(0,numOfCells):
     for freq in modIDict[behavSession]:
         #if ((abs(float(maxZDict[behavSession][freq][clusterNumber])) < minZVal) | (ISIDict[ephysSession][tetrode-1][cluster-1] > maxISIviolation)):
        
-        #if (abs(float(maxZDict[behavSession][freq][clusterNumber]))>= minZVal):
-        modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
-        oneCell=CellInfo(animalName=subject,
-                         ephysSession = ephysSession,
-                         tetrode=tetrode,
-                         cluster=cluster,
-                         behavSession = behavSession,
-                         quality=clusterQuality)
-        allCellDB.append(oneCell)
+        if checkSoundResponse and (abs(float(maxZDict[behavSession][freq][clusterNumber]))>= minZVal):
+            modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]]) #here modIndexArray only stores values for sound-responsive cells
+            oneCell=CellInfo(animalName=subject,
+                             ephysSession = ephysSession,
+                             tetrode=tetrode,
+                             cluster=cluster,
+                             behavSession = behavSession,
+                             quality=clusterQuality)
+            soundResponsiveCellDB.append(oneCell)
+        elif not checkSoundResponse:
+            modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]]) #here modIndexArray only stores values for all good quality cells
+            oneCell=CellInfo(animalName=subject,
+                             ephysSession = ephysSession,
+                             tetrode=tetrode,
+                             cluster=cluster,
+                             behavSession = behavSession,
+                             quality=clusterQuality)
+            allCellDB.append(oneCell)
         cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster)
         if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
             modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
@@ -214,11 +229,17 @@ plt.xlim((-(maxMI+binWidth),maxMI+binWidth))
 
 plt.xlabel('Modulation Index')
 plt.ylabel('Number of Cells')
-plt.title('SIDE IN %s cells without checking ISI or sound response, %s cells sig modulated' %(cellNum,sigNum))
+if checkSoundResponse:
+    plt.title(('SIDE IN %s sound-responsive cells without checking ISI, %s cells sig modulated' %(cellNum,sigNum))
+else:
+    plt.title('SIDE IN %s cells without checking ISI or sound response, %s cells sig modulated' %(cellNum,sigNum))
 
 plt.gcf().set_size_inches((8.5,11))
 figformat = 'png'
-filename = 'modIndex_%s_side_in.%s'%(subject,figformat)
+if checkSoundResponse:
+    filename = 'modIndex_%s_side_in_soundresponsive.%s'%(subject,figformat)
+else:
+    filename = 'modIndex_%s_side_in.%s'%(subject,figformat)
 fulloutputDir = processedDir
 fullFileName = os.path.join(fulloutputDir,filename)
 
@@ -232,7 +253,11 @@ plt.gcf().savefig(fullFileName,format=figformat)
 plt.show()
 
 ####Write all significantly modulated cells and their mod index in a text file###
-sigModI_file = open('%s/%s.txt' % (fulloutputDir,'sigMod_sideIn'), 'w')
+if checkSoundResponse:
+              sigModI_file = open('%s/%s_%s.txt' % (fulloutputDir,'sigMod_sideIn','soundResponsive'), 'w')
+else:
+    sigModI_file = open('%s/%s.txt' % (fulloutputDir,'sigMod_sideIn'), 'w')
+
 for (key,value) in sorted(sigModIDict.items()):
     sigModI_file.write('%s:' %key)
     sigModI_file.write('%d %s %f\n' %(value[0],value[1],value[2]))

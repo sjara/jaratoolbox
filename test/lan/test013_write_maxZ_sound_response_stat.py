@@ -1,6 +1,7 @@
 '''
 calculates max Z value for all frequencies (only uses valid trails in calculations) for all cells with good quality (score of 1 or 6).
 Lan Guo, modified from script by Santiago Jaramillo and Billy Walker
+Implemented: using santiago's methods to remove missing trials from behavior when ephys has skipped trials. -LG20160309
 '''
 
 from jaratoolbox import loadbehavior
@@ -10,6 +11,8 @@ from jaratoolbox import ephyscore
 import os
 import numpy as np
 from jaratoolbox import loadopenephys
+from jaratoolbox import loadbehavior
+from jaratoolbox import behavioranalysis
 from jaratoolbox import spikesanalysis
 from jaratoolbox import extraplots
 from jaratoolbox import celldatabase as cellDB
@@ -22,6 +25,7 @@ mouseName = str(sys.argv[1]) #the first argument is the mouse name to tell the s
 allcellsFileName = 'allcells_'+mouseName
 sys.path.append(settings.ALLCELLS_PATH)
 allcells = importlib.import_module(allcellsFileName)
+reload(allcells)
 
 SAMPLING_RATE=30000.0
 
@@ -74,7 +78,7 @@ maxZDict = nestedDict()
 maxZList = [] #List of behavior sessions that already have maxZ values calculated
 
 try:
-    text_file = open("%s/%s.txt" % (finalOutputDir,nameOfFile), 'r+') #open a text file to read and write in
+    text_file = open('%s/%s.txt' % (finalOutputDir,nameOfFile), 'r+') #open a text file to read and write in
     text_file.readline()
     behavName = ''
     for line in text_file:
@@ -86,7 +90,7 @@ try:
             
 
 except:
-    text_file = open("%s/%s.txt" % (finalOutputDir,nameOfFile), 'w') #open a text file to read and write in
+    text_file = open('%s/%s.txt' % (finalOutputDir,nameOfFile), 'w') #open a text file to read and write in
 
 badSessionList = []#Makes sure sessions that crash don't get ZValues printed
 
@@ -122,8 +126,22 @@ for cellID in range(0,numOfCells):
                 eventTimes=np.array(events.timestamps)/SAMPLING_RATE #get array of timestamps for each event and convert to seconds by dividing by sampling rate (Hz). matches with eventID and 
 
                 soundOnsetEvents = (events.eventID==1) & (events.eventChannel==soundTriggerChannel)
+                # -- Check to see if ephys has skipped trials, if so remove trials from behav data 
+                soundOnsetTimeEphys = eventTimes[soundOnsetEvents]
+                soundOnsetTimeBehav = bdata['timeTarget']
+
+                # Find missing trials
+                missingTrials = behavioranalysis.find_missing_trials(soundOnsetTimeEphys,soundOnsetTimeBehav)
+                # Remove missing trials
+                bdata.remove_trials(missingTrials)
+                soundOnsetTimeBehav = bdata['timeTarget']
+                nTrialsBehav = len(soundOnsetTimeBehav)
+                nTrialsEphys = len(soundOnsetTimeEphys)
+                print 'N (behav) = {0}'.format(nTrialsBehav)
+                print 'N (ephys) = {0}'.format(nTrialsEphys)
+
                 eventOnsetTimes = eventTimes[soundOnsetEvents]
-                print "number of ephys trials ",len(eventOnsetTimes)
+                #print "number of ephys trials ",len(eventOnsetTimes)
 
                 possibleFreq = np.unique(bdata['targetFrequency'])
                 numberOfFrequencies = len(possibleFreq)

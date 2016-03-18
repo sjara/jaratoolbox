@@ -2,6 +2,8 @@
 Modified from Billy's file. Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (either all_cells file only contain good quality cells or has 'oneCell.quality' indicating whether it's a good cell). Generates responsiveCellDB (Z score >=3) and modulatedCellDB (mod sig <= 0.05) without considering ISI violations.
 -Lan Guo 20160114
 This plots modulated cells when spikes are aligned to sound onset. -modified 20160303
+Implemented: write to a text file the cell name, cell ID (index in allcells file), frequency modulated, and modulation index (only for the significantly modulated ones). -LG0305
+
 '''
 
 from jaratoolbox import loadbehavior
@@ -131,7 +133,7 @@ for line in modIFile:
         #modDirectionScoreDict[behavName] = [float(x) for x in splitLine[1].split(',')[0:-1]]
 '''
 
-
+responsiveCellDict={}
 sigModIDict={}
 #ISIFile.close()
 maxZFile.close()
@@ -177,7 +179,7 @@ for cellID in range(0,numOfCells):
                              quality=clusterQuality)
             cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster)
             responsiveCellDB.append(oneCell)
-
+            responsiveCellDict.update({cellName:[freq,maxZDict[behavSession][freq][clusterNumber]]})
             if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
                 modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
                 sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
@@ -243,6 +245,13 @@ for (key,value) in sorted(sigModIDict.items()):
     sigModI_file.write('%s:' %key)
     sigModI_file.write('%d %s %f\n' %(value[0],value[1],value[2]))
 sigModI_file.close()
+
+#####Write all sound responsive cells and their Z score to a text file#####
+soundResponsive_file = open('%s/%s.txt' % (fulloutputDir,'soundResponsive_soundOnset'), 'w')
+for (key,value) in sorted(responsiveCellDict.items()):
+    soundResponsive_file.write('%s:' %key)
+    soundResponsive_file.write('%s %s\n' %(value[0],value[1]))
+soundResponsive_file.close()
 
 ####Copy plots of modulated cells to a new folder inside the stats folder and rename them
 numOfModulatedCells = len(modulatedCellDB)

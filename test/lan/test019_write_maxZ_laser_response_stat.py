@@ -79,7 +79,7 @@ try:
     behavName = ''
     for line in text_file:
         behavLine = line.split(':')
-        freqLine = line.split()
+        #freqLine = line.split()
         if (behavLine[0] == 'Behavior Session'):
             behavName = behavLine[1][:-1]
             maxZList.append(behavName)
@@ -95,9 +95,9 @@ for cellID in range(0,numOfCells):
     tetrode = oneCell.tetrode
     cluster = oneCell.cluster
     quality = oneCell.quality
-
-    if (oneCell.behavSession in maxZList): #checks to make sure the maxZ value is not recalculated
-        continue
+    print tetrode,cluster,quality
+    #if (oneCell.behavSession in maxZList): #checks to make sure the maxZ value is not recalculated
+        #continue
     if quality ==1 or quality ==6:
         try:
             if (behavSession != oneCell.behavSession):
@@ -106,8 +106,10 @@ for cellID in range(0,numOfCells):
                 behavSession = oneCell.behavSession
                 laserSession = oneCell.laserSession
                 ephysRoot = os.path.join(ephysRootDir,subject)
+                tetrode=oneCell.tetrode
+                cluster=oneCell.cluster
 
-                print oneCell.behavSession
+                print oneCell.behavSession,tetrode,cluster
                 
                 # -- Load event data and convert event timestamps to ms --
                 ephysDir = os.path.join(ephysRoot, laserSession)
@@ -119,28 +121,38 @@ for cellID in range(0,numOfCells):
                 eventOnsetTimes = eventTimes[laserOnsetEvents]
                 print "number of ephys trials ",len(eventOnsetTimes)
 
+
                 #######20160218 Don't need to iterate through freqs, need [behavsession]as key in maxZdict?? maybe just to associate with behav recording session
                 maxZDict[behavSession] = np.zeros([clusNum*numTetrodes]) #initialize a list for storing maxZ with max length, only good clusters will be filled in so the rest of the entries will be zeros.
-                #maxZArray = np.empty([clusNum*numTetrodes])
-
+               
                 # -- Load Spike Data From Certain Cluster --
-                spkData = ephyscore.CellData(oneCell)
-                spkTimeStamps = spkData.spikes.timestamps
+            #spkData = ephyscore.CellData(oneCell) cannot use this method since it only loads ephys session not laser session
+            #spkTimeStamps = spkData.spikes.timestamps
+            spkFullPath = os.path.join(ephysDir,'Tetrode{0}.spikes'.format(tetrode))
+            spkData=loadopenephys.DataSpikes(spkFullPath)
+            spkData.timestamps = spkData.timestamps/SAMPLING_RATE
+            kkDataDir= os.path.dirname(spkFullPath)+'_kk'
+            clusterFilename = 'Tetrode{0}.clu.1'.format(tetrode)
+            clusterFullPath = os.path.join(kkDataDir,clusterFilename)
+            clusters = np.fromfile(clusterFullPath,dtype='int32',sep=' ')[1:]
+            spikesMaskThisCluster = clusters==cluster
+            spkTimeStamps = spkData.timestamps[spikesMaskThisCluster]
+            print len(spkTimeStamps), len(eventOnsetTimes)
 
-                (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
-                    spikesanalysis.eventlocked_spiketimes(spkTimeStamps,eventOnsetTimes,timeRange)
+            (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
+                spikesanalysis.eventlocked_spiketimes(spkTimeStamps,eventOnsetTimes,timeRange)
+            print len(spikeTimesFromEventOnset)
 
+            [zStat,pValue,maxZ] = spikesanalysis.response_score(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEdges) #computes z score for each bin. zStat is array of z scores. maxZ is maximum value of z in timeRange
+            print zStat,maxZ
+            clusterNumber = (tetrode-1)*clusNum+(cluster-1)
+            maxZDict[behavSession][clusterNumber] = maxZ
+            #if abs(maxZ)=<Zthreshold & onecell.soundResponsive!=True:
+                #oneCell.soundResponsive=False
+            #elif abs(maxZ)>Zthreshold:
+                #oneCell.soundResponsive=True
 
-                [zStat,pValue,maxZ] = spikesanalysis.response_score(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEdges) #computes z score for each bin. zStat is array of z scores. maxZ is maximum value of z in timeRange
-
-                clusterNumber = (tetrode-1)*clusNum+(cluster-1)
-                maxZDict[behavSession][clusterNumber] = maxZ
-                #if abs(maxZ)=<Zthreshold & onecell.soundResponsive!=True:
-                    #oneCell.soundResponsive=False
-                #elif abs(maxZ)>Zthreshold:
-                    #oneCell.soundResponsive=True
-
-                #ZscoreArray[:,Frequency,cellID] = zStat
+            #ZscoreArray[:,Frequency,cellID] = zStat
         except:
             #print "error with session "+oneCell.behavSession
             if (oneCell.behavSession not in badSessionList):
@@ -156,11 +168,11 @@ for bSession in maxZDict:
 
 bSessionList.sort()
 for bSession in bSessionList:
-    text_file.write("Behavior Session:%s" % bSession)
-    text_file.write("\n")
+    text_file.write('Behavior Session:%s\n' %bSession)
+    #text_file.write("\n")
     for ZVal in maxZDict[bSession]:
-        text_file.write("%s," % ZVal)
-    text_file.write("\n")
+        text_file.write("%s," %ZVal)
+    text_file.write('\n')
 
 text_file.close()
 print 'error with sessions: '

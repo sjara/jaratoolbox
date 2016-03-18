@@ -2,6 +2,7 @@
 Spike times aligned to Center Out:
 Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (all_cells file only contain good quality cells), not considering whether sound responsive or not. Generates modulatedCellDB (without considering ISI)
 -Lan Guo 20160303
+Implemented: write to a text file the cell name, cell ID (index in allcells file), frequency modulated, and modulation index (only for the significantly modulated ones). -LG0305
 '''
 
 from jaratoolbox import loadbehavior
