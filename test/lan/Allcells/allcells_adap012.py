@@ -31,7 +31,7 @@ cellDB.append_session(oneES)
 
 
 oneES = eSession(animalName='adap012',
-                 ephysSession = '2016-02-05_13-14-22 ',
+                 ephysSession = '2016-02-05_13-14-22',
                  clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
                  behavSession = '20160205a',
                  clusterQuality = {1:[3,2,1,4,1,1,2,3,3,4,4,3],2:[3,3,3,4,4,4,2,4,3,4,4,3],3:[3,2,1,4,1,4,3,4,1,4,3,4],4:[3,3,2,3,1,3,2,4,2,1,1,4],5:[3,4,4,1,4,4,3,3,4,3,4,4],6:[3,1,4,3,4,1,1,3,1,4,4,3],7:[3,4,1,1,1,1,1,4,1,3,3,1],8:[3,0,0,0,0,0,0,0,0,0,0,0]})
@@ -77,13 +77,13 @@ oneES = eSession(animalName='adap012',
                  clusterQuality = {1:[3,3,2,4,2,2,4,4,2,3,2,2],2:[3,4,4,2,2,3,4,3,1,4,1,1],3:[3,2,3,2,4,1,1,2,1,1,1,1],4:[3,1,1,1,1,1,1,1,1,1,1,0],5:[3,0,0,0,0,0,0,0,0,0,0,0],6:[3,6,2,1,1,6,1,1,6,1,4,0],7:[3,4,1,1,1,2,3,4,1,1,1,0],8:[3,1,4,2,3,3,4,4,4,4,1,3]})
 cellDB.append_session(oneES)
 
-'''
+
 oneES = eSession(animalName='adap012',
                  ephysSession = '2016-02-11_10-09-15',
                  clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
                  behavSession = '20160211a',
-                 clusterQuality = {1:[4,0,0,0,0,0,0,0,0,0,0,0],2:[3,],3:[3,],4:[3,],5:[3,],6:[3,],7:[3,],8:[3,]}) #behav num of trials > ephys num of trials
-'''
+                 clusterQuality = {1:[4,0,0,0,0,0,0,0,0,0,0,0],2:[3,2,1,1,1,1,2,2,4,4,2,1],3:[3,1,1,1,2,1,1,1,3,1,1,2],4:[3,1,2,1,1,1,2,1,3,2,2,1],5:[3,3,1,2,2,3,2,2,2,2,2,4],6:[3,1,1,1,1,6,6,1,6,1,2,2],7:[3,2,2,3,2,1,4,1,3,1,1,0],8:[3,2,1,1,3,3,1,1,3,4,2,0]}) #behav num of trials > ephys num of trials
+cellDB.append_session(oneES)
 
 
 oneES = eSession(animalName='adap012',
@@ -117,14 +117,14 @@ oneES = eSession(animalName='adap012',
                  clusterQuality = {1:[3,1,1,2,1,2,3,4,1,1,1,0],2:[3,4,2,2,4,1,2,2,3,2,1,1],3:[3,2,1,1,1,1,1,1,1,2,1,1],4:[3,1,1,4,1,1,2,4,1,1,2,2],5:[3,4,2,4,1,1,1,1,1,4,1,2],6:[3,1,1,1,4,1,1,4,1,1,1,1],7:[3,1,1,1,1,1,1,1,1,1,1,0],8:[1,0,0,0,0,0,0,0,0,0,0,0]})
 cellDB.append_session(oneES)
 
-'''
+
 oneES = eSession(animalName='adap012',
-                 ephysSession = '2016-02-17_',
+                 ephysSession = '2016-02-17_12-52-13',
                  clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
                  behavSession = '20160217a',
-                 clusterQuality = {1:[3,],2:[3,],3:[3,],4:[3,],5:[3,],6:[3,],7:[3,],8:[1,0,0,0,0,0,0,0,0,0,0,0]})
+                 clusterQuality = {1:[3,4,2,2,2,1,1,1,3,2,2,1],2:[3,4,3,2,2,3,2,1,1,1,2,2],3:[3,1,1,1,1,1,1,1,1,1,1,1],4:[3,1,1,1,1,1,1,1,1,2,1,1],5:[3,1,1,1,4,1,4,2,2,1,1,3],6:[3,1,4,2,1,4,1,1,1,4,3,4],7:[3,1,1,1,1,2,1,1,1,1,1,0],8:[9,0,0,0,0,0,0,0,0,0,0,0]})
 #behav trials more than ephys, not plotted
-'''
+cellDB.append_session(oneES)
 
 oneES = eSession(animalName='adap012',
                  ephysSession = '2016-02-18_13-04-25',
@@ -179,4 +179,76 @@ oneES = eSession(animalName='adap012',
                  clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
                  behavSession = '20160302a',
                  clusterQuality = {1:[3,2,3,2,1,1,2,1,3,1,1,0],2:[2,3,4,3,2,3,2,2,3,2,2,2],3:[3,3,2,1,2,1,1,2,1,1,3,1],4:[3,1,1,2,3,2,1,2,1,1,1,1],5:[3,6,4,2,1,3,2,6,2,3,2,4],6:[3,1,2,3,2,1,1,1,1,1,1,0],7:[3,1,1,1,1,1,2,4,4,3,2,4],8:[3,0,0,0,0,0,0,0,0,0,0,0]})
+cellDB.append_session(oneES)
+
+
+oneES = eSession(animalName='adap012',
+                 ephysSession = '2016-03-04_15-23-27',
+                 clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
+                 behavSession = '20160304a',
+                 clusterQuality = {1:[3,2,4,3,3,2,2,1,3,4,2,4],2:[9,0,0,0,0,0,0,0,0,0,0,0],3:[3,4,3,1,2,1,4,1,4,1,1,3],4:[3,6,4,4,1,1,3,1,1,1,2,1],5:[3,4,6,1,1,1,1,3,3,4,4,7],6:[3,4,4,3,4,2,1,4,7,7,7,7],7:[3,1,1,1,4,3,3,4,1,4,1,4],8:[3,3,3,3,3,3,3,1,4,3,3,2]})
+cellDB.append_session(oneES)
+
+
+oneES = eSession(animalName='adap012',
+                 ephysSession = '2016-03-07_12-31-45',
+                 clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
+                 behavSession = '20160307a',
+                 clusterQuality = {1:[3,1,2,1,1,1,1,2,1,4,1,2],2:[9,0,0,0,0,0,0,0,0,0,0,0],3:[3,1,4,1,1,1,1,1,2,1,1,1],4:[3,1,1,1,1,1,1,1,1,1,1,1],5:[3,6,6,6,6,2,1,1,1,2,2,0],6:[3,1,1,1,1,1,1,1,1,1,1,1],7:[3,2,1,1,1,1,1,2,1,1,1,0],8:[3,2,3,3,1,3,3,2,3,2,1,4]})
+cellDB.append_session(oneES)
+
+
+oneES = eSession(animalName='adap012',
+                 ephysSession = '2016-03-08_13-29-12',
+                 clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
+                 behavSession = '20160308a',
+                 clusterQuality = {1:[3,1,1,1,1,1,1,3,1,2,1,1],2:[3,3,3,1,1,3,3,3,3,2,2,2],3:[3,1,1,1,3,1,1,1,1,4,1,2],4:[3,1,1,2,1,1,1,1,4,1,1,1],5:[3,1,3,1,1,1,7,2,1,1,2,4],6:[3,2,1,1,1,1,1,1,1,1,4,1],7:[3,1,1,1,4,1,1,4,1,1,1,1],8:[3,0,0,0,0,0,0,0,0,0,0,0]})
+cellDB.append_session(oneES)
+
+
+oneES = eSession(animalName='adap012',
+                 ephysSession = '2016-03-09_14-04-44',
+                 clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
+                 behavSession = '20160309a',
+                 clusterQuality = {1:[3,1,1,1,2,1,2,1,2,1,2,1],2:[3,0,0,0,0,0,0,0,0,0,0,0],3:[3,6,6,1,6,1,6,1,2,1,6,1],4:[3,1,2,2,1,1,1,1,1,1,1,1],5:[3,1,2,1,3,4,5,1,2,1,1,0],6:[3,1,6,1,1,2,3,2,1,1,4,2],7:[3,1,4,1,1,1,1,1,1,1,3,2],8:[3,3,3,6,2,4,2,3,1,2,4,4]})
+cellDB.append_session(oneES)
+
+
+oneES = eSession(animalName='adap012',
+                 ephysSession = '2016-03-11_13-37-52',
+                 clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
+                 behavSession = '20160311a',
+                 clusterQuality = {1:[3,1,3,1,1,4,1,2,1,1,4,1],2:[3,0,0,0,0,0,0,0,0,0,0,0],3:[3,1,1,1,3,2,2,2,1,1,1,1],4:[3,1,1,1,1,1,1,1,1,1,1,0],5:[3,1,4,2,4,3,7,1,1,1,4,3],6:[3,1,1,4,1,1,4,4,4,1,1,4],7:[3,4,3,1,1,2,4,4,1,4,1,0],8:[3,6,6,3,6,6,2,6,4,3,3,2]})
+cellDB.append_session(oneES)
+
+
+oneES = eSession(animalName='adap012',
+                 ephysSession = '2016-03-15_13-26-57',
+                 clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
+                 behavSession = '20160315a',
+                 clusterQuality = {1:[3,1,4,1,1,1,1,2,2,1,4,0],2:[9,0,0,0,0,0,0,0,0,0,0,0],3:[3,1,1,1,2,1,4,1,4,2,1,0],4:[3,1,1,1,1,1,1,1,1,1,1,1],5:[3,3,2,1,1,2,1,1,2,2,6,2],6:[3,2,1,1,4,4,1,1,1,4,4,2],7:[3,2,1,1,1,1,1,2,4,4,1,0],8:[3,2,5,2,3,2,1,2,2,3,4,3]})
+cellDB.append_session(oneES)
+
+
+oneES = eSession(animalName='adap012',
+                 ephysSession = '2016-03-16_12-51-49',
+                 clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
+                 behavSession = '20160316a',
+                 clusterQuality = {1:[3,1,3,1,1,1,1,1,1,1,1,1],2:[3,1,2,1,1,3,2,1,2,3,2,0],3:[3,1,1,1,2,1,1,1,4,4,1,2],4:[3,1,4,1,1,1,1,1,1,1,4,1],5:[3,4,1,1,6,2,1,2,3,1,4,2],6:[3,1,1,1,1,1,1,4,1,1,4,1],7:[3,1,1,1,4,1,1,1,1,1,1,1],8:[9,0,0,0,0,0,0,0,0,0,0,0]})
+cellDB.append_session(oneES)
+
+
+oneES = eSession(animalName='adap012',
+                 ephysSession = '2016-03-17_14-43-53',
+                 clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
+                 behavSession = '20160317a',
+                 clusterQuality = {1:[3,1,4,1,1,1,3,1,1,1,1,4],2:[3,3,1,2,3,1,4,2,1,1,1,0],3:[3,3,1,1,1,1,1,4,2,1,1,2],4:[3,4,4,1,4,1,1,1,1,1,1,1],5:[3,6,1,1,2,4,6,6,4,4,2,4],6:[3,2,1,1,1,1,1,1,2,4,1,0],7:[3,1,1,2,2,1,1,1,1,1,1,0],8:[9,0,0,0,0,0,0,0,0,0,0,0]})
+cellDB.append_session(oneES)
+
+
+oneES = eSession(animalName='adap012',
+                 ephysSession = '2016-03-18_13-26-30',
+                 clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
+                 behavSession = '20160318a',
+                 clusterQuality = {1:[3,],2:[3,],3:[3,],4:[3,],5:[3,],6:[3,],7:[3,],8:[9,0,0,0,0,0,0,0,0,0,0,0]})
 cellDB.append_session(oneES)
