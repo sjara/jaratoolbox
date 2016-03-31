@@ -40,7 +40,7 @@ def calculate_site_ISI_violations(site, siteName):
 
     siteClusterISIViolations = {}
 
-        
+
     for tetrode in site.tetrodes:
         oneTT = cluster_site(site, siteName, tetrode, report=False)
         possibleClusters=np.unique(oneTT.clusters)
@@ -56,7 +56,7 @@ def calculate_site_ISI_violations(site, siteName):
 
 
 def calculate_site_response(site, siteName, sessionInd, maxZonly=False):
-    
+
     from jaratoolbox import spikesanalysis
 
     #Zscore settings from billy
@@ -95,7 +95,7 @@ def calculate_site_response(site, siteName, sessionInd, maxZonly=False):
 
 
             [zStat,pValue,maxZ] = spikesanalysis.response_score(spikeTimesFromEventOnset,indexLimitsEachTrial,baseRange,binEdges) #computes z score for each bin. zStat is array of z scores. maxZ is maximum value of z in timeRange
-            
+
             tetClustName = '{0}T{1}c{2}'.format(siteName, tetrode, cluster)
             siteClusterMaxZ[tetClustName] = maxZ
             siteClusterPval[tetClustName] = pValue
@@ -118,10 +118,10 @@ def find_good_clusters(site, siteName, soundInd, laserInd, maxISI=0.02, minSound
     goodISI = [cell for cell, val in isi.iteritems() if val<maxISI]
     soundResponsive = [cell for cell, val in soundMaxZ.iteritems() if val>minSoundZ]
     laserResponsive = [cell for cell, val in laserMaxZ.iteritems() if val>minLaserZ]
-    
+
     return list(set(goodISI) & set(soundResponsive) & set(laserResponsive))
 
-      
+
 def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
     '''
 
@@ -233,7 +233,7 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
             tsThisCluster = oneTT.timestamps[oneTT.clusters==cluster]
             wavesThisCluster = oneTT.samples[oneTT.clusters==cluster]
 
-            
+
             # -- Plot ISI histogram --
             plt.subplot2grid((6,6), (4,0), rowspan=1, colspan=3)
             spikesorting.plot_isi_loghist(tsThisCluster)
@@ -265,7 +265,7 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
 
 def calculate_isi_violations(timeStamps,nBins=350):
     '''
-    Returns the proportion of ISIs less than 2msec 
+    Returns the proportion of ISIs less than 2msec
     '''
 
     ISI = np.diff(timeStamps)
@@ -317,6 +317,3 @@ def am_mod_report(site, siteName, amSessionInd):
             full_fig_path = os.path.join(fig_path, fig_name)
             print full_fig_path
             plt.savefig(full_fig_path, format = 'png')
-
-
-

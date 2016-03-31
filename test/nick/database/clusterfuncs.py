@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 
-def plot_cluster_tuning(clusterObj, indTC, experimenter='nick'):
+def plot_cluster_tuning(clusterObj, indTC, experimenter='nick', *args, **kwargs):
     loader = dataloader.DataLoader('offline', experimenter=experimenter)
     spikeData, eventData, behavData = loader.get_cluster_data(clusterObj, indTC)
 
@@ -26,12 +26,14 @@ def plot_cluster_tuning(clusterObj, indTC, experimenter='nick'):
 
     # plt.clf()
     ax, cax, cbar = dataplotter.two_axis_heatmap(spikeTimestamps,
-                                eventOnsetTimes,
-                                firstSortArray=intensityEachTrial,
-                                secondSortArray=freqEachTrial,
-                                firstSortLabels=intenLabels,
-                                secondSortLabels=freqLabels,
-                                 timeRange=[0, 0.1])
+                                                 eventOnsetTimes,
+                                                 firstSortArray=intensityEachTrial,
+                                                 secondSortArray=freqEachTrial,
+                                                 firstSortLabels=intenLabels,
+                                                 secondSortLabels=freqLabels,
+                                                 timeRange=[0, 0.1],
+                                                 *args,
+                                                 **kwargs)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
 

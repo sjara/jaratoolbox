@@ -50,7 +50,7 @@ def find_trials_each_combination(parameter1,parameterPossibleValues1,parameter2,
     return trialsEachComb
 
 
-'''    
+'''
 ,validTrials=[]
     if(not len(validTrials)):
         validTrials = np.ones(nTrials,dtype=bool)
@@ -90,7 +90,7 @@ def find_trials_each_type_each_block(psyCurveParameter,psyCurveParameterPossible
         for indb in range(nBlockTypes):
             trialsEachType[:,indval,indb] = trialsThisValue & \
                                             trialsEachBlock[:,indb] & validTrials
-        
+
     return trialsEachType
 
 
@@ -118,7 +118,7 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',datesRange=None):
         loadingClass = loadbehavior.FlexCategBehaviorData
     else:
         raise TypeError('Loading many sessions for that paradigm has not been implemented')
-    
+
     #if params=='all':
     #    readmode = 'full'
     #else:
@@ -157,6 +157,84 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',datesRange=None):
             inds += 1
     return allBehavData
 
+def mod_switching_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,soundfreq=None):
+    if isinstance(subjects,str):
+        subjects = [subjects]
+    if isinstance(sessions,str):
+        sessions = [sessions]
+    nSessions = len(sessions)
+    nAnimals = len(subjects)
+
+    loadingClass = loadbehavior.FlexCategBehaviorData
+    paradigm = '2afc'
+
+
+    #Mult number of rows by 2 so each animal*session can have both mod and chords
+    gs = gridspec.GridSpec(2*nSessions*nAnimals, 3)
+    gs.update(hspace=0.5,wspace=0.4)
+    plt.clf()
+
+    for inds,thisSession in enumerate(sessions):
+        for inda,animalName in enumerate(subjects):
+            try:
+                behavFile = loadbehavior.path_to_behavior_data(animalName,EXPERIMENTER,paradigm,thisSession)
+                behavData = loadingClass(behavFile,readmode='full')
+            except IOError:
+                print thisSession+' does not exist'
+                continue
+            print 'Loaded %s %s'%(animalName,thisSession)
+
+            # -- Plot either psychometric or average performance FOR CHORDS
+            thisAnimalPos = 3*inda*nSessions
+            thisPlotPos = thisAnimalPos+3*inds
+            ax1=plt.subplot(gs[thisPlotPos])
+            if any(behavData['psycurveMode']):
+                (pline, pcaps, pbars, pdots) = plot_frequency_psycurve(behavData,fontsize=8)
+                plt.setp(pdots,ms=6)
+                plt.ylabel('% rightward')
+                nValid = behavData['nValid'][-1]
+                nTrials = len(behavData['nValid'])
+                if soundfreq is None:
+                    freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                    # freqsToUse = [min(np.unique(behavData['targetFrequency'])),max(np.unique(behavData['targetFrequency']))]
+                titleStr = '{0} [{1}] {2}\n'.format(behavData.session['subject'],behavData.session['date'],
+                                                    behavData.session['hostname'])
+                titleStr += '{0} valid, {1:.0%} early'.format(nValid,(nTrials-nValid)/float(nTrials))
+                plt.title(titleStr,fontweight='bold',fontsize=8,y=0.95)
+            else:
+                behavData.find_trials_each_block()
+                if soundfreq is None:
+                    # freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                    freqsToUse = [min(np.unique(behavData['targetFrequency'])),max(np.unique(behavData['targetFrequency']))]
+                plot_summary(behavData,fontsize=8,soundfreq=freqsToUse)
+
+            # -- Plot either psychometric or average performance FOR AMP MOD
+            thisAnimalPos = 3*inda*nSessions
+            thisPlotPos = thisAnimalPos+3*inds
+            ax1=plt.subplot(gs[thisPlotPos])
+            if any(behavData['psycurveMode']):
+                (pline, pcaps, pbars, pdots) = plot_frequency_psycurve(behavData,fontsize=8)
+                plt.setp(pdots,ms=6)
+                plt.ylabel('% rightward')
+                nValid = behavData['nValid'][-1]
+                nTrials = len(behavData['nValid'])
+                if soundfreq is None:
+                    # freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                    freqsToUse = [min(np.unique(behavData['targetFrequency'])),max(np.unique(behavData['targetFrequency']))]
+                titleStr = '{0} [{1}] {2}\n'.format(behavData.session['subject'],behavData.session['date'],
+                                                    behavData.session['hostname'])
+                titleStr += '{0} valid, {1:.0%} early'.format(nValid,(nTrials-nValid)/float(nTrials))
+                plt.title(titleStr,fontweight='bold',fontsize=8,y=0.95)
+            else:
+                behavData.find_trials_each_block()
+                if soundfreq is None:
+                    # freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                    freqsToUse = [min(np.unique(behavData['targetFrequency'])),max(np.unique(behavData['targetFrequency']))]
+                plot_summary(behavData,fontsize=8,soundfreq=freqsToUse)
+
+
+
+
 
 def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,soundfreq=None):
     '''
@@ -189,6 +267,7 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
                 print thisSession+' does not exist'
                 continue
             print 'Loaded %s %s'%(animalName,thisSession)
+
             # -- Plot either psychometric or average performance
             thisAnimalPos = 3*inda*nSessions
             thisPlotPos = thisAnimalPos+3*inds
@@ -200,7 +279,8 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
                 nValid = behavData['nValid'][-1]
                 nTrials = len(behavData['nValid'])
                 if soundfreq is None:
-                    freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                    # freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                    freqsToUse = [min(np.unique(behavData['targetFrequency'])),max(np.unique(behavData['targetFrequency']))]
                 titleStr = '{0} [{1}] {2}\n'.format(behavData.session['subject'],behavData.session['date'],
                                                     behavData.session['hostname'])
                 titleStr += '{0} valid, {1:.0%} early'.format(nValid,(nTrials-nValid)/float(nTrials))
@@ -208,7 +288,8 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
             else:
                 behavData.find_trials_each_block()
                 if soundfreq is None:
-                    freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                    # freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+                    freqsToUse = [min(np.unique(behavData['targetFrequency'])),max(np.unique(behavData['targetFrequency']))]
                 plot_summary(behavData,fontsize=8,soundfreq=freqsToUse)
 
             # -- Plot dynamics --
@@ -229,11 +310,11 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
     ax2.set_xlabel(ax2xlabel)
     #plt.draw()
     #plt.show()
-                      
+
     if len(outputDir):
         animalStr = '-'.join(subjects)
         sessionStr = '-'.join(sessions)
-        plt.gcf().set_size_inches((8.5,11))
+        # plt.gcf().set_size_inches((8.5,11))
         figformat = 'png' #'png' #'pdf' #'svg'
         filename = 'behavior_%s_%s.%s'%(animalStr,sessionStr,figformat)
         fullFileName = os.path.join(outputDir,filename)
@@ -303,12 +384,35 @@ def plot_frequency_psycurve(bdata,fontsize=12):
     valid=bdata['valid']& (choice!=bdata.labels['choice']['none'])
     choiceRight = choice==bdata.labels['choice']['right']
     possibleFreq = np.unique(targetFrequency)
-    nFreq = len(possibleFreq) 
+    nFreq = len(possibleFreq)
     trialsEachFreq = find_trials_each_type(targetFrequency,possibleFreq)
     (possibleValues,fractionHitsEachValue,ciHitsEachValue,nTrialsEachValue,nHitsEachValue)=\
        calculate_psychometric(choiceRight,targetFrequency,valid)
     (pline, pcaps, pbars, pdots) = extraplots.plot_psychometric(1e-3*possibleValues,fractionHitsEachValue,
                                                                 ciHitsEachValue,xTickPeriod=1)
+    plt.xlabel('Frequency (kHz)',fontsize=fontsize)
+    plt.ylabel('Rightward trials (%)',fontsize=fontsize)
+    extraplots.set_ticks_fontsize(plt.gca(),fontsize)
+    return (pline, pcaps, pbars, pdots)
+
+def plot_frequency_psycurve_soundtype(bdata, soundType, fontsize=12):
+    '''
+    Show psychometric curve (for any arbitrary sound type)
+    '''
+
+    trialsSoundType = bdata['soundType']==bdata.labels['soundType'][soundType]
+    choice = bdata['choice']
+    choiceRight = choice==bdata.labels['choice']['right']
+    choiceRightSoundType = choiceRight[trialsSoundType]
+    targetFrequencySoundType = bdata['targetFrequency'][trialsSoundType]
+    valid = bdata['valid']
+    validSoundType = valid[trialsSoundType]
+    (possibleValues,fractionHitsEachValue,ciHitsEachValue,nTrialsEachValue,nHitsEachValue)=\
+        behavioranalysis.calculate_psychometric(choiceRightSoundType,targetFrequencySoundType,validSoundType)
+    (pline, pcaps, pbars, pdots) = extraplots.plot_psychometric(1e-3*possibleValues,
+                                                                fractionHitsEachValue,
+                                                                ciHitsEachValue,
+                                                                xTickPeriod=1)
     plt.xlabel('Frequency (kHz)',fontsize=fontsize)
     plt.ylabel('Rightward trials (%)',fontsize=fontsize)
     extraplots.set_ticks_fontsize(plt.gca(),fontsize)
@@ -377,7 +481,7 @@ def calculate_psychometric(hitTrials,paramValueEachTrial,valid=None):
     nHitsEachValue: array of same length as possibleValues
     '''
     try:
-        from statsmodels.stats.proportion import proportion_confint #Used to compute confidence interval for the error bars. 
+        from statsmodels.stats.proportion import proportion_confint #Used to compute confidence interval for the error bars.
         useCI = True
     except ImportError:
         print 'To calculate confidence intervals, please install "statsmodels" module.'
@@ -386,7 +490,7 @@ def calculate_psychometric(hitTrials,paramValueEachTrial,valid=None):
     if valid is None:
         valid = ones(nTrials,dtype=bool)
     possibleValues = np.unique(paramValueEachTrial)
-    nValues = len(possibleValues) 
+    nValues = len(possibleValues)
     trialsEachValue = find_trials_each_type(paramValueEachTrial,possibleValues)
 
     nTrialsEachValue = np.empty(nValues,dtype=int)
@@ -394,7 +498,7 @@ def calculate_psychometric(hitTrials,paramValueEachTrial,valid=None):
     for indv,thisValue in enumerate(possibleValues):
         nTrialsEachValue[indv] = sum(valid & trialsEachValue[:,indv])
         nHitsEachValue[indv] = sum(valid & hitTrials & trialsEachValue[:,indv])
-    
+
     fractionHitsEachValue = nHitsEachValue/nTrialsEachValue.astype(float)
     if useCI:
         ciHitsEachValue = np.array(proportion_confint(nHitsEachValue, nTrialsEachValue, method = 'wilson'))
@@ -414,7 +518,7 @@ def OLD_calculate_psychometric(behavData,parameterName='targetFrequency'):
     choiceRight = choice==bdata.labels['choice']['right']
 
     possibleValues = np.unique(paramValues)
-    nValues = len(possibleValues) 
+    nValues = len(possibleValues)
     trialsEachValue = find_trials_each_type(paramValues,possibleValues)
 
     nTrialsEachValue = np.empty(nValues,dtype=int)
@@ -422,7 +526,7 @@ def OLD_calculate_psychometric(behavData,parameterName='targetFrequency'):
     for indv,thisValue in enumerate(possibleValues):
         nTrialsEachValue[indv] = sum(valid & trialsEachValue[:,indv])
         nRightwardEachValue[indv] = sum(valid & choiceRight & trialsEachValue[:,indv])
-    
+
     fractionRightEachValue = nRightwardEachValue/nTrialsEachValue.astype(float)
     confintervRightEachValue = [] # TO BE IMPLEMENTED LATER
     return (possibleValues,fractionRightEachValue,confintervRightEachValue,nTrialsEachValue,nRightwardEachValue)
@@ -442,7 +546,7 @@ if __name__ == "__main__":
         behavFile = loadbehavior.path_to_behavior_data(subject,experimenter,paradigm,session)
         behavData = loadbehavior.FlexCategBehaviorData(behavFile,readmode='full')
         behavData.find_trials_each_block()
- 
+
         #trialsEachBlock = behavData.blocks['trialsEachBlock']
         #nValidEachBlock = np.sum(trialsEachBlock & (~behavData['valid'][:,np.newaxis]),axis=0)
         #validEachBlock = trialsEachBlock & behavData['valid'][:,np.newaxis].astype(bool)

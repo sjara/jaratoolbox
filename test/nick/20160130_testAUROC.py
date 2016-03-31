@@ -70,16 +70,16 @@ for indFreq, freq in enumerate(possibleFreq):
 
     spikesBaseline = num_spikes_in_timerange_select_trials(spikeTimestamps, eventOnsetTimes, baselineRange, select)
 
-    labelsBaseline = zeros(len(spikesBaseline))
+    labelsBaseline = np.zeros(len(spikesBaseline))
 
 
     for indRange in range(len(starts)):
 
         spikesThisRange = num_spikes_in_timerange_select_trials(spikeTimestamps, eventOnsetTimes, ranges[:,indRange], select)
-        labelsThisRange = ones(len(spikesThisRange))
+        labelsThisRange = np.ones(len(spikesThisRange))
 
-        spikes = concatenate((spikesBaseline, spikesThisRange))
-        labels = concatenate((labelsBaseline, labelsThisRange))
+        spikes = np.concatenate((spikesBaseline, spikesThisRange))
+        labels = np.concatenate((labelsBaseline, labelsThisRange))
 
         fpr, tpr, thresholds = roc_curve(labels, spikes)
         auroc = auc(fpr, tpr)

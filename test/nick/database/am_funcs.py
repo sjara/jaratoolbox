@@ -1,5 +1,33 @@
 import numpy as np
+from jaratoolbox.test.nick import circstats
 from jaratoolbox import spikesanalysis
+
+
+#######################3
+#Extracts spikes and plots a cycle histogram
+
+# timeRange = [0, 0.5]
+# spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
+#     spikeTimestamps, eventOnsetTimes, timeRange)
+
+# freq = 128
+# select = np.flatnonzero(currentFreq==freq)
+# selectspikes = spikeTimesFromEventOnset[np.in1d(trialIndexForEachSpike, select)]
+# selectinds = trialIndexForEachSpike[np.in1d(trialIndexForEachSpike, select)]
+# squeezedinds=np.array([list(np.unique(selectinds)).index(x) for x in selectinds])
+
+# radsPerSec=freq*2*np.pi
+# spikeRads = (selectspikes*radsPerSec)%(2*np.pi)
+# hist(spikeRads, bins=10*np.pi, histtype='stepfilled', color='k')
+# xlim([0, 2*np.pi])
+
+# from jaratoolbox.test.nick import circstats
+
+# ral_test = circstats.rayleigh_test(spikeRads)
+
+#############################
+
+
 
 def AM_vector_strength(spikeTimestamps, eventOnsetTimes, behavData, timeRange):
 
@@ -7,6 +35,8 @@ def AM_vector_strength(spikeTimestamps, eventOnsetTimes, behavData, timeRange):
     possibleFreq = np.unique(currentFreq)
 
     vs_array=np.array([])
+    ral_array=np.array([])
+    pval_array = np.array([])
     timeRange = [0, 0.5]
     spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
         spikeTimestamps, eventOnsetTimes, timeRange)
@@ -17,10 +47,24 @@ def AM_vector_strength(spikeTimestamps, eventOnsetTimes, behavData, timeRange):
         selectspikes = spikeTimesFromEventOnset[np.in1d(trialIndexForEachSpike, select)]
         selectinds = trialIndexForEachSpike[np.in1d(trialIndexForEachSpike, select)]
         squeezedinds=np.array([list(np.unique(selectinds)).index(x) for x in selectinds])
-        strength, phase = vectorstrength(selectspikes, 1.0/freq)
+
+        spikesAfterFirstCycle = selectspikes[selectspikes>(1.0/freq)]
+        indsAfterFirstCycle = selectinds[selectspikes>(1.0/freq)]
+
+        strength, phase = vectorstrength(spikesAfterFirstCycle, 1.0/freq)
         vs_array=np.concatenate((vs_array, np.array([strength])))
 
-    return vs_array
+        #Compute the pval for the vector strength
+        radsPerSec=freq*2*np.pi
+        spikeRads = (spikesAfterFirstCycle*radsPerSec)%(2*np.pi)
+        ral_test = circstats.rayleigh_test(spikeRads)
+        pval = np.array([ral_test['pvalue']])
+        ral =np.array([2*len(spikesAfterFirstCycle)*(strength**2)]) 
+        pval_array = np.concatenate((pval_array, pval))
+        ral_array = np.concatenate((ral_array, ral))
+
+    return vs_array, pval_array, ral_array
+
 
 def average_AM_firing_rate(spikeTimestamps, eventOnsetTimes, behavData, timeRange):
 
