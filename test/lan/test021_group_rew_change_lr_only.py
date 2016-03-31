@@ -17,7 +17,7 @@ EXPERIMENTER = 'lan'
 #settings.BEHAVIOR_PATH = '/home/languo/data/mnt/jarahubdata'
 #settings.BEHAVIOR_PATH = '/var/tmp/data/'
 
-subjects = ['adap005','adap008']
+subjects = ['adap005']
 #subjects = ['test']
 
 FREQCOLORS = [colorpalette.TangoPalette['Chameleon3'],
@@ -41,8 +41,8 @@ for inda, thisAnimal in enumerate(subjects):
     valid=allBehavDataThisAnimal['valid']& (choice!=allBehavDataThisAnimal.labels['choice']['none'])
     choiceRight = choice==allBehavDataThisAnimal.labels['choice']['right']
     currentBlock = allBehavDataThisAnimal['currentBlock']
-    blockTypes = [allBehavDataThisAnimal.labels['currentBlock']['same_reward'],allBehavDataThisAnimal.labels['currentBlock']['more_left'],allBehavDataThisAnimal.labels['currentBlock']['more_right']]
-    blockLabels = ['same_reward','more_left','more_right']
+    blockTypes = [allBehavDataThisAnimal.labels['currentBlock']['more_left'],allBehavDataThisAnimal.labels['currentBlock']['more_right']]
+    blockLabels = ['more_left','more_right']
     trialsEachType = behavioranalysis.find_trials_each_type(currentBlock,blockTypes)
     
     #print trialsEachType

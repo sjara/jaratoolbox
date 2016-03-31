@@ -476,7 +476,8 @@ def lan_2afc_ephys_plots_each_type(site, siteName, main2afcind, tetrodes, trialL
     binWidth = 0.010 # Size of each bin in histogram in seconds
 
     #timeRange = [-0.2,0.8] # In seconds. Time range for rastor plot to plot spikes (around some event onset as 0)
-    timeRange = [-0.25,1.0]
+    #timeRange = [-0.25,1.0]
+    timeRange = [-0.4,1.2]
 
     loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
 
@@ -591,7 +592,8 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
     binWidth = 0.010 # Size of each bin in histogram in seconds
 
     #timeRange = [-0.2,0.8] # In seconds. Time range for rastor plot to plot spikes (around some event onset as 0)
-    timeRange = [-0.25,1.0]
+    #timeRange = [-0.25,1.0]
+    timeRange = [-0.4,1.2]
 
     loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
 
@@ -606,6 +608,10 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
     #bdata = loader.get_session_behavior(main2afcbehavFilename)
     bdata = loadingClass(behavFullFilePath,readmode='full')
     currentBlock = bdata['currentBlock']
+    if currentBlock[0]==bdata.labels['currentBlock']['more_left']:
+        startMoreLeft=True
+    else:
+        startMoreLeft=False
     blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
     if(not len(trialLimit)):
         validTrials = np.ones(len(currentBlock),dtype=bool)
@@ -656,12 +662,20 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
                 trialsEachCond=np.c_[trialsEachCond,leftcorrectThisBlock,rightcorrectThisBlock]
 
         if choiceSide=='right':
-            colorEachCond=['r','b','r','b','r','b','r','b']
+            if startMoreLeft:
+                colorEachCond=['r','b','r','b','r','b','r','b']
+            else:
+                colorEachCond=['b','r','b','r','b','r','b','r']
         elif choiceSide=='left':
-            colorEachCond=['g','m','g','m','g','m','g','m']
+            if startMoreLeft:
+                colorEachCond=['g','m','g','m','g','m','g','m']
+            else:
+                colorEachCond=['m','g','m','g','m','g','m','g']
         elif choiceSide=='both':
-            colorEachCond=['g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b']
-        
+            if startMoreLeft:
+                colorEachCond=['g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b']
+            else:
+                colorEachCond=['m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r']
 
     for tetrode in tetrodes:
         oneTT = cluster_site(site, siteName, tetrode)

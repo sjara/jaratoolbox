@@ -24,8 +24,8 @@ site1.add_session('15-14-40', 'c', sessionTypes['tc']) #18to22kHz,50dB
 site1.add_session('15-19-45', 'a', sessionTypes['2afc'], paradigm='2afc')
 sitefuncs.nick_lan_daily_report(site1, 'site1', mainRasterInds=[0], mainTCind=1, mainSTRind=1)
 #sitefuncs.lan_2afc_ephys_plots(site1, 'site1', main2afcind=4, tetrodes=[1,3,4,5,6,7,8]) 
-sitefuncs.lan_2afc_ephys_plots_each_type(site1, 'site1', main2afcind=4, tetrodes=[8],trialLimit=[])
+#sitefuncs.lan_2afc_ephys_plots_each_type(site1, 'site1', main2afcind=4, tetrodes=[8],trialLimit=[])
 #sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=4, tetrodes=[3,4,5,6,7,8],trialLimit=[],choiceSide='both') 
-sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=4, tetrodes=[8],trialLimit=[],choiceSide='left')
-sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=4, tetrodes=[8],trialLimit=[],choiceSide='right')
+#sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=4, tetrodes=[8],trialLimit=[],choiceSide='left')
+#sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=4, tetrodes=[8],trialLimit=[],choiceSide='right')
 

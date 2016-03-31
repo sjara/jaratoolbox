@@ -26,5 +26,5 @@ site1.add_session('16-02-03', 'b', sessionTypes['tc']) #6.2&15kHz chords, 50dB
 #sitefuncs.lan_2afc_ephys_plots(site1, 'site1', main2afcind=0, tetrodes=[1,2,8]) 
 #sitefuncs.lan_2afc_ephys_plots_each_type(site1, 'site1', main2afcind=0, tetrodes=[1,2,3,5,8],trialLimit=[0,1508])
 #sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=0, tetrodes=[1,2,3,5,8],trialLimit=[,1508],choiceSide='both') #block1-4 (eliminate block5 due to few trials)
-#sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=0, tetrodes=[1,2,3,5,8],trialLimit=[],choiceSide='left')
-sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=0, tetrodes=[1,2,3,5,8],trialLimit=[],choiceSide='right')
+sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=0, tetrodes=[5],trialLimit=[],choiceSide='left')
+sitefuncs.lan_2afc_ephys_plots_each_block_each_type(site1, 'site1', main2afcind=0, tetrodes=[5],trialLimit=[],choiceSide='right')
