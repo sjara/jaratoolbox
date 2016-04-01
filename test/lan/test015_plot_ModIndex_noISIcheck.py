@@ -3,7 +3,7 @@ Modified from Billy's file. Plots number of significantly and non-significantly 
 -Lan Guo 20160114
 This plots modulated cells when spikes are aligned to sound onset. -modified 20160303
 Implemented: write to a text file the cell name, cell ID (index in allcells file), frequency modulated, and modulation index (only for the significantly modulated ones). -LG0305
-
+Implemented 'trialLimit' constraint to exclude blocks with few trials at the end of a behav session. -LG 20160324
 '''
 
 from jaratoolbox import loadbehavior
@@ -150,46 +150,44 @@ for cellID in range(0,numOfCells):
     tetrode = oneCell.tetrode
     cluster = oneCell.cluster
     clusterQuality = oneCell.quality
-
+    trialLimit = oneCell.trialLimit
 
     if clusterQuality not in qualityList:
         continue
     
-    if behavSession not in maxZDict:
+    elif behavSession not in maxZDict:
         continue
     elif behavSession not in modIDict:
         continue
     #elif ephysSession not in ISIDict:
         #continue
+    else:
+        clusterNumber = (tetrode-1)*clusNum+(cluster-1)
+        #midFreq = minTrialDict[behavSession][0]
+        #Here we are using all frequencies tested (usually two freqs per recording session), but one cell will not likely be responsive (Zscore outside 3) for both low and high frequencies.
 
-    clusterNumber = (tetrode-1)*clusNum+(cluster-1)
-    #midFreq = minTrialDict[behavSession][0]
-    #Here we are using all frequencies tested (usually two freqs per recording session), but one cell will not likely be responsive (Zscore outside 3) for both low and high frequencies.
-    
-    for freq in maxZDict[behavSession]:
-        #if ((abs(float(maxZDict[behavSession][freq][clusterNumber])) < minZVal) | (ISIDict[ephysSession][tetrode-1][cluster-1] > maxISIviolation)):
-       
-        if (abs(float(maxZDict[behavSession][freq][clusterNumber]))>= minZVal):
-            modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
-            oneCell=CellInfo(animalName=subject,
-                             ephysSession = ephysSession,
-                             tetrode=tetrode,
-                             cluster=cluster,
-                             behavSession = behavSession,
-                             quality=clusterQuality)
-            cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster)
-            responsiveCellDB.append(oneCell)
-            responsiveCellDict.update({cellName:[freq,maxZDict[behavSession][freq][clusterNumber]]})
-            if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
-                modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
-                sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
-                modulatedCellDB.append(oneCell)
+        for freq in maxZDict[behavSession]:
+            #if ((abs(float(maxZDict[behavSession][freq][clusterNumber])) < minZVal) | (ISIDict[ephysSession][tetrode-1][cluster-1] > maxISIviolation)):
+
+            if (abs(float(maxZDict[behavSession][freq][clusterNumber]))>= minZVal):
+                modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
                 
-        else:
-            continue
+                cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster)
+                if oneCell not in responsiveCellDB:
+                    responsiveCellDB.append(oneCell)
+                responsiveCellDict.update({cellName:[freq,maxZDict[behavSession][freq][clusterNumber]]})
+                if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
+                    modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
+                    sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
+                    if oneCell not in modulatedCellDB:
+                        modulatedCellDB.append(oneCell)
 
-        #print 'behavior ',behavSession,' tetrode ',tetrode,' cluster ',cluster
-    #print responsiveCellDB, modulatedCellDB, sigModI
+            else:
+                continue
+        cellNum=len(responsiveCellDB)
+        modCellNum=len(modulatedCellDB)
+            #print 'behavior ',behavSession,' tetrode ',tetrode,' cluster ',cluster
+        #print responsiveCellDB, modulatedCellDB, sigModI
 ##########################THIS IS TO PLOT HISTOGRAM################################################
 modIndBinVec = np.arange(-1,1,binWidth)
 binModIndexArraySig = np.empty(len(modIndBinVec))
@@ -209,8 +207,8 @@ for binInd in range(len(modIndBinVec)-1):
 binModIndexArraySig[-1] = 0  #why is this??
 binModIndexArrayNonSig[-1] = 0 #why is this??
 sigNum=int(sum(binModIndexArraySig))
-cellNum=len(modIndexArray)
-print 'number of cells: ',cellNum
+comparisonNum=len(modIndexArray)
+print 'number of comparisons: ',comparisonNum
 
 
 plt.clf() 
@@ -222,7 +220,8 @@ plt.xlim((-(maxMI+binWidth),maxMI+binWidth))
 
 plt.xlabel('Modulation Index')
 plt.ylabel('Number of Cells')
-plt.title('SOUND ONSET %s responsive cells without checking ISI, %s cells modulated' %(cellNum,sigNum))
+plt.text(-0.5*(maxMI+binWidth),2,'Plotting %s comparisons, %s significantly modulated' %(comparisonNum,sigNum))
+plt.title('SOUND ONSET %s responsive cells without checking ISI, %s cells modulated' %(cellNum,modCellNum))
 
 plt.gcf().set_size_inches((8.5,11))
 figformat = 'png'
@@ -266,7 +265,7 @@ for cellID in range(0,numOfModulatedCells):
     figname='{0}_{1}_TT{2}_c{3}_{4}'.format(oneCell.animalName,oneCell.behavSession,oneCell.tetrode,oneCell.cluster,'sound-onset')
     full_fig_path=os.path.join(dstDir, figname)
     if not os.path.exists(full_fig_path):
-        cellplotter.plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='sound')
+        cellplotter.plot_rew_change_per_cell(oneCell,trialLimit=oneCell.trialLimit,alignment='sound')
         plt.savefig(full_fig_path, format = 'png')
     
     
@@ -274,14 +273,14 @@ for cellID in range(0,numOfModulatedCells):
     full_fig_path=os.path.join(dstDir, figname)
 
     if not os.path.exists(full_fig_path):
-        cellplotter.plot_rew_change_byblock_per_cell(oneCell,trialLimit=[],alignment='sound',choiceSide='right')
+        cellplotter.plot_rew_change_byblock_per_cell(oneCell,trialLimit=oneCell.trialLimit,alignment='sound',choiceSide='right')
         plt.savefig(full_fig_path, format = 'png')
 
    
     figname='{0}_{1}_TT{2}_c{3}_{4}_{5}'.format(oneCell.animalName,oneCell.behavSession,oneCell.tetrode,oneCell.cluster,'sound-onset','left')
     full_fig_path=os.path.join(dstDir, figname)
     if not os.path.exists(full_fig_path):
-        cellplotter.plot_rew_change_byblock_per_cell(oneCell,trialLimit=[],alignment='sound',choiceSide='left')
+        cellplotter.plot_rew_change_byblock_per_cell(oneCell,trialLimit=oneCell.trialLimit,alignment='sound',choiceSide='left')
         plt.savefig(full_fig_path, format = 'png')
     
 

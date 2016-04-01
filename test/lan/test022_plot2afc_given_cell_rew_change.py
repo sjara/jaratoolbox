@@ -1,13 +1,14 @@
 '''
 Given the Tetrode, Plots ephys data during behavior (reward_change_freq_discrim paradigm), data split according to the type of block in behavior (more_left or more_right) and the choice (left or right). only plotting correct trials.
 Try using loaders from celldatabase
-
+Implemented: using santiago's methods to remove missing trials from behavior when ephys has skipped trials. -LG20160309
 Lan Guo Feb-March 2016
 '''
 from jaratoolbox.test.nick.database import dataloader
 from jaratoolbox import settings
 from jaratoolbox import loadopenephys
 from jaratoolbox import loadbehavior
+from jaratoolbox import behavioranalysis
 from jaratoolbox import celldatabase
 from jaratoolbox import ephyscore
 from jaratoolbox import behavioranalysis
@@ -25,7 +26,8 @@ binWidth = 0.010 # Size of each bin in histogram in seconds
 #timeRange = [-0.2,0.8] # In seconds. Time range for rastor plot to plot spikes (around some event onset as 0)
 #timeRange = [-0.25,1.0]
 timeRange = [-0.4,1.2]
-
+experimenter='lan'
+#experimenter='billy'
 
 def load_ephys_per_cell(oneCell):
     '''
@@ -43,11 +45,14 @@ def load_ephys_per_cell(oneCell):
     eventData=loadopenephys.Events(fullEventFilename)
     
     eventData.timestamps = np.array(eventData.timestamps)/SAMPLING_RATE
-    eventOnsetTimes=np.array(eventData.timestamps) 
+    eventOnsetTimes=np.array(eventData.timestamps) #all events not just soundonset
     return (spikeTimestamps,waveforms,eventOnsetTimes,eventData)  
 
 def plot_summary_per_cell(oneCell):
     #can plot wave-from, ISI, projections...
+    pass
+
+def load_tuning_behav_per_cell(oneCell):
     pass
 
 def load_behav_per_cell(oneCell):
@@ -57,7 +62,7 @@ def load_behav_per_cell(oneCell):
     behavSession=oneCell.behavSession
     behavDir=settings.BEHAVIOR_PATH
     fullBehavName=oneCell.animalName+'_2afc_'+behavSession+'.h5'
-    behavFullFilePath = os.path.join(behavDir,'lan',oneCell.animalName,fullBehavName)
+    behavFullFilePath = os.path.join(behavDir,experimenter,oneCell.animalName,fullBehavName)
     loadingClass = loadbehavior.FlexCategBehaviorData
     bdata = loadingClass(behavFullFilePath,readmode='full')
     return bdata
@@ -67,8 +72,20 @@ def plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='sound'):
     Plots raster and PSTH for one cell during reward_change_freq_dis task, split by block; alignment parameter should be set to either 'sound', 'center-out', or 'side-in'.
     '''    
     bdata = load_behav_per_cell(oneCell)
+    (spikeTimestamps,waveforms,eventOnsetTimes,eventData) = load_ephys_per_cell(oneCell)
+
+    # -- Check to see if ephys has skipped trials, if so remove trials from behav data 
+    soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
+    soundOnsetTimeEphys = eventOnsetTimes[soundOnsetEvents]
+    soundOnsetTimeBehav = bdata['timeTarget']
+
+    # Find missing trials
+    missingTrials = behavioranalysis.find_missing_trials(soundOnsetTimeEphys,soundOnsetTimeBehav)
+    # Remove missing trials
+    bdata.remove_trials(missingTrials)
+
     currentBlock = bdata['currentBlock']
-    blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
+    blockTypes = [bdata.labels['currentBlock']['same_reward'],bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
     #blockLabels = ['more_left', 'more_right']
     if(not len(trialLimit)):
         validTrials = np.ones(len(currentBlock),dtype=bool)
@@ -77,7 +94,7 @@ def plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='sound'):
         validTrials[trialLimit[0]:trialLimit[1]] = 1
 
     trialsEachType = behavioranalysis.find_trials_each_type(currentBlock,blockTypes)
-    (spikeTimestamps,waveforms,eventOnsetTimes,eventData) = load_ephys_per_cell(oneCell)
+    
         
     if alignment == 'sound':
         soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
@@ -95,7 +112,7 @@ def plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='sound'):
 
     freqEachTrial = bdata['targetFrequency']
     possibleFreq = np.unique(freqEachTrial)
-
+    
     rightward = bdata['choice']==bdata.labels['choice']['right']
     leftward = bdata['choice']==bdata.labels['choice']['left']
     invalid = bdata['outcome']==bdata.labels['outcome']['invalid']
@@ -109,15 +126,17 @@ def plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='sound'):
     #righterror = rightward&incorrect&validTrials
     #lefterror = leftward&incorrect&validTrials
 
-    rightcorrectBlockMoreLeft = rightcorrect&trialsEachType[:,0] 
-    rightcorrectBlockMoreRight = rightcorrect&trialsEachType[:,1]
-    leftcorrectBlockMoreLeft = leftcorrect&trialsEachType[:,0]
-    leftcorrectBlockMoreRight = leftcorrect&trialsEachType[:,1]
+    rightcorrectBlockSameReward = rightcorrect&trialsEachType[:,0]
+    rightcorrectBlockMoreLeft = rightcorrect&trialsEachType[:,1] 
+    rightcorrectBlockMoreRight = rightcorrect&trialsEachType[:,2]
+    leftcorrectBlockSameReward = leftcorrect&trialsEachType[:,0]
+    leftcorrectBlockMoreLeft = leftcorrect&trialsEachType[:,1]
+    leftcorrectBlockMoreRight = leftcorrect&trialsEachType[:,2]
 
-    trialsEachCond = np.c_[leftcorrectBlockMoreLeft,rightcorrectBlockMoreLeft,leftcorrectBlockMoreRight,rightcorrectBlockMoreRight] 
+    trialsEachCond = np.c_[leftcorrectBlockMoreLeft,rightcorrectBlockMoreLeft,leftcorrectBlockMoreRight,rightcorrectBlockMoreRight,leftcorrectBlockSameReward,rightcorrectBlockSameReward] 
 
 
-    colorEachCond = ['g','r','m','b']
+    colorEachCond = ['g','r','m','b','y','darkgray']
     #trialsEachCond = np.c_[invalid,leftcorrect,rightcorrect,lefterror,righterror] 
     #colorEachCond = ['0.75','g','r','b','m'] 
 
@@ -170,6 +189,138 @@ spikesanalysis.eventlocked_spiketimes(spikeTimestamps,EventOnsetTimes,timeRange)
     #plt.savefig(full_fig_path, format = 'png')
 
 
+def plot_rew_change_per_cell_per_freq(oneCell,trialLimit=[],alignment='sound'):
+    '''
+    Plots raster and PSTH for one cell during reward_change_freq_dis task, split by block; alignment parameter should be set to either 'sound', 'center-out', or 'side-in'.
+    '''    
+    bdata = load_behav_per_cell(oneCell)
+    (spikeTimestamps,waveforms,eventOnsetTimes,eventData) = load_ephys_per_cell(oneCell)
+
+    # -- Check to see if ephys has skipped trials, if so remove trials from behav data 
+    soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
+    soundOnsetTimeEphys = eventOnsetTimes[soundOnsetEvents]
+    soundOnsetTimeBehav = bdata['timeTarget']
+
+    # Find missing trials
+    missingTrials = behavioranalysis.find_missing_trials(soundOnsetTimeEphys,soundOnsetTimeBehav)
+    # Remove missing trials
+    bdata.remove_trials(missingTrials)
+
+    currentBlock = bdata['currentBlock']
+    blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
+    #blockLabels = ['more_left', 'more_right']
+    if(not len(trialLimit)):
+        validTrials = np.ones(len(currentBlock),dtype=bool)
+    else:
+        validTrials = np.zeros(len(currentBlock),dtype=bool)
+        validTrials[trialLimit[0]:trialLimit[1]] = 1
+
+    trialsEachType = behavioranalysis.find_trials_each_type(currentBlock,blockTypes)
+    
+        
+    if alignment == 'sound':
+        soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
+        EventOnsetTimes = eventOnsetTimes[soundOnsetEvents]
+    elif alignment == 'center-out':
+        soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
+        EventOnsetTimes = eventOnsetTimes[soundOnsetEvents]
+        diffTimes=bdata['timeCenterOut']-bdata['timeTarget']
+        EventOnsetTimes+=diffTimes
+    elif alignment == 'side-in':
+        soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
+        EventOnsetTimes = eventOnsetTimes[soundOnsetEvents]
+        diffTimes=bdata['timeSideIn']-bdata['timeTarget']
+        EventOnsetTimes+=diffTimes
+
+    freqEachTrial = bdata['targetFrequency']
+    possibleFreq = sorted(np.unique(freqEachTrial))
+    print possibleFreq
+    ######Make a plot for each frequency presented######
+    for ind,freq in enumerate(possibleFreq):
+        trialsThisFreq= freqEachTrial==freq
+
+        #rightwardThisFreq = bdata['choice']==bdata.labels['choice']['right']&trialsThisFreq
+        #leftwardThisFreq = bdata['choice']==bdata.labels['choice']['left']&trialsThisFreq
+        #invalid = bdata['outcome']==bdata.labels['outcome']['invalid']
+
+        correct = bdata['outcome']==bdata.labels['outcome']['correct'] 
+        correctThisFreq = correct&trialsThisFreq
+        incorrect = bdata['outcome']==bdata.labels['outcome']['error']  
+
+        ######Split left and right trials into correct and  incorrect categories to look at error trials#########
+        #rightcorrectThisFreq = rightward&correct&validTrials
+        #leftcorrectThisFreq = leftward&correct&validTrials
+        #righterror = rightward&incorrect&validTrials
+        #lefterror = leftward&incorrect&validTrials
+
+        #rightcorrectBlockMoreLeft = rightcorrect&trialsEachType[:,0] 
+        #rightcorrectBlockMoreRight = rightcorrect&trialsEachType[:,1]
+        #leftcorrectBlockMoreLeft = leftcorrect&trialsEachType[:,0]
+        #leftcorrectBlockMoreRight = leftcorrect&trialsEachType[:,1]
+
+        correctMoreLeftThisFreq = correctThisFreq&trialsEachType[:,0]
+        correctMoreRightThisFreq = correctThisFreq&trialsEachType[:,1]
+        print freq, len(np.nonzero(correctMoreLeftThisFreq)[0]),len(np.nonzero(correctMoreRightThisFreq)[0])
+        if ind==0:
+            trialsEachCond = np.c_[correctMoreLeftThisFreq,correctMoreRightThisFreq]
+        else:
+            trialsEachCond = np.c_[trialsEachCond,correctMoreLeftThisFreq,correctMoreRightThisFreq] 
+
+
+    colorEachCond = ['g','r','m','b','y','darkgray']
+#trialsEachCond = np.c_[invalid,leftcorrect,rightcorrect,lefterror,righterror] 
+    #colorEachCond = ['0.75','g','r','b','m'] 
+
+    (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
+spikesanalysis.eventlocked_spiketimes(spikeTimestamps,EventOnsetTimes,timeRange)
+
+    ###########Plot raster and PSTH#################
+    plt.figure()
+    ax1 = plt.subplot2grid((8,5), (0, 0), rowspan=4,colspan=5)
+    extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEachCond=trialsEachCond,colorEachCond=colorEachCond,fillWidth=None,labels=None)
+    plt.ylabel('Trials')
+    plt.xlim(timeRange)
+
+    plt.title('{0}_{1}_TT{2}_c{3}_{4}'.format(oneCell.animalName,oneCell.behavSession,oneCell.tetrode,oneCell.cluster,alignment))
+
+    timeVec = np.arange(timeRange[0],timeRange[-1],binWidth)
+    spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,timeVec)
+    smoothWinSize = 3
+    ax2 = plt.subplot2grid((8,5), (4, 0),colspan=5,rowspan=2,sharex=ax1)
+    extraplots.plot_psth(spikeCountMat/binWidth,smoothWinSize,timeVec,trialsEachCond=trialsEachCond,colorEachCond=colorEachCond,linestyle=None,linewidth=3,downsamplefactor=1)
+    plt.xlabel('Time from {0} onset (s)'.format(alignment))
+    plt.ylabel('Firing rate (spk/sec)')
+
+    # -- Plot ISI histogram --
+    plt.subplot2grid((8,5), (6,0), rowspan=1, colspan=2)
+    spikesorting.plot_isi_loghist(spikeTimestamps)
+    plt.ylabel('c%d'%oneCell.cluster,rotation=0,va='center',ha='center')
+    plt.xlabel('')
+
+    # -- Plot waveforms --
+    plt.subplot2grid((8,5), (7,0), rowspan=1, colspan=3)
+    spikesorting.plot_waveforms(waveforms)
+
+    # -- Plot projections --
+    plt.subplot2grid((8,5), (6,2), rowspan=1, colspan=3)
+    spikesorting.plot_projections(waveforms)
+
+    # -- Plot events in time --
+    plt.subplot2grid((8,5), (7,3), rowspan=1, colspan=2)
+    spikesorting.plot_events_in_time(spikeTimestamps)
+
+    plt.subplots_adjust(wspace = 0.7)
+
+    plt.show()
+    #fig_path = 
+    #fig_name = 'TT{0}Cluster{1}{2}.png'.format(tetrode, cluster, '_2afc plot_each_type')
+    #full_fig_path = os.path.join(fig_path, fig_name)
+    #print full_fig_path
+    plt.gcf().set_size_inches((8.5,11))
+    #plt.savefig(full_fig_path, format = 'png')
+
+
+
 def plot_rew_change_byblock_per_cell(oneCell,trialLimit=[],alignment='sound',choiceSide='both'):
     '''
     Plots ephys data during behavior (reward_change_freq_discrim paradigm), data split according to the block in behavior and the choice (left or right). only plotting correct trials.
@@ -188,13 +339,20 @@ def plot_rew_change_byblock_per_cell(oneCell,trialLimit=[],alignment='sound',cho
     timeRange = [-0.4,1.2]
     
     bdata = load_behav_per_cell(oneCell)
+    (spikeTimestamps,waveforms,eventOnsetTimes,eventData)=load_ephys_per_cell(oneCell)
+
+    # -- Check to see if ephys has skipped trials, if so remove trials from behav data 
+    soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
+    soundOnsetTimeEphys = eventOnsetTimes[soundOnsetEvents]
+    soundOnsetTimeBehav = bdata['timeTarget']
+
+    # Find missing trials
+    missingTrials = behavioranalysis.find_missing_trials(soundOnsetTimeEphys,soundOnsetTimeBehav)
+    # Remove missing trials
+    bdata.remove_trials(missingTrials)
+                
     currentBlock = bdata['currentBlock']
     
-    if currentBlock[0]==bdata.labels['currentBlock']['more_left']:
-        startMoreLeft=True
-    else:
-        startMoreLeft=False
-    blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
     if(not len(trialLimit)):
         validTrials = np.ones(len(currentBlock),dtype=bool)
     else:
@@ -217,6 +375,7 @@ def plot_rew_change_byblock_per_cell(oneCell,trialLimit=[],alignment='sound',cho
     leftcorrect = leftward&correct&validTrials
     #righterror = rightward&incorrect&validTrials
     #lefterror = leftward&incorrect&validTrials
+    colorEachCond=[]
     
     ####construct trialsEachCond and colorEachCond for ploting####
     for block in range(nBlocks):
@@ -224,6 +383,29 @@ def plot_rew_change_byblock_per_cell(oneCell,trialLimit=[],alignment='sound',cho
         leftcorrectThisBlock = leftcorrect&trialsEachBlock[:,block]
         #trialTypeVec = leftcorrect*1+rightcorrect*2
         #trialTypePossibleValues = [1,2] #1 stands for left correct, 2 stands for right correct
+
+        firstIndexThisBlock=np.nonzero(trialsEachBlock[:,block])[0][0]
+        if currentBlock[firstIndexThisBlock]==bdata.labels['currentBlock']['more_left']:
+            if choiceSide=='right':
+                colorThisCond='r'
+            elif choiceSide=='left':
+                colorThisCond='g'
+            elif choiceSide=='both':
+                colorThisCond=['g','r']
+        if currentBlock[firstIndexThisBlock]==bdata.labels['currentBlock']['more_right']:
+            if choiceSide=='right':
+                colorThisCond='b'
+            elif choiceSide=='left':
+                colorThisCond='m'
+            elif choiceSide=='both':
+                colorThisCond=['m','b']
+        if currentBlock[firstIndexThisBlock]==bdata.labels['currentBlock']['same_reward']:
+            if choiceSide=='right':
+                colorThisCond='darkgray'
+            elif choiceSide=='left':
+                colorThisCond='y'
+            elif choiceSide=='both':
+                colorThisCond=['y','darkgray']
 
         #trialsEachTypeEachBlock = behavioranalysis.find_trials_each_type_each_block(trialTypeVec, trialTypePossibleValues,currentBlock,blockTypes)
         
@@ -244,23 +426,8 @@ def plot_rew_change_byblock_per_cell(oneCell,trialLimit=[],alignment='sound',cho
             elif choiceSide=='both':
                 trialsEachCond=np.c_[trialsEachCond,leftcorrectThisBlock,rightcorrectThisBlock]
 
-        if choiceSide=='right':
-            if startMoreLeft:
-                colorEachCond=['r','b','r','b','r','b','r','b']
-            else:
-                colorEachCond=['b','r','b','r','b','r','b','r']
-        elif choiceSide=='left':
-            if startMoreLeft:
-                colorEachCond=['g','m','g','m','g','m','g','m']
-            else:
-                colorEachCond=['m','g','m','g','m','g','m','g']
-        elif choiceSide=='both':
-            if startMoreLeft:
-                colorEachCond=['g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b']
-            else:
-                colorEachCond=['m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r']
+        colorEachCond.append(colorThisCond)
 
-    (spikeTimestamps,waveforms,eventOnsetTimes,eventData)=load_ephys_per_cell(oneCell)
 
     if alignment == 'sound':
         soundOnsetEvents = (eventData.eventID==1) & (eventData.eventChannel==soundTriggerChannel)
@@ -321,13 +488,32 @@ plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='sound')
 plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='center-out')
 
 plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='side-in')
-'''
-oneCell=celldatabase.CellInfo(animalName='adap012',ephysSession='2016-03-02_15-27-46',behavSession='20160302a',tetrode=5,cluster=8,trialsToExclude=[])
 
-#plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='sound')
+subject='adap012'
+processedDir = '/home/languo/data/ephys/'+subject+'/'+subject+'_stats'
+sigModFilename = os.path.join(processedDir,'sigMod_soundOnset.txt')
 
-#plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='center-out')
+sigModFile=open(sigModFilename, 'r')
+for line in sigModFile:
+    str=line.split(':')[1]
+    cellID=str.split()[0]
 
-#plot_rew_change_per_cell(oneCell,trialLimit=[],alignment='side-in')
+
+oneCell=celldatabase.CellInfo(animalName='adap012',ephysSession='2016-03-08_13-29-12',behavSession='20160308a',tetrode=3,cluster=4,trialsToExclude=[])
+
+plot_rew_change_per_cell_per_freq(oneCell,trialLimit=[],alignment='sound')
+
+plot_rew_change_per_cell_per_freq(oneCell,trialLimit=[],alignment='center-out')
+
+plot_rew_change_per_cell_per_freq(oneCell,trialLimit=[],alignment='side-in')
 
 #plot_rew_change_byblock_per_cell(oneCell,trialLimit=[],alignment='sound',choiceSide='right')
+
+oneCell=celldatabase.CellInfo(animalName='adap012',ephysSession='2016-03-08_13-29-12',behavSession='20160308a',tetrode=5,cluster=6,trialsToExclude=[])
+
+plot_rew_change_per_cell_per_freq(oneCell,trialLimit=[],alignment='sound')
+
+plot_rew_change_per_cell_per_freq(oneCell,trialLimit=[],alignment='center-out')
+
+plot_rew_change_per_cell_per_freq(oneCell,trialLimit=[],alignment='side-in')
+'''
