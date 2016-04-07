@@ -1,8 +1,8 @@
 '''
+#########For implanted d1pi PINP experiment and reward change task. Can check laser response and sound response#######################
 Implemented different alignment options and different window size.
 Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (either all_cells file only contain good quality cells or has 'oneCell.quality' indicating whether it's a good cell). Generates responsiveCellDB (Z score >=3) and modulatedCellDB (mod sig <= 0.05) without considering ISI violations.
 -Lan Guo 20160114
-This plots modulated cells when spikes are aligned to sound onset. -modified 20160303
 Implemented: write to a text file the cell name, cell ID (index in allcells file), frequency modulated, and modulation index (only for the significantly modulated ones). -LG0305
 Implemented 'trialLimit' constraint to exclude blocks with few trials at the end of a behav session. -LG 20160324
 '''
@@ -36,8 +36,9 @@ minZVal = 3.0
 maxISIviolation = 0.02
 minPValue = 0.05
 ################################################################################################
+################################################################################################
 
-#######################-----Key Parameters-----#####################################################################
+subjectList = sys.argv[4:] #the first argument is the mouse name to tell the script which allcells file to use
 alignment = sys.argv[1] #the first argument is alignment, choices are 'sound', 'center-out' and 'side-in'
 if sys.argv[2]=='0':
     countTimeRange = [int(sys.argv[2]),float(sys.argv[3])]
@@ -45,8 +46,7 @@ elif sys.argv[3]=='0':
     countTimeRange = [float(sys.argv[2]),int(sys.argv[3])]
 else:
     countTimeRange = [float(sys.argv[2]),float(sys.argv[3])]
-subjectList = sys.argv[4:] #the first argument is the mouse name to tell the script which allcells file to use
-##############################################################################
+
 
 for subject in subjectList:
     allcellsFileName = 'allcells_'+subject
@@ -58,30 +58,33 @@ for subject in subjectList:
     outputDir = '/home/languo/data/ephys/'+subject+'/'
 
     CellInfo = celldatabase.CellInfo  #This is for creating subdatabase for responsive and modulated cells
-    responsiveCellDB = celldatabase.CellDatabase()
-    modulatedCellDB = celldatabase.CellDatabase()
+    responsiveCellDB = celldatabase.CellDatabase() 
+    soundnlaserResponsiveCellDB = celldatabase.CellDatabase()
+    modulatedCellDB = celldatabase.CellDatabase() 
+    laserResponsiveCellDB = celldatabase.CellDatabase()
     allCellDB= celldatabase.CellDatabase()
 
 
-    ###################Choose alignment and time window to plot mod Index histogram#######################
+    ###################Choose alignment and time window to plot mod Index histogram.Also decide whether to check laser response###########
     processedDir = os.path.join(outputDir,subject+'_stats')
-    #alignment = 'center-out'
+    #lignment = 'sound'
     #put here alignment choice!!choices are 'sound', 'center-out', 'side-in'.
-    #countTimeRange = [-0.1,0]
+    #ountTimeRange = [0,0.15]
     window = str(countTimeRange[0])+'to'+str(countTimeRange[1])+'sec_window_'
+    checkLaserResponse=1 ####Whether to check laser response
+    ########################################################################
+
     nameOfmodSFile = 'modSig_'+alignment+'_'+window+subject+'.txt'
     nameOfmodIFile = 'modIndex_'+alignment+'_'+window+subject+'.txt'
     modIFilename = os.path.join(processedDir,nameOfmodIFile)
     modSFilename = os.path.join(processedDir,nameOfmodSFile)
-    #############################################################################
-
+    
     subject = allcells.cellDB[0].animalName
     behavSession = ''
-
+    maxZLaserFilename = os.path.join(processedDir,'maxZVal_laser_' +subject+'.txt')
     maxZFilename = os.path.join(processedDir,'maxZVal_'+subject+'.txt')
     ISIFilename = os.path.join(processedDir,'ISI_Violations_'+subject+'.txt')
-    #modIFilename = os.path.join(processedDir,'modIndex_alignedToSound_'+subject+'.txt')
-    #modSFilename = os.path.join(processedDir,'modSig_alignedToSound_'+subject+'.txt')
+    
 
     class nestedDict(dict):#This is for maxZDict
         def __getitem__(self, item):
@@ -96,6 +99,7 @@ for subject in subjectList:
     ISIFile = open(ISIFilename, 'r')
     modIFile = open(modIFilename, 'r')
     modSFile = open(modSFilename, 'r')
+    maxZLaserFile = open(maxZLaserFilename, 'r')
 
     ##############Check sound responsiveness if looking at sound-evoked spikes##################
     if alignment=='sound':
@@ -109,7 +113,14 @@ for subject in subjectList:
             else:
                 maxZDict[behavName][freqLine[0]] = freqLine[1].split(',')[0:-1]
 
-    
+    maxZLaserDict = {}
+    behavName = ''
+    for line in maxZLaserFile:
+        if (line.split(':')[0] == 'Behavior Session'):
+            behavName = line.split(':')[1][:-1]
+        else:
+            maxZLaserDict[behavName] = [float(x) for x in line.split(',')[0:-1]]
+
     ISIDict = {}
     behavName = ''
     for line in ISIFile:
@@ -120,7 +131,6 @@ for subject in subjectList:
         else:
             ISIDict[behavName] = [float(x) for x in line.split(',')[0:-1]]
     
-
     modIDict = nestedDict() #stores all the modulation indices
     modSigDict = nestedDict() #stores the significance of the modulation of each cell
     #modDirectionScoreDict = {} #stores the score of how often the direction of modulation changes
@@ -142,6 +152,10 @@ for subject in subjectList:
             modSigDict[behavName][freqLine[0]] = [float(x) for x in freqLine[1].split(',')[0:-1]]
     if alignment=='sound':
         responsiveCellDict={}
+        if checkLaserResponse==True:
+            soundnlaserResponsiveCellDict={}
+    elif checkLaserResponse==True:
+        laserResponsiveCellDict={}
     else:
         allCellDict={}
 
@@ -150,6 +164,7 @@ for subject in subjectList:
     maxZFile.close()
     modIFile.close()
     modSFile.close()
+    maxZLaserFile.close()
     ########################CHOOSE WHICH CELLS TO PLOT################################################
     modIndexArray = []
     for cellID in range(0,numOfCells):
@@ -168,6 +183,8 @@ for subject in subjectList:
 
         elif alignment=='sound' and behavSession not in maxZDict:
             continue
+        elif checkLaserResponse and behavSession not in maxZLaserDict:
+            continue
         elif behavSession not in modIDict:
             continue
         elif behavSession not in ISIDict:
@@ -178,37 +195,75 @@ for subject in subjectList:
             for freq in modIDict[behavSession]:
                 #if ((abs(float(maxZDict[behavSession][freq][clusterNumber])) < minZVal) | (ISIDict[ephysSession][tetrode-1][cluster-1] > maxISIviolation)):
 
-                if alignment=='sound' and (abs(float(maxZDict[behavSession][freq][clusterNumber]))>= minZVal) and ISIDict[behavSession][clusterNumber]<= maxISIviolation:
-                    modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
-                    if oneCell not in responsiveCellDB:
-                        responsiveCellDB.append(oneCell)
-                    cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster)
-                    responsiveCellDict.update({cellName:[freq,maxZDict[behavSession][freq][clusterNumber]]})
-                    if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
-                        modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
-                        sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
-                        if oneCell not in modulatedCellDB:
-                            modulatedCellDB.append(oneCell)
+                if alignment=='sound':
+                    if (abs(float(maxZDict[behavSession][freq][clusterNumber]))>= minZVal) and(ISIDict[behavSession][clusterNumber]<= maxISIviolation):
+                        cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster)
+                        responsiveCellDict.update({cellName:[freq,maxZDict[behavSession][freq][clusterNumber]]}) #sound-responsive cells
 
-                elif alignment!='sound' and ISIDict[behavSession][clusterNumber]<= maxISIviolation:
-                    modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
-                    if oneCell not in allCellDB:
-                        allCellDB.append(oneCell)
-                    cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster) 
+                        if checkLaserResponse:
+                            if (abs(float(maxZLaserDict[behavSession][clusterNumber]))>= minZVal):
+                                modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
+                                cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster)
+                                soundnlaserResponsiveCellDict.update({cellName:[freq,maxZDict[behavSession][freq][clusterNumber],maxZLaserDict[behavSession][clusterNumber]]}) #sound and laser-responsive cells write sound than laser Z score
+                                if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
+                                    modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
+                                    sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
+                                    if oneCell not in modulatedCellDB:
+                                        modulatedCellDB.append(oneCell)
+                                if oneCell not in soundnlaserResponsiveCellDB:
+                                    soundnlaserResponsiveCellDB.append(oneCell)
 
-                    if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
-                        modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
-                        sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
-                        if oneCell not in modulatedCellDB:
-                            modulatedCellDB.append(oneCell)
+                        else:
+                            modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
+                        
+                            if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
+                                modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
+                                sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
+                                if oneCell not in modulatedCellDB:
+                                    modulatedCellDB.append(oneCell)
+
+                            if oneCell not in responsiveCellDB:
+                                responsiveCellDB.append(oneCell)
+
+                elif alignment!='sound' and(ISIDict[behavSession][clusterNumber]<= maxISIviolation):
+                    if checkLaserResponse and (abs(float(maxZLaserDict[behavSession][clusterNumber]))>= minZVal):
+                        modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
+                        cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster) 
+                        laserResponsiveCellDict.update({cellName:[maxZLaserDict[behavSession][clusterNumber]]})#laser-responsive cells writing Z score
+
+                        if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
+                            modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
+                            sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
+                            if oneCell not in modulatedCellDB:
+                                modulatedCellDB.append(oneCell)
+
+                        if oneCell not in laserResponsiveCellDB:
+                            laserResponsiveCellDB.append(oneCell)
+                    elif not checkLaserResponse:
+                        modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
+                        if oneCell not in allCellDB:
+                            allCellDB.append(oneCell)
+                        cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster) 
+
+                        if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
+                            modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
+                            sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
+                            if oneCell not in modulatedCellDB:
+                                modulatedCellDB.append(oneCell)
 
                 else:
                     continue
 
             if alignment=='sound':
-                cellNum=len(responsiveCellDB)
+                if checkLaserResponse:
+                    cellNum=len(soundnlaserResponsiveCellDB)
+                else:
+                    cellNum=len(responsiveCellDB)
+            elif alignment!='sound' and checkLaserResponse:
+                cellNum=len(laserResponsiveCellDB)
             else:
                 cellNum=len(allCellDB)
+
             modCellNum=len(modulatedCellDB)
                 #print 'behavior ',behavSession,' tetrode ',tetrode,' cluster ',cluster
             #print responsiveCellDB, modulatedCellDB, sigModI
@@ -234,7 +289,6 @@ for subject in subjectList:
     comparisonNum=len(modIndexArray)
     print 'number of comparisons: ',comparisonNum
 
-
     plt.clf() 
 
     plt.bar(modIndBinVec,binModIndexArraySig,width = binWidth, color = 'b')
@@ -246,15 +300,28 @@ for subject in subjectList:
     plt.ylabel('Number of Cells')
     plt.text(-0.5*(maxMI+binWidth),0.5*ylim,'Plotting %s comparisons, %s significantly modulated' %(comparisonNum,sigNum))
     
-    if alignment!='sound':
-        plt.text(-0.5*(maxMI+binWidth),0.25*ylim,'%s cells total, %s cells modulated' %(cellNum,modCellNum))
-        plt.title(alignment+window+'_modulated cells without checking Zscore')
+    if not checkLaserResponse:
+        if alignment!='sound':
+            plt.text(-0.5*(maxMI+binWidth),0.25*ylim,'%s cells total, %s cells modulated' %(cellNum,modCellNum))
+            title=alignment+window+'_modulated cells without checking Zscore'
+            plt.title(title)
+        else:
+            plt.text(-0.5*(maxMI+binWidth),0.25*ylim,'%s responsive cells, %s cells modulated' %(cellNum,modCellNum))
+            title=alignment+window+'sound-responsive modulated cells'
+            plt.title(title)
     else:
-        plt.text(-0.5*(maxMI+binWidth),0.25*ylim,'%s responsive cells, %s cells modulated' %(cellNum,modCellNum))
-        plt.title(alignment+window+'sound-responsive modulated cells')
+        if alignment!='sound':
+            plt.text(-0.5*(maxMI+binWidth),0.25*ylim,'%s laser-responsive cells total, %s cells modulated' %(cellNum,modCellNum))
+            title=alignment+window+'_modulated laser-responsive cells without checking sound response'
+            plt.title(title)
+        else:
+            plt.text(-0.5*(maxMI+binWidth),0.25*ylim,'%s sound-and-laser responsive cells, %s cells modulated' %(cellNum,modCellNum))
+            title=alignment+window+'sound-laser-responsive modulated cells'
+            plt.title(title)
+
     plt.gcf().set_size_inches((8.5,11))
     figformat = 'png'
-    filename = 'modIndex ISIchecked_%s_%s_%s.%s'%(alignment,window,subject,figformat)
+    filename = '%s.%s'%(title,figformat)
     fulloutputDir = processedDir
     fullFileName = os.path.join(fulloutputDir,filename)
 
@@ -268,7 +335,11 @@ for subject in subjectList:
     plt.show()
 
     ####Write all significantly modulated cells and their mod index in a text file###
-    sigModIFilename='sigMod_'+alignment+'_'+window+'ISIchecked'
+    if checkLaserResponse:
+        sigModIFilename='sigMod_'+alignment+'_'+window+'ISIchecked_laserResponsive'
+    else:
+        sigModIFilename='sigMod_'+alignment+'_'+window+'ISIchecked'
+
     sigModI_file = open('%s/%s.txt' % (fulloutputDir,sigModIFilename), 'w')
     for (key,value) in sorted(sigModIDict.items()):
         sigModI_file.write('%s:' %key)
@@ -283,6 +354,22 @@ for subject in subjectList:
             soundResponsive_file.write('%s:' %key)
             soundResponsive_file.write('%s %s\n' %(value[0],value[1]))
         soundResponsive_file.close()
+    #####Write all laser responsive cells and their Z score to a text file#####
+    if alignment!='sound' and checkLaserResponse:
+        laserResponsiveFilename='laserResponsive_ISIchecked'
+        laserResponsive_file = open('%s/%s.txt' % (fulloutputDir,laserResponsiveFilename), 'w')
+        for (key,value) in sorted(laserResponsiveCellDict.items()):
+            laserResponsive_file.write('%s:' %key)
+            laserResponsive_file.write('%s\n' %value)
+        laserResponsive_file.close()
+    #####Write all sound and laser responsive cells and their Z score to a text file#####
+    if alignment=='sound' and checkLaserResponse:
+        soundnlaserResponsiveFilename='soundnlaserResponsive_ISIchecked'
+        soundnlaserResponsive_file = open('%s/%s.txt' % (fulloutputDir,soundnlaserResponsiveFilename), 'w')
+        for (key,value) in sorted(soundnlaserResponsiveCellDict.items()):
+            soundnlaserResponsive_file.write('%s:' %key)
+            soundnlaserResponsive_file.write('%s %s %s\n'%(value[0],value[1],value[2]))
+        soundnlaserResponsive_file.close()
 
 
 '''

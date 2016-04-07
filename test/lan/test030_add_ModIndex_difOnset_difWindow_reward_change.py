@@ -1,4 +1,6 @@
 '''
+##########NOT COMPLETED TESTING#############
+#######USE TEST026 TO CALCULATE MOD INDEX AND WRITE MODI MODSIG FILES#######
 Lan Guo 20160111
 Modified from Billy's modIndexCalcSwitching.py
 New version, now takes cellDB whose individual cells contain the property 'quality' to mark whether it's a good cell or not.

@@ -18,18 +18,29 @@ for session in sessions:
     bdata = loadbehavior.BehaviorData(behavPath)
     ###Get event times, only looking at valid trials###
     valid=bdata['valid']& (bdata['choice']!=bdata.labels['choice']['none'])
+    #print valid[0:5]
     timeCenterIn = bdata['timeCenterIn']
     timeTone = bdata['timeTarget']
     timeCenterOut = bdata['timeCenterOut']
     timeSideIn = bdata['timeSideIn'] #invalid trials does not have side in time recorded
     
-    phase1Length=(timeTone-timeCenterIn)[valid] #initiates trial before soundonset
-    phase2Length=(timeCenterOut-timeTone)[valid] #presentation of tone before withdrawal from center port
-    phase3Length=(timeSideIn-timeCenterOut)[valid] #executes movement to side port
+    phase1Length=(timeTone-timeCenterIn) #initiates trial before soundonset
+    phase1Length=phase1Length[valid.astype(bool)]
+    print len(phase1Length),phase1Length[0:5]
+    
+    phase2Length=(timeCenterOut-timeTone) #presentation of tone before withdrawal from center port
+    phase2Length=phase2Length[valid.astype(bool)]
+    print len(phase2Length),phase2Length[0:5]
+    
+    phase3Length=(timeSideIn-timeCenterOut) #executes movement to side port
+    phase3Length=phase3Length[valid.astype(bool)]
+    print len(phase3Length),phase3Length[0:5], np.mean(phase3Length)
+
     phase4Length=timeCenterIn[1:]-timeSideIn[:-1]
     phase4Length=np.insert(phase4Length,0,0)
-    phase4Length=phase4Length[valid]
-    print len(phase4Length)
+    phase4Length=phase4Length[valid.astype(bool)] #This still has NaN values??
+    print len(phase4Length), phase4Length[0:5], np.mean(phase4Length)
+
     correctTrials = bdata['outcome']==bdata.labels['outcome']['correct']
     errorTrials = bdata['outcome']==bdata.labels['outcome']['error']
     invalidTrials = bdata['outcome']==bdata.labels['outcome']['invalid']

@@ -26,8 +26,11 @@ binWidth = 0.010 # Size of each bin in histogram in seconds
 #timeRange = [-0.2,0.8] # In seconds. Time range for rastor plot to plot spikes (around some event onset as 0)
 #timeRange = [-0.25,1.0]
 timeRange = [-0.4,1.2]
-experimenter='lan'
+
+
 #experimenter='billy'
+#experimenter='lan'
+
 
 def load_ephys_per_cell(oneCell):
     '''
@@ -62,6 +65,10 @@ def load_behav_per_cell(oneCell):
     behavSession=oneCell.behavSession
     behavDir=settings.BEHAVIOR_PATH
     fullBehavName=oneCell.animalName+'_2afc_'+behavSession+'.h5'
+    if oneCell.animalName=='adap015' or oneCell.animalName=='adap013' or oneCell.animalName=='adap017':
+        experimenter = 'billy'
+    else:
+        experimenter = 'lan'
     behavFullFilePath = os.path.join(behavDir,experimenter,oneCell.animalName,fullBehavName)
     loadingClass = loadbehavior.FlexCategBehaviorData
     bdata = loadingClass(behavFullFilePath,readmode='full')

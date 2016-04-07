@@ -21,9 +21,7 @@ EXPERIMENTER = 'lan'
 #settings.BEHAVIOR_PATH = '/home/languo/data/mnt/jarahubdata'
 #settings.BEHAVIOR_PATH = '/var/tmp/data/'
 
-subjects = ['adap005','adap011']
-#subjects = ['test']
-#subjects = ['adap011']
+subjects = ['adap012']
 
 FREQCOLORS = [colorpalette.TangoPalette['Chameleon3'],
               colorpalette.TangoPalette['ScarletRed1'],

@@ -37,7 +37,17 @@ minPValue = 0.05
 ################################################################################################
 ################################################################################################
 
-subjectList = (sys.argv[1:]) #the first argument is the mouse name to tell the script which allcells file to use
+
+alignment = sys.argv[1] #the first argument is alignment, choices are 'sound', 'center-out' and 'side-in'
+if sys.argv[2]=='0':
+    countTimeRange = [int(sys.argv[2]),float(sys.argv[3])]
+elif sys.argv[3]=='0':
+    countTimeRange = [float(sys.argv[2]),int(sys.argv[3])]
+else:
+    countTimeRange = [float(sys.argv[2]),float(sys.argv[3])]
+#second and third argument are numbers specify the start and end of countTimeRange in seconds, e.g. 0 0.1
+subjectList = sys.argv[4:] #the fourth argument onwards are the mouse names to tell the script which allcells file to use
+
 
 for subject in subjectList:
     allcellsFileName = 'allcells_'+subject
@@ -56,8 +66,8 @@ for subject in subjectList:
 
     ###################Choose alignment and time window to plot mod Index histogram#######################
     processedDir = os.path.join(outputDir,subject+'_stats')
-    alignment = 'side-in'#put here alignment choice!!choices are 'sound', 'center-out', 'side-in'.
-    countTimeRange = [-0.1,0]
+    #alignment = 'side-in'#put here alignment choice!!choices are 'sound', 'center-out', 'side-in'.
+    #countTimeRange = [-0.1,0]
     window = str(countTimeRange[0])+'to'+str(countTimeRange[1])+'sec_window_'
     nameOfmodSFile = 'modSig_'+alignment+'_'+window+subject+'.txt'
     nameOfmodIFile = 'modIndex_'+alignment+'_'+window+subject+'.txt'

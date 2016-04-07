@@ -21,9 +21,15 @@ import matplotlib.pyplot as plt
 import sys
 import importlib
 
-#alignment = 'side-in'  #put here alignment choice!!choices are 'sound', 'center-out', 'side-in'.
-
-mouseNameList = (sys.argv)[1:] #the first argument is the mouse name to tell the script which allcells file to use
+alignment = sys.argv[1] #the first argument is alignment, choices are 'sound', 'center-out' and 'side-in'
+if sys.argv[2]=='0':
+    countTimeRange = [int(sys.argv[2]),float(sys.argv[3])]
+elif sys.argv[3]=='0':
+    countTimeRange = [float(sys.argv[2]),int(sys.argv[3])]
+else:
+    countTimeRange = [float(sys.argv[2]),float(sys.argv[3])]
+mouseNameList = sys.argv[4:] #the fourth argument onwards are the mouse names to tell the script which allcells file to use
+#print alignment,countTimeRange,mouseNameList
 
 SAMPLING_RATE=30000.0
 soundTriggerChannel = 0 # channel 0 is the sound presentation, 1 is the trial
@@ -46,8 +52,8 @@ for mouseName in mouseNameList:
     outputDir = '/home/languo/data/ephys/'+mouseName
     
     ###################Choose alignment and time window to calculate mod Index#######################
-    alignment = 'sound'  #put here alignment choice!!choices are 'sound', 'center-out', 'side-in'.
-    countTimeRange = [0,0.1]
+    #alignment = 'center-out'  #put here alignment choice!!choices are 'sound', 'center-out', 'side-in'.
+    #countTimeRange = [0.1,0.2]
     window = str(countTimeRange[0])+'to'+str(countTimeRange[1])+'sec_window_'
     nameOfmodSFile = 'modSig_'+alignment+'_'+window+mouseName
     nameOfmodIFile = 'modIndex_'+alignment+'_'+window+mouseName
@@ -114,133 +120,133 @@ for mouseName in mouseNameList:
 
             #if (oneCell.behavSession in modIList): #checks to make sure the modI value is not recalculated
                 #continue
-            try:
+            #try:
 
-                if (behavSession != oneCell.behavSession):
+            if (behavSession != oneCell.behavSession):
 
-                    subject = oneCell.animalName
-                    behavSession = oneCell.behavSession
-                    ephysSession = oneCell.ephysSession
-                    ephysRoot = os.path.join(ephysRootDir,subject)
-                    trialLimit = oneCell.trialLimit
+                subject = oneCell.animalName
+                behavSession = oneCell.behavSession
+                ephysSession = oneCell.ephysSession
+                ephysRoot = os.path.join(ephysRootDir,subject)
+                trialLimit = oneCell.trialLimit
 
-                    print behavSession
+                print behavSession
 
-                    # -- Load Behavior Data --
-                    behaviorFilename = loadbehavior.path_to_behavior_data(subject,experimenter,paradigm,behavSession)
-                    bdata = loadbehavior.BehaviorData(behaviorFilename)
-                    soundOnsetTimeBehav = bdata['timeTarget']
+                # -- Load Behavior Data --
+                behaviorFilename = loadbehavior.path_to_behavior_data(subject,experimenter,paradigm,behavSession)
+                bdata = loadbehavior.BehaviorData(behaviorFilename)
+                soundOnsetTimeBehav = bdata['timeTarget']
 
-                    print behaviorFilename
-                    # -- Load event data and convert event timestamps to ms --
-                    ephysDir = os.path.join(ephysRoot, ephysSession)
-                    eventFilename=os.path.join(ephysDir, 'all_channels.events')
-                    events = loadopenephys.Events(eventFilename) # Load events data
-                    eventTimes=np.array(events.timestamps)/SAMPLING_RATE #get array of timestamps for each event and convert to seconds by dividing by sampling rate (Hz). matches with eventID and 
+                print behaviorFilename
+                # -- Load event data and convert event timestamps to ms --
+                ephysDir = os.path.join(ephysRoot, ephysSession)
+                eventFilename=os.path.join(ephysDir, 'all_channels.events')
+                events = loadopenephys.Events(eventFilename) # Load events data
+                eventTimes=np.array(events.timestamps)/SAMPLING_RATE #get array of timestamps for each event and convert to seconds by dividing by sampling rate (Hz). matches with eventID and 
 
-                    soundOnsetEvents = (events.eventID==1) & (events.eventChannel==soundTriggerChannel)
-                    soundOnsetTimeEphys = eventTimes[soundOnsetEvents]
-                    ######check if ephys and behav miss-aligned, if so, remove skipped trials####
+                soundOnsetEvents = (events.eventID==1) & (events.eventChannel==soundTriggerChannel)
+                soundOnsetTimeEphys = eventTimes[soundOnsetEvents]
+                ######check if ephys and behav miss-aligned, if so, remove skipped trials####
 
-                    # Find missing trials
-                    missingTrials = behavioranalysis.find_missing_trials(soundOnsetTimeEphys,soundOnsetTimeBehav)
+                # Find missing trials
+                missingTrials = behavioranalysis.find_missing_trials(soundOnsetTimeEphys,soundOnsetTimeBehav)
 
-                    # Remove missing trials,all fields of bdata's results are modified after this
-                    bdata.remove_trials(missingTrials)
-                    print 'behav length',len(soundOnsetTimeBehav),'ephys length',len(soundOnsetTimeEphys)
+                # Remove missing trials,all fields of bdata's results are modified after this
+                bdata.remove_trials(missingTrials)
+                print 'behav length',len(soundOnsetTimeBehav),'ephys length',len(soundOnsetTimeEphys)
 
-                    ######do the analysis based on what events to align spike data to#####
-                    if alignment == 'sound':
-                        EventOnsetTimes = eventTimes[soundOnsetEvents]
-                    elif alignment == 'center-out':
-                        EventOnsetTimes = eventTimes[soundOnsetEvents]
-                        diffTimes=bdata['timeCenterOut']-bdata['timeTarget']
-                        EventOnsetTimes+=diffTimes
-                    elif alignment == 'side-in':
-                        EventOnsetTimes = eventTimes[soundOnsetEvents]
-                        diffTimes=bdata['timeSideIn']-bdata['timeTarget']
-                        EventOnsetTimes+=diffTimes
-                    print len(EventOnsetTimes)
+                ######do the analysis based on what events to align spike data to#####
+                if alignment == 'sound':
+                    EventOnsetTimes = eventTimes[soundOnsetEvents]
+                elif alignment == 'center-out':
+                    EventOnsetTimes = eventTimes[soundOnsetEvents]
+                    diffTimes=bdata['timeCenterOut']-bdata['timeTarget']
+                    EventOnsetTimes+=diffTimes
+                elif alignment == 'side-in':
+                    EventOnsetTimes = eventTimes[soundOnsetEvents]
+                    diffTimes=bdata['timeSideIn']-bdata['timeTarget']
+                    EventOnsetTimes+=diffTimes
+                print len(EventOnsetTimes)
 
-                    rightward = bdata['choice']==bdata.labels['choice']['right']
-                    leftward = bdata['choice']==bdata.labels['choice']['left']
-                    #valid = (bdata['outcome']==bdata.labels['outcome']['correct'])|(bdata['outcome']==bdata.labels['outcome']['error'])
-                    correct = bdata['outcome']==bdata.labels['outcome']['correct']
-                    #correctRightward = rightward & correct
-                    #correctLeftward = leftward & correct
+                rightward = bdata['choice']==bdata.labels['choice']['right']
+                leftward = bdata['choice']==bdata.labels['choice']['left']
+                #valid = (bdata['outcome']==bdata.labels['outcome']['correct'])|(bdata['outcome']==bdata.labels['outcome']['error'])
+                correct = bdata['outcome']==bdata.labels['outcome']['correct']
+                #correctRightward = rightward & correct
+                #correctLeftward = leftward & correct
 
-                    possibleFreq = np.unique(bdata['targetFrequency'])
-                    print possibleFreq
-                    numberOfFrequencies = len(possibleFreq)
-                    numberOfTrials = len(bdata['choice'])
-                    targetFreqs = bdata['targetFrequency']
-                    currentBlock = bdata['currentBlock']
+                possibleFreq = np.unique(bdata['targetFrequency'])
+                print possibleFreq
+                numberOfFrequencies = len(possibleFreq)
+                numberOfTrials = len(bdata['choice'])
+                targetFreqs = bdata['targetFrequency']
+                currentBlock = bdata['currentBlock']
 
-                    #######20160324 Implemented trialLimit constraint to exclude blocks with few trials at the end of a behav session 
-                    if(not len(trialLimit)):
-                        validTrials = np.ones(len(currentBlock),dtype=bool)
-                    else:
-                        validTrials = np.zeros(len(currentBlock),dtype=bool)
-                        validTrials[trialLimit[0]:trialLimit[1]] = 1
+                #######20160324 Implemented trialLimit constraint to exclude blocks with few trials at the end of a behav session 
+                if(not len(trialLimit)):
+                    validTrials = np.ones(len(currentBlock),dtype=bool)
+                else:
+                    validTrials = np.zeros(len(currentBlock),dtype=bool)
+                    validTrials[trialLimit[0]:trialLimit[1]] = 1
 
-                    blockTypes = [bdata.labels['currentBlock']['same_reward'],bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
-                    #blockLabels = ['same_reward','more_left', 'more_right']
-                    trialsEachType = behavioranalysis.find_trials_each_type(currentBlock,blockTypes) #trialsEachType is an array of dimension nTrials*nblockTypes where boolean vector (in a column) indicates which trials are in each type of block
+                blockTypes = [bdata.labels['currentBlock']['same_reward'],bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
+                #blockLabels = ['same_reward','more_left', 'more_right']
+                trialsEachType = behavioranalysis.find_trials_each_type(currentBlock,blockTypes) #trialsEachType is an array of dimension nTrials*nblockTypes where boolean vector (in a column) indicates which trials are in each type of block
 
-                    for possFreq in possibleFreq:
-                        modIDict[behavSession][possFreq] = np.zeros([clusNum*numTetrodes]) #0 being no modIndex
-                        modSigDict[behavSession][possFreq] = np.ones([clusNum*numTetrodes]) #1 being no significance test
+                for possFreq in possibleFreq:
+                    modIDict[behavSession][possFreq] = np.zeros([clusNum*numTetrodes]) #0 being no modIndex
+                    modSigDict[behavSession][possFreq] = np.ones([clusNum*numTetrodes]) #1 being no significance test
 
-                # -- Load Spike Data From Certain Cluster --
-                spkData = ephyscore.CellData(oneCell)
-                spkTimeStamps = spkData.spikes.timestamps
+            # -- Load Spike Data From Certain Cluster --
+            spkData = ephyscore.CellData(oneCell)
+            spkTimeStamps = spkData.spikes.timestamps
 
-                clusterNumber = (oneCell.tetrode-1)*clusNum+(oneCell.cluster-1)
-                for Freq in possibleFreq:
-                    oneFreq = targetFreqs == Freq
-                    if Freq <= 9500:  #Arbitrary boundary based on behavior sessions so far. This is a 'low' freq - going left trial 
-                        trialsToUseMoreReward = trialsEachType[:,1]&oneFreq&correct&validTrials #trialsEachType[:,1] are all the 'more_left' trials.
+            clusterNumber = (oneCell.tetrode-1)*clusNum+(oneCell.cluster-1)
+            for Freq in possibleFreq:
+                oneFreq = targetFreqs == Freq
+                if Freq <= 9500:  #Arbitrary boundary based on behavior sessions so far. This is a 'low' freq - going left trial 
+                    trialsToUseMoreReward = trialsEachType[:,1]&oneFreq&correct&validTrials #trialsEachType[:,1] are all the 'more_left' trials.
 
-                        #trialsToUseLessReward = trialsEachType[:,2] & oneFreq & correct&validTrials
-                        trialsToUseLessReward = (trialsEachType[:,0]+trialsEachType[:,2])&oneFreq&correct&validTrials #'same_reward' block is also 'less reward'
-                        #FIX ME: add a checkpoint to stop calculating modIndex if too few trials(<10) can be used for a given condition
-                        print Freq,'left',len(np.nonzero(trialsToUseMoreReward)[0]),len(np.nonzero(trialsToUseLessReward)[0])
-                    else:
-                        trialsToUseMoreReward = trialsEachType[:,2]&oneFreq&correct&validTrials
-                        #trialsEachType[:,2] are all the 'more_right' trials.
-                        #trialsToUseLessReward = trialsEachType[:,1] & oneFreq & correct
-                        trialsToUseLessReward = (trialsEachType[:,0]+trialsEachType[:,1])&oneFreq&correct&validTrials
-                        print Freq,'right',len(np.nonzero(trialsToUseMoreReward)[0])
+                    #trialsToUseLessReward = trialsEachType[:,2] & oneFreq & correct&validTrials
+                    trialsToUseLessReward = (trialsEachType[:,0]+trialsEachType[:,2])&oneFreq&correct&validTrials #'same_reward' block is also 'less reward'
+                    #FIX ME: add a checkpoint to stop calculating modIndex if too few trials(<10) can be used for a given condition
+                    print Freq,'left',len(np.nonzero(trialsToUseMoreReward)[0]),len(np.nonzero(trialsToUseLessReward)[0])
+                else:
+                    trialsToUseMoreReward = trialsEachType[:,2]&oneFreq&correct&validTrials
+                    #trialsEachType[:,2] are all the 'more_right' trials.
+                    #trialsToUseLessReward = trialsEachType[:,1] & oneFreq & correct
+                    trialsToUseLessReward = (trialsEachType[:,0]+trialsEachType[:,1])&oneFreq&correct&validTrials
+                    print Freq,'right',len(np.nonzero(trialsToUseMoreReward)[0])
 
-                    trialsEachCond = [trialsToUseMoreReward,trialsToUseLessReward]
-                    #print trialEachCond[1][0:10] #trialsEachCond[0][0:10]
-                    #print 'behavior ',behavSession,' tetrode ',oneCell.tetrode,' cluster ',oneCell.cluster,'freq',Freq,  
+                trialsEachCond = [trialsToUseMoreReward,trialsToUseLessReward]
+                #print trialEachCond[1][0:10] #trialsEachCond[0][0:10]
+                #print 'behavior ',behavSession,' tetrode ',oneCell.tetrode,' cluster ',oneCell.cluster,'freq',Freq,  
 
-                    (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
-                        spikesanalysis.eventlocked_spiketimes(spkTimeStamps,EventOnsetTimes,timeRange)
-                    print len(spikeTimesFromEventOnset)
+                (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) = \
+                    spikesanalysis.eventlocked_spiketimes(spkTimeStamps,EventOnsetTimes,timeRange)
+                print len(spikeTimesFromEventOnset)
 
-                    spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,countTimeRange)
+                spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,countTimeRange)
 
-                    spikeCountEachTrial = spikeCountMat.flatten()
-                    spikeAvgMoreReward = sum(spikeCountEachTrial[trialsToUseMoreReward])/float(sum(trialsToUseMoreReward))
-                    spikeAvgLessReward = sum(spikeCountEachTrial[trialsToUseLessReward])/float(sum(trialsToUseLessReward))
-                    print 'cluster', clusterNumber, spikeAvgMoreReward, spikeAvgLessReward
+                spikeCountEachTrial = spikeCountMat.flatten()
+                spikeAvgMoreReward = sum(spikeCountEachTrial[trialsToUseMoreReward])/float(sum(trialsToUseMoreReward))
+                spikeAvgLessReward = sum(spikeCountEachTrial[trialsToUseLessReward])/float(sum(trialsToUseLessReward))
+                print 'cluster', clusterNumber, spikeAvgMoreReward, spikeAvgLessReward
 
-                    if ((spikeAvgMoreReward + spikeAvgLessReward) == 0):
-                        modIDict[behavSession][Freq][clusterNumber]=0.0
-                        modSigDict[behavSession][Freq][clusterNumber]=1.0
-                    else:
-                        modIDict[behavSession][Freq][clusterNumber]=((spikeAvgMoreReward - spikeAvgLessReward)/(spikeAvgMoreReward + spikeAvgLessReward))  
-                        modSig = spikesanalysis.evaluate_modulation(spikeTimesFromEventOnset,indexLimitsEachTrial,countTimeRange,trialsEachCond)
-                        modSigDict[behavSession][Freq][clusterNumber]=modSig[1]
-                        print modIDict[behavSession][Freq][clusterNumber]
-                #print modIDict
-                    #print spikeAvgMoreReward,' ', spikeAvgLessReward, ' ',modIDict[behavSession][Freq][clusterNumber]
+                if ((spikeAvgMoreReward + spikeAvgLessReward) == 0):
+                    modIDict[behavSession][Freq][clusterNumber]=0.0
+                    modSigDict[behavSession][Freq][clusterNumber]=1.0
+                else:
+                    modIDict[behavSession][Freq][clusterNumber]=((spikeAvgMoreReward - spikeAvgLessReward)/(spikeAvgMoreReward + spikeAvgLessReward))  
+                    modSig = spikesanalysis.evaluate_modulation(spikeTimesFromEventOnset,indexLimitsEachTrial,countTimeRange,trialsEachCond)
+                    modSigDict[behavSession][Freq][clusterNumber]=modSig[1]
+                    print modIDict[behavSession][Freq][clusterNumber]
+            #print modIDict
+                #print spikeAvgMoreReward,' ', spikeAvgLessReward, ' ',modIDict[behavSession][Freq][clusterNumber]
 
-            except:
-                if (oneCell.behavSession not in badSessionList):
-                    badSessionList.append(oneCell.behavSession)
+            #except:
+                #if (oneCell.behavSession not in badSessionList):
+                    #badSessionList.append(oneCell.behavSession)
 
         else:
             continue

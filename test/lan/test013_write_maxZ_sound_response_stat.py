@@ -45,8 +45,8 @@ numTetrodes = 8 #Number of tetrodes
 
 ephysRootDir = settings.EPHYS_PATH
 
-#experimenter = 'lan'
-experimenter = 'billy'
+experimenter = 'lan'
+#experimenter = 'billy'
 paradigm = '2afc'
 
 Zthreshold = 3
