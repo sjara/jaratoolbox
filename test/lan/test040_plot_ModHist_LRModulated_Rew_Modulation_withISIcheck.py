@@ -1,10 +1,10 @@
 '''
-Implemented different alignment options and different window size.
-Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (either all_cells file only contain good quality cells or has 'oneCell.quality' indicating whether it's a good cell). Generates responsiveCellDB (Z score >=3) and modulatedCellDB (mod sig <= 0.05) excluding ISI violations.
--Lan Guo 20160114
-This plots modulated cells when spikes are aligned to sound onset. -modified 20160303
-Implemented: write to a text file the cell name, cell ID (index in allcells file), frequency modulated, and modulation index (only for the significantly modulated ones). -LG0305
-Implemented 'trialLimit' constraint to exclude blocks with few trials at the end of a behav session. -LG 20160324
+Evaluate cells whose activity differ by leftward vs rightward movement in a given time window (0.1 to 0.2 window after 'center-out') to see whether the activity for one-sided movement(in trials with one sound frequency) is modulated by reward.
+
+Implemented different window size.Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (either all_cells file only contain good quality cells or has 'oneCell.quality' indicating whether it's a good cell) that are modulated by L vs R movement. Generates modulatedCellDB (mod sig <= 0.05) excluding ISI violations.
+-Lan Guo 20160413
+Write to a text file the cell name, cell ID (index in allcells file), frequency modulated, and modulation index (only for the significantly modulated ones). 
+Implemented 'trialLimit' constraint to exclude blocks with few trials at the end of a behav session. 
 '''
 
 from jaratoolbox import loadbehavior
@@ -38,14 +38,15 @@ minPValue = 0.05
 ################################################################################################
 
 #######################-----Key Parameters-----#####################################################################
-alignment = sys.argv[1] #the first argument is alignment, choices are 'sound', 'center-out' and 'side-in'
-if sys.argv[2]=='0':
-    countTimeRange = [int(sys.argv[2]),float(sys.argv[3])]
-elif sys.argv[3]=='0':
-    countTimeRange = [float(sys.argv[2]),int(sys.argv[3])]
+alignment = 'center-out'
+##Get countTimeRange from system arguments
+if sys.argv[1]=='0':
+    countTimeRange = [int(sys.argv[1]),float(sys.argv[2])]
+elif sys.argv[2]=='0':
+    countTimeRange = [float(sys.argv[1]),int(sys.argv[2])]
 else:
-    countTimeRange = [float(sys.argv[2]),float(sys.argv[3])]
-subjectList = sys.argv[4:] 
+    countTimeRange = [float(sys.argv[1]),float(sys.argv[2])]
+subjectList = sys.argv[3:]   
 ##############################################################################
 
 for subject in subjectList:
@@ -71,8 +72,16 @@ for subject in subjectList:
     window = str(countTimeRange[0])+'to'+str(countTimeRange[1])+'sec_window_'
     nameOfmodSFile = 'modSig_'+alignment+'_'+window+subject+'.txt'
     nameOfmodIFile = 'modIndex_'+alignment+'_'+window+subject+'.txt'
+    
+    nameOfmovementmodSFile = 'modSig_'+'LvsR_movement_'+window+subject+'.txt'
+    nameOfmovementmodIFile = 'modIndex_'+'LvsR_movement_'+window+subject+'.txt'
+    
     modIFilename = os.path.join(processedDir,nameOfmodIFile)
     modSFilename = os.path.join(processedDir,nameOfmodSFile)
+
+    movementmodIFilename = os.path.join(processedDir,nameOfmovementmodIFile)
+    movementmodSFilename = os.path.join(processedDir,nameOfmovementmodSFile)
+
     #############################################################################
 
     subject = allcells.cellDB[0].animalName
@@ -91,24 +100,14 @@ for subject in subjectList:
                 value = self[item] = type(self)()
                 return value
 
-
     maxZFile = open(maxZFilename, 'r')
     ISIFile = open(ISIFilename, 'r')
     modIFile = open(modIFilename, 'r')
     modSFile = open(modSFilename, 'r')
+    movementmodIFile=open(movementmodIFilename, 'r')
+    movementmodSFile=open(movementmodSFilename, 'r')
 
-    ##############Check sound responsiveness if looking at sound-evoked spikes##################
-    if alignment=='sound':
-        maxZDict = nestedDict()
-        behavName = ''
-        for line in maxZFile:
-            behavLine = line.split(':')
-            freqLine = line.split()
-            if (behavLine[0] == 'Behavior Session'):
-                behavName = behavLine[1][:-1]
-            else:
-                maxZDict[behavName][freqLine[0]] = freqLine[1].split(',')[0:-1]
-
+    ################################
     
     ISIDict = {}
     behavName = ''
@@ -123,50 +122,49 @@ for subject in subjectList:
 
     modIDict = nestedDict() #stores all the modulation indices
     modSigDict = nestedDict() #stores the significance of the modulation of each cell
+    movementmodIDict = {}
+    movementmodSigDict = {}
     #modDirectionScoreDict = {} #stores the score of how often the direction of modulation changes
     behavName = ''
-    if alignment=='LvsR_movement':
-        modIDict = {}
-        modSigDict = {}
-        for line in modIFile:
-            if (line.split(':')[0] == 'Behavior Session'):
-                behavName = line.split(':')[1][:-1]  
-            else:
-                modIDict[behavName] = [float(x) for x in line.split(',')[0:-1]]
+   
+    for line in movementmodIFile:
+        if (line.split(':')[0] == 'Behavior Session'):
+            behavName = line.split(':')[1][:-1]  
+        else:
+            movementmodIDict[behavName] = [float(x) for x in line.split(',')[0:-1]]
 
-        for line in modSFile:
-            if (line.split(':')[0] == 'Behavior Session'):
-                behavName = line.split(':')[1][:-1] 
-            else:
-                modSigDict[behavName] = [float(x) for x in line.split(',')[0:-1]]
-    else:
-        for line in modIFile:
-            behavLine = line.split(':')
-            freqLine = line.split()
-            if (behavLine[0] == 'Behavior Session'):
-                behavName = behavLine[1][:-1]
-            else:
-                modIDict[behavName][freqLine[0]] = [float(x) for x in freqLine[1].split(',')[0:-1]]
+    for line in movementmodSFile:
+        if (line.split(':')[0] == 'Behavior Session'):
+            behavName = line.split(':')[1][:-1] 
+        else:
+            movementmodSigDict[behavName] = [float(x) for x in line.split(',')[0:-1]]
+    
+    for line in modIFile:
+        behavLine = line.split(':')
+        freqLine = line.split()
+        if (behavLine[0] == 'Behavior Session'):
+            behavName = behavLine[1][:-1]
+        else:
+            modIDict[behavName][freqLine[0]] = [float(x) for x in freqLine[1].split(',')[0:-1]]
 
-        for line in modSFile:
-            behavLine = line.split(':')
-            freqLine = line.split()
-            if (behavLine[0] == 'Behavior Session'):
-                behavName = behavLine[1][:-1]
-            else:
-                modSigDict[behavName][freqLine[0]] = [float(x) for x in freqLine[1].split(',')[0:-1]]
+    for line in modSFile:
+        behavLine = line.split(':')
+        freqLine = line.split()
+        if (behavLine[0] == 'Behavior Session'):
+            behavName = behavLine[1][:-1]
+        else:
+            modSigDict[behavName][freqLine[0]] = [float(x) for x in freqLine[1].split(',')[0:-1]]
 
 
-    if alignment=='sound':
-        responsiveCellDict={}
-    else:
-        allCellDict={}
+    allCellDict={}
 
     sigModIDict={}
     ISIFile.close()
     maxZFile.close()
     modIFile.close()
     modSFile.close()
+    movementmodIFile.close()
+    movementmodSFile.close()
     ########################CHOOSE WHICH CELLS TO PLOT################################################
     modIndexArray = []
     for cellID in range(0,numOfCells):
@@ -182,65 +180,33 @@ for subject in subjectList:
 
         if clusterQuality not in qualityList:
             continue
-
-        elif alignment=='sound' and behavSession not in maxZDict:
-            continue
         elif behavSession not in modIDict:
             continue
         elif behavSession not in ISIDict:
             continue
         else:
             clusterNumber = (tetrode-1)*clusNum+(cluster-1)
-            if alignment!='LvsR_movement':
-                for freq in modIDict[behavSession]:
-                    #if ((abs(float(maxZDict[behavSession][freq][clusterNumber])) < minZVal) | (ISIDict[ephysSession][tetrode-1][cluster-1] > maxISIviolation)):
-
-                    if alignment=='sound' and (abs(float(maxZDict[behavSession][freq][clusterNumber]))>= minZVal) and ISIDict[behavSession][clusterNumber]<= maxISIviolation:
-                        modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
-                        if oneCell not in responsiveCellDB:
-                            responsiveCellDB.append(oneCell)
-                        cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster)
-                        responsiveCellDict.update({cellName:[freq,maxZDict[behavSession][freq][clusterNumber]]})
-                        if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
-                            modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
-                            sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
-                            if oneCell not in modulatedCellDB:
-                                modulatedCellDB.append(oneCell)
-
-                    elif alignment!='sound' and ISIDict[behavSession][clusterNumber]<= maxISIviolation:
-                        modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
-                        if oneCell not in allCellDB:
-                            allCellDB.append(oneCell)
-                        cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster) 
-
-                        if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
-                            modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
-                            sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
-                            if oneCell not in modulatedCellDB:
-                                modulatedCellDB.append(oneCell)
-
-                    else:
-                        continue
-            else:
-                if ISIDict[behavSession][clusterNumber]<= maxISIviolation:
-                    modIndexArray.append([modIDict[behavSession][clusterNumber],modSigDict[behavSession][clusterNumber]])
+            
+            for freq in modIDict[behavSession]:
+              ######Only evaluate cells whose activity differ by leftward vs rightward movement in this time window to see whether the activity for one-sided movement is modulated by reward######
+                if (movementmodSigDict[behavSession][clusterNumber]<=minPValue) and (ISIDict[behavSession][clusterNumber]<= maxISIviolation):
+                    modIndexArray.append([modIDict[behavSession][freq][clusterNumber],modSigDict[behavSession][freq][clusterNumber]])
                     if oneCell not in allCellDB:
                         allCellDB.append(oneCell)
-                    cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster) 
-
-                    if (modSigDict[behavSession][clusterNumber]<=minPValue):
-                        modIndexThisCell=modIDict[behavSession][clusterNumber]
-                        sigModIDict.update({cellName:[cellID,modIndexThisCell]})
+                    cellName=subject+'_'+behavSession+'_'+str(tetrode)+'_'+str(cluster)
+                    
+                    if (modSigDict[behavSession][freq][clusterNumber]<=minPValue):
+                        modIndexThisCell=modIDict[behavSession][freq][clusterNumber]
+                        sigModIDict.update({cellName:[cellID,freq,modIndexThisCell]})
                         if oneCell not in modulatedCellDB:
                             modulatedCellDB.append(oneCell)
 
-            if alignment=='sound':
-                cellNum=len(responsiveCellDB)
-            else:
-                cellNum=len(allCellDB)
+                else:
+                    continue
+        
+            cellNum=len(allCellDB)
             modCellNum=len(modulatedCellDB)
-                #print 'behavior ',behavSession,' tetrode ',tetrode,' cluster ',cluster
-            #print responsiveCellDB, modulatedCellDB, sigModI
+
     ##########################THIS IS TO PLOT HISTOGRAM################################################
     modIndBinVec = np.arange(-1,1,binWidth)
     binModIndexArraySig = np.empty(len(modIndBinVec))
@@ -263,7 +229,6 @@ for subject in subjectList:
     comparisonNum=len(modIndexArray)
     print 'number of comparisons: ',comparisonNum
 
-
     plt.clf() 
 
     plt.bar(modIndBinVec,binModIndexArraySig,width = binWidth, color = 'b')
@@ -274,16 +239,12 @@ for subject in subjectList:
     plt.xlabel('Modulation Index')
     plt.ylabel('Number of Cells')
     plt.text(-0.5*(maxMI+binWidth),0.5*ylim,'Plotting %s comparisons, %s significantly modulated' %(comparisonNum,sigNum))
+    plt.text(-0.5*(maxMI+binWidth),0.25*ylim,'%s movement-responsive cells, %s cells modulated' %(cellNum,modCellNum))
+    plt.title(alignment+window+'movement-responsive modulated cells')
     
-    if alignment!='sound':
-        plt.text(-0.5*(maxMI+binWidth),0.25*ylim,'%s cells total, %s cells modulated' %(cellNum,modCellNum))
-        plt.title(alignment+window+'_modulated cells without checking Zscore')
-    else:
-        plt.text(-0.5*(maxMI+binWidth),0.25*ylim,'%s responsive cells, %s cells modulated' %(cellNum,modCellNum))
-        plt.title(alignment+window+'sound-responsive modulated cells')
     plt.gcf().set_size_inches((8.5,11))
     figformat = 'png'
-    filename = 'modIndex ISIchecked_%s_%s_%s.%s'%(alignment,window,subject,figformat)
+    filename = 'modIndex_movementResponsive_ISIchecked_%s_%s_%s.%s'%(alignment,window,subject,figformat)
     fulloutputDir = processedDir
     fullFileName = os.path.join(fulloutputDir,filename)
 
@@ -297,7 +258,7 @@ for subject in subjectList:
     plt.show()
 
     ####Write all significantly modulated cells and their mod index in a text file###
-    sigModIFilename='sigMod_'+alignment+'_'+window+'ISIchecked'
+    sigModIFilename='movementResponsive_sigMod_'+alignment+'_'+window+'ISIchecked'
     sigModI_file = open('%s/%s.txt' % (fulloutputDir,sigModIFilename), 'w')
     for (key,value) in sorted(sigModIDict.items()):
         sigModI_file.write('%s:' %key)
@@ -306,15 +267,6 @@ for subject in subjectList:
         elif len(value)==2:
             sigModI_file.write('%d %f\n' %(value[0],value[1]))
     sigModI_file.close()
-
-    #####Write all sound responsive cells and their Z score to a text file#####
-    if alignment=='sound':
-        soundResponsiveFilename='soundResponsive_'+window+'ISIchecked'
-        soundResponsive_file = open('%s/%s.txt' % (fulloutputDir,soundResponsiveFilename), 'w')
-        for (key,value) in sorted(responsiveCellDict.items()):
-            soundResponsive_file.write('%s:' %key)
-            soundResponsive_file.write('%s %s\n' %(value[0],value[1]))
-        soundResponsive_file.close()
 
 
 '''
