@@ -3,7 +3,7 @@ Analysis pipeline for wild-type mice, reward-change freq discrimination paradigm
 
 #Calculate sound response Z score (test013). 
 
-#Calculate proportion ISI violation (test029).
+#Calculate proportion of ISI violation (test029).
 
 #Calculate modulation index and modulation significance (test026), specifying alignment type ('sound','center-out','side-in'), start of countTimeRange, end of countTimeRange, and animalName.
 
@@ -14,6 +14,14 @@ Analysis pipeline for wild-type mice, reward-change freq discrimination paradigm
 #ISI-checked: Plot activity during behavior for significantly modulated cells (test034).
 
 #Without ISI check: Plot activity during behavior for significantly modulated cells (sound,0-0.15s:test015; center-out,0-0.4s:test024; side-in,0-0.6s:test025). ##Can modify test034 for both with and without ISI check plotting.
+
+#Calculate movement response Z score (test038).
+
+#Calculate modulation due to leftward vs rightward movement (test039).
+
+#ISI-checked:plot histogram with counts of total movement-modulated cells (from analysis done with test039) and significantly reward-modulated cells after mouse leaves center port (test040).
+
+#ISI-checked: plot histogram with counts of total movement-responsive cells (from movement Z score calculated in test038) and significantly reward-modulated cells after mouse leaves center port (test042).
 
 '''
 from subprocess import call 
