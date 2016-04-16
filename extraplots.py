@@ -174,11 +174,15 @@ def plot_psth(spikeCountMat,smoothWinSize,binsStartTime,trialsEachCond=[],
 
 
 def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,xTicks=None,xTickPeriod=1000):
-    upperWhisker = ciHitsEachValue[1,:]-fractionHitsEachValue
-    lowerWhisker = fractionHitsEachValue-ciHitsEachValue[0,:]
-
-    (pline, pcaps, pbars) = plt.errorbar(possibleValues, 100*fractionHitsEachValue, 
-                                         yerr = [100*lowerWhisker, 100*upperWhisker],color='k')
+    if ciHitsEachValue is not None:
+        upperWhisker = ciHitsEachValue[1,:]-fractionHitsEachValue
+        lowerWhisker = fractionHitsEachValue-ciHitsEachValue[0,:]
+        (pline, pcaps, pbars) = plt.errorbar(possibleValues, 100*fractionHitsEachValue, 
+                                             yerr = [100*lowerWhisker, 100*upperWhisker],color='k')
+    else:
+        pline = plt.plot(possibleValues, 100*fractionHitsEachValue,'k')
+        pcaps = None
+        pbars = None
     pdots = plt.plot(possibleValues, 100*fractionHitsEachValue, 'o',mec='none',mfc='k',ms=8)
     plt.setp(pline,lw=2)
     plt.axhline(y=50, color = '0.5',ls='--')

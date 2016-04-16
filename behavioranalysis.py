@@ -401,7 +401,7 @@ def calculate_psychometric(hitTrials,paramValueEachTrial,valid=None):
         from statsmodels.stats.proportion import proportion_confint #Used to compute confidence interval for the error bars. 
         useCI = True
     except ImportError:
-        print 'To calculate confidence intervals, please install "statsmodels" module.'
+        print 'Warning: To calculate confidence intervals, please install "statsmodels" module.'
         useCI = False
     nTrials = len(hitTrials)
     if valid is None:
