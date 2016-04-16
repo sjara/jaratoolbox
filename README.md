@@ -6,7 +6,8 @@ Data analysis toolbox for JaraLab
 INSTALLATION (Ubuntu 14.04)
 ---------------------------
 * Install dependencies and useful tools: 
-  * `sudo apt-get install python-numpy python-h5py python-matplotlib python-scipy ipython`
+  * `sudo apt-get install python-numpy python-h5py python-matplotlib`
+  * The following packages are not necessary, but recommended: `python-statsmodels python-scipy ipython`
 * Clone the repository:
   * `git clone https://github.com/sjara/jaratoolbox.git`
   * `cd jaratoolbox`
