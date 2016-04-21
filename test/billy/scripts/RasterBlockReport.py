@@ -9,7 +9,6 @@ from jaratoolbox import settings
 from jaratoolbox import ephyscore
 import os
 import numpy as np
-from jaratoolbox import behavioranalysis
 from jaratoolbox import loadopenephys
 from jaratoolbox import spikesanalysis
 from jaratoolbox import extraplots
@@ -36,7 +35,7 @@ sizeHists = (numRows-sizeClusterPlot)/6
 
 SAMPLING_RATE=30000.0
 
-outputDir = '/home/billywalker/Pictures/switching_reports/'
+outputDir = '/home/billywalker/Pictures/raster_block_reports/'
 soundTriggerChannel = 0 # channel 0 is the sound presentation, 1 is the trial
 binWidth = 0.010 # Size of each bin in histogram in seconds
 Frequency = 1 #This chooses which frequency to look at, numbered out of possible frequencies starting with the lowest frequency as number 0
@@ -98,7 +97,7 @@ def main():
     global indexLimitsEachMovementTrial
     global titleText
 
-    print "SwitchingReport"
+    print "RasterBlockReport"
     for cellID in range(0,numOfCells):
         oneCell = allcells.cellDB[cellID]
         try:
@@ -116,6 +115,7 @@ def main():
                 behaviorFilename = loadbehavior.path_to_behavior_data(subject,experimenter,paradigm,behavSession)
                 bdata = loadbehavior.FlexCategBehaviorData(behaviorFilename)
                 #bdata = loadbehavior.BehaviorData(behaviorFilename)
+                bdata.find_trials_each_block()
                 numberOfTrials = len(bdata['choice'])
 
                 # -- Load event data and convert event timestamps to ms --
@@ -127,14 +127,6 @@ def main():
                 soundOnsetEvents = (events.eventID==1) & (events.eventChannel==soundTriggerChannel)
 
                 eventOnsetTimes = eventTimes[soundOnsetEvents]
-                soundOnsetTimeBehav = bdata['timeTarget']
-
-                # Find missing trials
-                missingTrials = behavioranalysis.find_missing_trials(eventOnsetTimes,soundOnsetTimeBehav)
-                # Remove missing trials
-                bdata.remove_trials(missingTrials)
-                bdata.find_trials_each_block()
-                
 
                 ###############################################################################################
                 centerOutTimes = bdata['timeCenterOut'] #This is the times that the mouse goes out of the center port
@@ -142,11 +134,7 @@ def main():
                 timeDiff = centerOutTimes - soundStartTimes
                 if (len(eventOnsetTimes) < len(timeDiff)):
                     timeDiff = timeDiff[:-1]
-                    eventOnsetTimesCenter = eventOnsetTimes + timeDiff
-                elif (len(eventOnsetTimes) > len(timeDiff)):
-                    eventOnsetTimesCenter = eventOnsetTimes[:-1] + timeDiff
-                else:
-                    eventOnsetTimesCenter = eventOnsetTimes + timeDiff
+                eventOnsetTimesCenter = eventOnsetTimes + timeDiff
                 ###############################################################################################
 
 
@@ -178,27 +166,24 @@ def main():
 
 
             ###############################################################################
-            ax4 = plt.subplot2grid((numRows,numCols), (0,0), colspan = (numCols/2), rowspan = sizeRasters)
+            ax4 = plt.subplot2grid((numRows,numCols), (0,0), colspan = (numCols), rowspan = 2*sizeRasters)
             plt.setp(ax4.get_xticklabels(), visible=False)
             raster_sound_block_switching()
-            ax5 = plt.subplot2grid((numRows,numCols), (sizeRasters,0), colspan = (numCols/2), rowspan = sizeHists, sharex=ax4)
+            ax5 = plt.subplot2grid((numRows,numCols), (2*sizeRasters,0), colspan = (numCols), rowspan = sizeHists,  sharex=ax4)
             hist_sound_block_switching()
-            ax6 = plt.subplot2grid((numRows,numCols), (0,(numCols/2)), colspan = (numCols/2), rowspan = sizeRasters)
-            plt.setp(ax6.get_xticklabels(), visible=False)
-            raster_movement_block_switching()
-            ax7 = plt.subplot2grid((numRows,numCols), (sizeRasters,(numCols/2)), colspan = (numCols/2), rowspan = sizeHists, sharex=ax6)
-            hist_movement_block_switching()
+            #ax6 = plt.subplot2grid((numRows,numCols), (0,(numCols/2)), colspan = (numCols/2), rowspan = sizeRasters)
+            #raster_movement_block_switching()
+            #ax7 = plt.subplot2grid((numRows,numCols), (sizeRasters,(numCols/2)), colspan = (numCols/2), rowspan = sizeHists)
+            #hist_movement_block_switching()
 
-            ax8 = plt.subplot2grid((numRows,numCols), ((sizeRasters+sizeHists),0), colspan = (numCols/2), rowspan = sizeRasters)
-            plt.setp(ax8.get_xticklabels(), visible=False)
-            raster_sound_allFreq_switching()     
-            ax9 = plt.subplot2grid((numRows,numCols), ((2*sizeRasters+sizeHists),0), colspan = (numCols/2), rowspan = sizeHists, sharex=ax8)
-            hist_sound_allFreq_switching()
-            ax10 = plt.subplot2grid((numRows,numCols), ((sizeRasters+sizeHists),(numCols/2)), colspan = (numCols/2), rowspan = sizeRasters) 
-            plt.setp(ax10.get_xticklabels(), visible=False)
-            raster_sound_switching()
-            ax11 = plt.subplot2grid((numRows,numCols), ((2*sizeRasters+sizeHists),(numCols/2)), colspan = (numCols/2), rowspan = sizeHists, sharex=ax10) 
-            hist_sound_switching()
+            #ax8 = plt.subplot2grid((numRows,numCols), ((sizeRasters+sizeHists),0), colspan = (numCols/2), rowspan = sizeRasters)
+            #raster_sound_allFreq_switching()     
+            #ax9 = plt.subplot2grid((numRows,numCols), ((2*sizeRasters+sizeHists),0), colspan = (numCols/2), rowspan = sizeHists)
+            #hist_sound_allFreq_switching()
+            #ax10 = plt.subplot2grid((numRows,numCols), ((sizeRasters+sizeHists),(numCols/2)), colspan = (numCols/2), rowspan = sizeRasters) 
+            #raster_sound_switching()
+            #ax11 = plt.subplot2grid((numRows,numCols), ((2*sizeRasters+sizeHists),(numCols/2)), colspan = (numCols/2), rowspan = sizeHists) 
+            #hist_sound_switching()
             ###############################################################################
             #plt.tight_layout()
             modulation_index_switching()
@@ -220,7 +205,7 @@ def main():
             #plt.show()
 
         except:
-            print "error with session "+oneCell.behavSession
+        #print "error with session "+oneCell.behavSession
             if (oneCell.behavSession not in badSessionList):
                 badSessionList.append(oneCell.behavSession)
 
@@ -467,7 +452,6 @@ def raster_sound_block_switching():
     Freq = possibleFreq[Frequency]
     oneFreq = bdata['targetFrequency'] == Freq
 
-
     correctOneFreq = oneFreq & correct
     trialsEachBlock = bdata.blocks['trialsEachBlock']
     correctTrialsEachBlock = trialsEachBlock & correctOneFreq[:,np.newaxis]
@@ -537,7 +521,7 @@ def modulation_index_switching():
     global modDirectionScoreDict
     clusterNumber = (tetrode-1)*clusNum+(cluster-1)
 
-    titleText = 'Mod Index: '+str(round(modIDict[behavSession][clusterNumber],3))+', sig (p val): '+str(round(modSigDict[behavSession][clusterNumber],3))+', Mod Direction Score: '+str(modDirectionScoreDict[behavSession][clusterNumber])
+    titleText = 'Modulation Index: '+str(round(modIDict[behavSession][clusterNumber],3))+', significance (p value): '+str(round(modSigDict[behavSession][clusterNumber],3))+', Mod Direction Score: '+str(modDirectionScoreDict[behavSession][clusterNumber])
 
 
             
