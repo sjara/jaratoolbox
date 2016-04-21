@@ -1,6 +1,6 @@
 '''
-Plot recorded activity during behavior for different frequencies(leftward or rightward) in different blocks.
-Lan Guo 20160404
+Copy ephys graphs of recorded activity during behavior for modulated cells to reward_change_analyzed folder.
+Lan Guo 20160414
 '''
 from jaratoolbox import settings_2 as settings
 import os
@@ -36,10 +36,10 @@ for subject in subjectList:
     print numOfCells
     fullOutputDir = '/home/languo/data/ephys/'+subject+'/'+subject+'_stats'
 
-    if subject=='adap015' or subject=='adap013' or subject=='adap017':
-        experimenter = 'billy'
-    else:
-        experimenter = 'lan'
+    #if subject=='adap015' or subject=='adap013' or subject=='adap017':
+        #experimenter = 'billy'
+    #else:
+        #experimenter = 'lan'
 
     allCellDB = allcells.cellDB
     modulatedCellDB = celldatabase.CellDatabase()

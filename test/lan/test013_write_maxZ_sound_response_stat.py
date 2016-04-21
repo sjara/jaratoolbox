@@ -80,9 +80,11 @@ maxZList = [] #List of behavior sessions that already have maxZ values calculate
 
 try:
     text_file = open('%s/%s.txt' % (finalOutputDir,nameOfFile), 'r+') #open a text file to read and write in
-    text_file.readline()
+    #text_file.readline()
     behavName = ''
     for line in text_file:
+        if line.startswith(codecs.BOM_UTF8):
+            line = line[3:]
         behavLine = line.split(':')
         freqLine = line.split()
         if (behavLine[0] == 'Behavior Session'):

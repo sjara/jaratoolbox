@@ -86,10 +86,13 @@ for mouseName in mouseNameList:
 
 
     modIList = []#List of behavior sessions that already have modI values calculated
+    modSList = []
     try:
         modI_file = open('%s/%s.txt' % (finalOutputDir,nameOfmodIFile), 'r+') #open a text file to read and write in
         behavName = ''
         for line in modI_file:
+            if line.startswith(codecs.BOM_UTF8):
+                line = line[3:]
             behavLine = line.split(':')
             if (behavLine[0] == 'Behavior Session'):
                 behavName = behavLine[1][:-1]
@@ -102,7 +105,14 @@ for mouseName in mouseNameList:
     #No need to initialize modIList again since all behav sessions in modI file should be the same as the ones in modSig file.
     try:
         modSig_file = open('%s/%s.txt' % (finalOutputDir,nameOfmodSFile), 'r+') #open a text file to read and write in
-
+        behavName = ''
+        for line in modSig_file:
+            if line.startswith(codecs.BOM_UTF8):
+                line = line[3:]
+            behavLine = line.split(':')
+            if (behavLine[0] == 'Behavior Session'):
+                behavName = behavLine[1][:-1]
+                modSList.append(behavName)
     except:
         modSig_file = open('%s/%s.txt' % (finalOutputDir,nameOfmodSFile), 'w') #when file dosenot exit then create it, but will truncate the existing file
 
@@ -118,7 +128,7 @@ for mouseName in mouseNameList:
 
         if oneCell.quality==1 or oneCell.quality==6:
 
-            if (oneCell.behavSession in modIList): #checks to make sure the modI value is not recalculated
+            if (oneCell.behavSession in modIList and oneCell.behavSession in modSList): #checks to make sure the modI value is not recalculated
                 continue
             try:
 
@@ -261,18 +271,20 @@ for mouseName in mouseNameList:
 
     bSessionList.sort()
     for bSession in bSessionList:
-        modI_file.write("Behavior Session:%s" % bSession)
-        for freq in modIDict[bSession]:
-            modI_file.write("\n%s " % freq)
-            for modInd in modIDict[bSession][freq]:
-                modI_file.write("%s," % modInd)
-        modI_file.write("\n")
-        modSig_file.write("Behavior Session:%s" % bSession)
-        for freq in modSigDict[bSession]:
-            modSig_file.write("\n%s " % freq) 
-            for modSig in modSigDict[bSession][freq]:
-                modSig_file.write("%s," % modSig)
-        modSig_file.write("\n")
+        if bSession not in modIList:
+            modI_file.write("Behavior Session:%s" % bSession)
+            for freq in modIDict[bSession]:
+                modI_file.write("\n%s " % freq)
+                for modInd in modIDict[bSession][freq]:
+                    modI_file.write("%s," % modInd)
+            modI_file.write("\n")
+        if bSession not in modSList:
+            modSig_file.write("Behavior Session:%s" % bSession)
+            for freq in modSigDict[bSession]:
+                modSig_file.write("\n%s " % freq) 
+                for modSig in modSigDict[bSession][freq]:
+                    modSig_file.write("%s," % modSig)
+            modSig_file.write("\n")
 
     #Important for data read out: the format of the modI and modSig files are very similar to maxZ files. one line for behav session starting with 'Behavior Session:'; one line for modInd/modSig starting with the frequency followed by space, then modIndex/modSig for each cell separated by ','
 

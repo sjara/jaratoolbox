@@ -1,6 +1,6 @@
 '''
 Lan Guo 20160414
-Evaluate cells whose activity are responsive to movement in a given time window (based on Z score calculated in 0.15 to 0.3 sec window after sound presentation-test038) to see whether the activity for one-sided movement(in trials with one sound frequency) is modulated by reward.
+Evaluate cells whose activity is responsive to movement in a given time window (based on Z score calculated in 0.15 to 0.3 sec window after sound presentation-test038) to see whether the activity for one-sided movement(in trials with one sound frequency) is modulated by reward in a given time window (0.1 to 0.2sec after 'center-out' or 0.1sec before 'side-in'.
 Implemented different window size.Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (either all_cells file only contain good quality cells or has 'oneCell.quality' indicating whether it's a good cell) that have movement Z score larger than threshold (3). Generates modulatedCellDB (mod sig <= 0.05) excluding ISI violations.
 Write to a text file the cell name, cell ID (index in allcells file), frequency modulated, and modulation index (only for the significantly modulated ones).
 Copy ephys graphs from modulated cells to reward_change_analyzed folder. 
@@ -37,7 +37,7 @@ minPValue = 0.05
 ################################################################################################
 
 #######################-----Key Parameters-----#####################################################################
-alignment = 'center-out'
+alignment = 'side-in'
 ##Get countTimeRange from system arguments
 if sys.argv[1]=='0':
     countTimeRange = [int(sys.argv[1]),float(sys.argv[2])]
