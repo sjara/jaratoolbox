@@ -24,24 +24,27 @@ import os
 
 def cluster_site(site, siteName, tetrode, report=True): 
     oneTT = cms2.MultipleSessionsToCluster(site.animalName, site.get_session_ephys_filenames(), tetrode, '{}_{}'.format(site.date, siteName))
-    oneTT.load_all_waveforms()
-
+    oneTT.load_all_waveforms() #LG 20160329 if don't load waveforms, oneTT.timestamps is empty. need a better way to do this 
+    
     #Do the clustering if necessary.
     clusterFile = os.path.join(oneTT.clustersDir,'Tetrode%d.clu.1'%oneTT.tetrode)
+    
     if os.path.isfile(clusterFile):
         oneTT.set_clusters_from_file()
+        
     else:
+        oneTT.load_all_waveforms() #load waveforms only if need to cluster
         oneTT.create_multisession_fet_files()
         oneTT.run_clustering()
         oneTT.set_clusters_from_file()
 
-    oneTT.save_single_session_clu_files()
+        oneTT.save_single_session_clu_files()
+        #LG 2016-03-21 changed this so that  multisession report only generated once during clustering
+        if report:
+            plt.clf()
+            oneTT.save_multisession_report()
 
-    if report:
-        plt.clf()
-        oneTT.save_multisession_report()
-
-    return oneTT #This is a little bit lazy, it should really spit out some attributes not the whole object
+    return oneTT #This is a little bit lazy, it should really spit out some attributes not the whole object 
 
 
 def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind, mainSTRind):
@@ -59,14 +62,18 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind, mainSTRind)
         #Iterate through the clusters, making a new figure for each cluster.
         #for indClust, cluster in enumerate([3]):
         for indClust, cluster in enumerate(possibleClusters):
-            mainRasterEphysFilenames = [site.get_mouse_relative_ephys_filenames()[i] for i in mainRasterInds]
-            mainRasterTypes = [site.get_session_types()[i] for i in mainRasterInds]
-            mainRasterbehavFilenames = [site.get_mouse_relative_behav_filenames()[i] for i in mainRasterInds]
+            if mainRasterInds:
+                mainRasterEphysFilenames = [site.get_mouse_relative_ephys_filenames()[i] for i in mainRasterInds]
+                mainRasterTypes = [site.get_session_types()[i] for i in mainRasterInds]
+                mainRasterbehavFilenames = [site.get_mouse_relative_behav_filenames()[i] for i in mainRasterInds]
 
-            if mainTCind:
-                mainTCsession = site.get_mouse_relative_ephys_filenames()[mainTCind]
-                mainTCbehavFilename = site.get_mouse_relative_behav_filenames()[mainTCind]
-                mainTCtype = site.get_session_types()[mainTCind]
+            if mainTCind or mainTCind==0:
+                try:
+                    mainTCsession = site.get_mouse_relative_ephys_filenames()[mainTCind]
+                    mainTCbehavFilename = site.get_mouse_relative_behav_filenames()[mainTCind]
+                    mainTCtype = site.get_session_types()[mainTCind]
+                except:
+                    mainTCsession=None
             else:
                 mainTCsession=None
             
@@ -81,29 +88,29 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind, mainSTRind)
             plt.clf()
 
             #####0917LG modified to add code specific to plotting sorted the mixed laser&sound rasters (lasersounds paradigm)
-            for indRaster, rasterSession in enumerate(mainRasterEphysFilenames):
-                plt.subplot2grid((6, 6), (indRaster, 0), rowspan = 1, colspan = 3)
-                rasterSpikes = loader.get_session_spikes(rasterSession, tetrode)
-                spikeTimestamps = rasterSpikes.timestamps[rasterSpikes.clusters==cluster]
+            if mainRasterInds:
+                for indRaster, rasterSession in enumerate(mainRasterEphysFilenames):
+                    plt.subplot2grid((6, 6), (indRaster, 0), rowspan = 1, colspan = 3)
+                    rasterSpikes = loader.get_session_spikes(rasterSession, tetrode)
+                    spikeTimestamps = rasterSpikes.timestamps[rasterSpikes.clusters==cluster]
 
-                rasterEvents = loader.get_session_events(rasterSession)
-                eventOnsetTimes = loader.get_event_onset_times(rasterEvents)
-                if mainRasterTypes[indRaster]== 'lasersounds':  
-                    laserSoundsbehavFilename=mainRasterbehavFilenames[indRaster]
-                    bdata = loader.get_session_behavior(laserSoundsbehavFilename)              
-                    laserTrial = bdata['laserTrial']
-                    dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray=laserTrial, timeRange=[-0.5, 1], ms=4, labels=['with laser', 'without laser'])
-                else:
-                    dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, ms=4)
+                    rasterEvents = loader.get_session_events(rasterSession)
+                    eventOnsetTimes = loader.get_event_onset_times(rasterEvents)
+                    if mainRasterTypes[indRaster]== 'lasersounds':  
+                        laserSoundsbehavFilename=mainRasterbehavFilenames[indRaster]
+                        bdata = loader.get_session_behavior(laserSoundsbehavFilename)              
+                        laserTrial = bdata['laserTrial']
+                        dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray=laserTrial, timeRange=[-0.5, 1], ms=4, labels=['with laser', 'without laser'])
+                    else:
+                        dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, ms=4)
 
-                plt.ylabel('{}\n{}'.format(mainRasterTypes[indRaster], rasterSession.split('_')[1]), fontsize = 10)
-                ax=plt.gca()
-                extraplots.set_ticks_fontsize(ax,6) #Should this go in dataplotter?
+                    plt.ylabel('{}\n{}'.format(mainRasterTypes[indRaster], rasterSession.split('_')[1]), fontsize = 10)
+                    ax=plt.gca()
+                    extraplots.set_ticks_fontsize(ax,6) #Should this go in dataplotter?
 
             #We can only do one main TC for now.
             if mainTCsession:
                 plt.subplot2grid((6, 6), (0, 3), rowspan = 3, colspan = 3)
-
 
                 bdata = loader.get_session_behavior(mainTCbehavFilename)
                 plotTitle = loader.get_session_filename(mainTCsession)
@@ -165,10 +172,12 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind, mainSTRind)
             wavesThisCluster = oneTT.samples[oneTT.clusters==cluster]
             # -- Plot ISI histogram --
             plt.subplot2grid((6,6), (4,0), rowspan=1, colspan=3)
-            spikesorting.plot_isi_loghist(tsThisCluster)
-            plt.ylabel('c%d'%cluster,rotation=0,va='center',ha='center')
-            plt.xlabel('')
-
+            try:
+                spikesorting.plot_isi_loghist(tsThisCluster)
+                plt.ylabel('c%d'%cluster,rotation=0,va='center',ha='center')
+                plt.xlabel('')
+            except:
+                continue
             # -- Plot waveforms --
             plt.subplot2grid((6,6), (5,0), rowspan=1, colspan=3)
             spikesorting.plot_waveforms(wavesThisCluster)
@@ -497,7 +506,7 @@ def lan_2afc_ephys_plots_each_type(site, siteName, main2afcind, tetrodes, trialL
         #bdata = loader.get_session_behavior(main2afcbehavFilename)
         bdata = loadingClass(behavFullFilePath,readmode='full')
         currentBlock = bdata['currentBlock']
-        blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
+        blockTypes = [bdata.labels['currentBlock']['same_reward'],bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
         #blockLabels = ['more_left', 'more_right']
         if(not len(trialLimit)):
             validTrials = np.ones(len(currentBlock),dtype=bool)
@@ -533,15 +542,17 @@ def lan_2afc_ephys_plots_each_type(site, siteName, main2afcind, tetrodes, trialL
             #righterror = rightward&incorrect&validTrials
             #lefterror = leftward&incorrect&validTrials
             
-            rightcorrectBlockMoreLeft = rightcorrect&trialsEachType[:,0] 
-            rightcorrectBlockMoreRight = rightcorrect&trialsEachType[:,1]
-            leftcorrectBlockMoreLeft = leftcorrect&trialsEachType[:,0]
-            leftcorrectBlockMoreRight = leftcorrect&trialsEachType[:,1]
+            rightcorrectBlockSameReward = rightcorrect&trialsEachType[:,0]
+            rightcorrectBlockMoreLeft = rightcorrect&trialsEachType[:,1] 
+            rightcorrectBlockMoreRight = rightcorrect&trialsEachType[:,2]
+            leftcorrectBlockSameReward = leftcorrect&trialsEachType[:,0]
+            leftcorrectBlockMoreLeft = leftcorrect&trialsEachType[:,1]
+            leftcorrectBlockMoreRight = leftcorrect&trialsEachType[:,2]
             
-            trialsEachCond = np.c_[leftcorrectBlockMoreLeft,rightcorrectBlockMoreLeft,leftcorrectBlockMoreRight,rightcorrectBlockMoreRight] 
+            trialsEachCond = np.c_[leftcorrectBlockMoreLeft,rightcorrectBlockMoreLeft,leftcorrectBlockMoreRight,rightcorrectBlockMoreRight,leftcorrectBlockSameReward,rightcorrectBlockSameReward] 
             
             
-            colorEachCond = ['g','r','m','b']
+            colorEachCond = ['g','r','m','b','y','darkgray']
             #trialsEachCond = np.c_[invalid,leftcorrect,rightcorrect,lefterror,righterror] 
             #colorEachCond = ['0.75','g','r','b','m'] 
 
@@ -608,11 +619,17 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
     #bdata = loader.get_session_behavior(main2afcbehavFilename)
     bdata = loadingClass(behavFullFilePath,readmode='full')
     currentBlock = bdata['currentBlock']
+    '''
     if currentBlock[0]==bdata.labels['currentBlock']['more_left']:
-        startMoreLeft=True
+        #startMoreLeft=True
+        startBlock='left'
+    elif currentBlock[0]==bdata.labels['currentBlock']['same_reward']:
+        startBlock='same'
     else:
-        startMoreLeft=False
-    blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
+        #startMoreLeft=False
+        startBlock='right'
+    '''
+    #blockTypes = [bdata.labels['currentBlock']['more_left'],bdata.labels['currentBlock']['more_right']]
     if(not len(trialLimit)):
         validTrials = np.ones(len(currentBlock),dtype=bool)
     else:
@@ -635,12 +652,35 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
     leftcorrect = leftward&correct&validTrials
     #righterror = rightward&incorrect&validTrials
     #lefterror = leftward&incorrect&validTrials
-    
+    colorEachCond=[]
     for block in range(nBlocks):
         rightcorrectThisBlock = rightcorrect&trialsEachBlock[:,block]
         leftcorrectThisBlock = leftcorrect&trialsEachBlock[:,block]
         #trialTypeVec = leftcorrect*1+rightcorrect*2
         #trialTypePossibleValues = [1,2] #1 stands for left correct, 2 stands for right correct
+        
+        firstIndexThisBlock=np.nonzero(trialsEachBlock[:,block])[0][0]
+        if currentBlock[firstIndexThisBlock]==bdata.labels['currentBlock']['more_left']:
+            if choiceSide=='right':
+                colorThisCond='r'
+            elif choiceSide=='left':
+                colorThisCond='g'
+            elif choiceSide=='both':
+                colorThisCond=['g','r']
+        if currentBlock[firstIndexThisBlock]==bdata.labels['currentBlock']['more_right']:
+            if choiceSide=='right':
+                colorThisCond='b'
+            elif choiceSide=='left':
+                colorThisCond='m'
+            elif choiceSide=='both':
+                colorThisCond=['m','b']
+        if currentBlock[firstIndexThisBlock]==bdata.labels['currentBlock']['same_reward']:
+            if choiceSide=='right':
+                colorThisCond='darkgray'
+            elif choiceSide=='left':
+                colorThisCond='y'
+            elif choiceSide=='both':
+                colorThisCond=['y','darkgray']
 
         #trialsEachTypeEachBlock = behavioranalysis.find_trials_each_type_each_block(trialTypeVec, trialTypePossibleValues,currentBlock,blockTypes)
         
@@ -652,7 +692,6 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
                 trialsEachCond=np.c_[leftcorrectThisBlock]              
             elif choiceSide=='both':
                 trialsEachCond=np.c_[leftcorrectThisBlock,rightcorrectThisBlock]
-
         else:
             if choiceSide=='right':
                 trialsEachCond=np.c_[trialsEachCond,rightcorrectThisBlock]
@@ -660,7 +699,10 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
                 trialsEachCond=np.c_[trialsEachCond,leftcorrectThisBlock]              
             elif choiceSide=='both':
                 trialsEachCond=np.c_[trialsEachCond,leftcorrectThisBlock,rightcorrectThisBlock]
-
+        
+        colorEachCond.append(colorThisCond)
+        #print colorEachCond
+        '''
         if choiceSide=='right':
             if startMoreLeft:
                 colorEachCond=['r','b','r','b','r','b','r','b']
@@ -676,7 +718,7 @@ def lan_2afc_ephys_plots_each_block_each_type(site, siteName, main2afcind, tetro
                 colorEachCond=['g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b']
             else:
                 colorEachCond=['m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r','m','b','g','r']
-
+        '''
     for tetrode in tetrodes:
         oneTT = cluster_site(site, siteName, tetrode)
         possibleClusters=np.unique(oneTT.clusters)
@@ -817,3 +859,253 @@ def lan_2afc_ephys_plots_debug(site, siteName, main2afcind, tetrodes):
         plt.savefig(full_fig_path, format = 'png')
         plt.show()
 
+
+
+def nick_lan_daily_report_v2(site, siteName, mainRasterInds, mainTCind):
+    '''
+
+    '''
+
+    loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
+
+    for tetrode in site.tetrodes:
+        oneTT = cluster_site(site, siteName, tetrode)
+        possibleClusters=np.unique(oneTT.clusters)
+
+
+        #Iterate through the clusters, making a new figure for each cluster.
+        #for indClust, cluster in enumerate([3]):
+        
+        for indClust, cluster in enumerate(possibleClusters):
+            if mainRasterInds:
+                mainRasterEphysFilenames = [site.get_mouse_relative_ephys_filenames()[i] for i in mainRasterInds]
+                mainRasterTypes = [site.get_session_types()[i] for i in mainRasterInds]
+                mainRasterbehavFilenames = [site.get_mouse_relative_behav_filenames()[i] for i in mainRasterInds]
+
+            if mainTCind or mainTCind==0:
+                try:
+                    mainTCsession = site.get_mouse_relative_ephys_filenames()[mainTCind]
+                    mainTCbehavFilename = site.get_mouse_relative_behav_filenames()[mainTCind]
+                    mainTCtype = site.get_session_types()[mainTCind]
+                except:
+                    mainTCsession=None
+            else:
+                mainTCsession=None
+            # plt.figure() #The main report for this cluster/tetrode/session
+            plt.clf()
+
+            #####0917LG modified to add code specific to plotting sorted the mixed laser&sound rasters (lasersounds paradigm)
+            if mainRasterInds:
+                for indRaster, rasterSession in enumerate(mainRasterEphysFilenames):
+                    plt.subplot2grid((6, 6), (indRaster, 0), rowspan = 1, colspan = 3)
+                    rasterSpikes = loader.get_session_spikes(rasterSession, tetrode)
+                    spikeTimestamps = rasterSpikes.timestamps[rasterSpikes.clusters==cluster]
+
+                    rasterEvents = loader.get_session_events(rasterSession)
+                    eventOnsetTimes = loader.get_event_onset_times(rasterEvents)
+                    if mainRasterTypes[indRaster]== 'lasersounds':  
+                        laserSoundsbehavFilename=mainRasterbehavFilenames[indRaster]
+                        bdata = loader.get_session_behavior(laserSoundsbehavFilename)              
+                        laserTrial = bdata['laserTrial']
+                        dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray=laserTrial, timeRange=[-0.5, 1], ms=4, labels=['with laser', 'without laser'])
+                    else:
+                        dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, ms=4)
+
+                    plt.ylabel('{}\n{}'.format(mainRasterTypes[indRaster], rasterSession.split('_')[1]), fontsize = 10)
+                    ax=plt.gca()
+                    extraplots.set_ticks_fontsize(ax,6) #Should this go in dataplotter?
+
+            #This is only for tuning with one intensity (usu. done for implanted mouse with 50dB intensity only).
+            if mainTCsession:
+                plt.subplot2grid((6, 6), (0, 3), rowspan = 3, colspan = 3)
+
+
+                bdata = loader.get_session_behavior(mainTCbehavFilename)
+                plotTitle = loader.get_session_filename(mainTCsession)
+                eventData = loader.get_session_events(mainTCsession)
+                spikeData = loader.get_session_spikes(mainTCsession, tetrode)
+
+                spikeTimestamps = spikeData.timestamps[spikeData.clusters==cluster]
+
+                eventOnsetTimes = loader.get_event_onset_times(eventData)
+
+                freqEachTrial = bdata['currentFreq']
+                #intensityEachTrial = bdata['currentIntensity']
+
+                possibleFreq = np.unique(freqEachTrial)
+                #possibleIntensity = np.unique(intensityEachTrial)
+
+                xlabel='Time relative to event onset (s)'
+                #ylabel='Intensity (dB SPL)'
+              
+                freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0]
+                #intenLabels = ["%.1f" % inten for inten in possibleIntensity]
+
+                dataplotter.plot_raster(spikeTimestamps,
+                                        eventOnsetTimes,
+                                        sortArray=freqEachTrial,
+                                        timeRange=[-0.5, 1],
+                                        ms=4,
+                                        labels=freqLabels)
+                plt.title("{0}\n{1}".format(mainTCsession, mainTCbehavFilename), fontsize = 10)
+               
+            
+
+            nSpikes = len(oneTT.timestamps)
+            nClusters = len(possibleClusters)
+
+            tsThisCluster = oneTT.timestamps[oneTT.clusters==cluster]
+            wavesThisCluster = oneTT.samples[oneTT.clusters==cluster]
+            # -- Plot ISI histogram --
+            plt.subplot2grid((6,6), (4,0), rowspan=1, colspan=3)
+            spikesorting.plot_isi_loghist(tsThisCluster)
+            plt.ylabel('c%d'%cluster,rotation=0,va='center',ha='center')
+            plt.xlabel('')
+
+            # -- Plot waveforms --
+            plt.subplot2grid((6,6), (5,0), rowspan=1, colspan=3)
+            spikesorting.plot_waveforms(wavesThisCluster)
+
+            # -- Plot projections --
+            plt.subplot2grid((6,6), (4,3), rowspan=1, colspan=3)
+            spikesorting.plot_projections(wavesThisCluster)
+
+            # -- Plot events in time --
+            plt.subplot2grid((6,6), (5,3), rowspan=1, colspan=3)
+            spikesorting.plot_events_in_time(tsThisCluster)
+
+            plt.subplots_adjust(wspace = 0.7)
+            fig_path = oneTT.clustersDir
+            fig_name = 'TT{0}Cluster{1}.png'.format(tetrode, cluster)
+            full_fig_path = os.path.join(fig_path, fig_name)
+            print full_fig_path
+            #plt.tight_layout()
+            plt.gcf().set_size_inches((8.5,11))
+            plt.savefig(full_fig_path, format = 'png')
+            #plt.show()
+            # plt.close()
+
+           
+
+   
+def plot_report_only_good_clusters(site, siteName, mainRasterInds, mainTCind):
+    '''
+    Cluster site if not clustered. Plots raster for noiseburst, laserpulase, lasertrain,and tuning for only select clusters that has been added to site.clusterList
+    '''
+
+    loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
+
+    for tetrode in site.tetrodes:
+        oneTT = cluster_site(site, siteName, tetrode)
+        possibleClusters=site.clusterList
+
+        #Iterate through the clusters, making a new figure for each cluster.
+        #for indClust, cluster in enumerate([3]):
+        
+        for indClust, cluster in enumerate(possibleClusters):
+            if mainRasterInds:
+                mainRasterEphysFilenames = [site.get_mouse_relative_ephys_filenames()[i] for i in mainRasterInds]
+                mainRasterTypes = [site.get_session_types()[i] for i in mainRasterInds]
+                mainRasterbehavFilenames = [site.get_mouse_relative_behav_filenames()[i] for i in mainRasterInds]
+
+            if mainTCind or mainTCind==0:
+                try:
+                    mainTCsession = site.get_mouse_relative_ephys_filenames()[mainTCind]
+                    mainTCbehavFilename = site.get_mouse_relative_behav_filenames()[mainTCind]
+                    mainTCtype = site.get_session_types()[mainTCind]
+                except:
+                    mainTCsession=None
+            
+            # plt.figure() #The main report for this cluster/tetrode/session
+            plt.clf()
+
+            #####0917LG modified to add code specific to plotting sorted the mixed laser&sound rasters (lasersounds paradigm)
+            if mainRasterInds:
+                for indRaster, rasterSession in enumerate(mainRasterEphysFilenames):
+                    plt.subplot2grid((6, 6), (indRaster, 0), rowspan = 1, colspan = 3)
+                    rasterSpikes = loader.get_session_spikes(rasterSession, tetrode)
+                    spikeTimestamps = rasterSpikes.timestamps[rasterSpikes.clusters==cluster]
+
+                    rasterEvents = loader.get_session_events(rasterSession)
+                    eventOnsetTimes = loader.get_event_onset_times(rasterEvents)
+                    if mainRasterTypes[indRaster]== 'lasersounds':  
+                        laserSoundsbehavFilename=mainRasterbehavFilenames[indRaster]
+                        bdata = loader.get_session_behavior(laserSoundsbehavFilename)              
+                        laserTrial = bdata['laserTrial']
+                        dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray=laserTrial, timeRange=[-0.5, 1], ms=4, labels=['with laser', 'without laser'])
+                    else:
+                        dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, ms=4)
+
+                    plt.ylabel('{}\n{}'.format(mainRasterTypes[indRaster], rasterSession.split('_')[1]), fontsize = 10)
+                    ax=plt.gca()
+                    extraplots.set_ticks_fontsize(ax,6) #Should this go in dataplotter?
+
+            #This is only for tuning with one intensity (usu. done for implanted mouse with 50dB intensity only).
+            if mainTCsession:
+                plt.subplot2grid((6, 6), (0, 3), rowspan = 3, colspan = 3)
+
+
+                bdata = loader.get_session_behavior(mainTCbehavFilename)
+                plotTitle = loader.get_session_filename(mainTCsession)
+                eventData = loader.get_session_events(mainTCsession)
+                spikeData = loader.get_session_spikes(mainTCsession, tetrode)
+
+                spikeTimestamps = spikeData.timestamps[spikeData.clusters==cluster]
+
+                eventOnsetTimes = loader.get_event_onset_times(eventData)
+
+                freqEachTrial = bdata['currentFreq']
+                #intensityEachTrial = bdata['currentIntensity']
+
+                possibleFreq = np.unique(freqEachTrial)
+                #possibleIntensity = np.unique(intensityEachTrial)
+
+                xlabel='Time relative to event onset (s)'
+                #ylabel='Intensity (dB SPL)'
+              
+                freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0]
+                #intenLabels = ["%.1f" % inten for inten in possibleIntensity]
+
+                dataplotter.plot_raster(spikeTimestamps,
+                                        eventOnsetTimes,
+                                        sortArray=freqEachTrial,
+                                        timeRange=[-0.5, 1],
+                                        ms=4,
+                                        labels=freqLabels)
+                plt.title("{0}\n{1}".format(mainTCsession, mainTCbehavFilename), fontsize = 10)
+               
+            
+
+            nSpikes = len(oneTT.timestamps)
+            nClusters = len(possibleClusters)
+
+            tsThisCluster = oneTT.timestamps[oneTT.clusters==cluster]
+            wavesThisCluster = oneTT.samples[oneTT.clusters==cluster]
+            # -- Plot ISI histogram --
+            plt.subplot2grid((6,6), (4,0), rowspan=1, colspan=3)
+            spikesorting.plot_isi_loghist(tsThisCluster)
+            plt.ylabel('c%d'%cluster.cluster,rotation=0,va='center',ha='center')
+            plt.xlabel('')
+
+            # -- Plot waveforms --
+            plt.subplot2grid((6,6), (5,0), rowspan=1, colspan=3)
+            spikesorting.plot_waveforms(wavesThisCluster)
+
+            # -- Plot projections --
+            plt.subplot2grid((6,6), (4,3), rowspan=1, colspan=3)
+            spikesorting.plot_projections(wavesThisCluster)
+
+            # -- Plot events in time --
+            plt.subplot2grid((6,6), (5,3), rowspan=1, colspan=3)
+            spikesorting.plot_events_in_time(tsThisCluster)
+
+            plt.subplots_adjust(wspace = 0.7)
+            fig_path = oneTT.clustersDir
+            fig_name = 'TT{0}Cluster{1}.png'.format(tetrode, cluster.cluster)
+            full_fig_path = os.path.join(fig_path, fig_name)
+            print full_fig_path
+            #plt.tight_layout()
+            plt.gcf().set_size_inches((8.5,11))
+            plt.savefig(full_fig_path, format = 'png')
+            #plt.show()
+            # plt.close()
