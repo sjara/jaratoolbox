@@ -146,30 +146,6 @@ def calculate_psth(spikeRasterMat,timeVec,windowSize):
     return PSTH
 """
 
-"""
-def count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange):
-    '''
-    OBSOLETE: use spiketimes_to_spikecounts() instead
-
-    Count number of spikes on each trial in a given time range.
-
-       spikeTimesFromEventOnset: vector of spikes timestamps with respect
-         to the onset of the event.
-       indexLimitsEachTrial: each column contains [firstInd,lastInd+1] of the spikes on a trial.
-       timeRange: time range to evaluate. Spike times exactly at the limits are not counted.
-
-       returns nSpikes
-    '''
-    nTrials = indexLimitsEachTrial.shape[1]
-    nSpikes = np.empty(nTrials,dtype=int)
-    for indtrial in range(nTrials):
-        indsThisTrial = slice(indexLimitsEachTrial[0,indtrial],indexLimitsEachTrial[1,indtrial])
-        spikeTimesThisTrial = spikeTimesFromEventOnset[indsThisTrial]
-        nSpikes[indtrial] = sum((spikeTimesThisTrial>timeRange[0]) & (spikeTimesThisTrial<timeRange[-1]))
-    return nSpikes
-"""
-
-
 
 if __name__ == "__main__":
     CASE = 2
