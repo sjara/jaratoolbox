@@ -27,6 +27,18 @@ nRewardedTrials = behavData['nRewarded'][-1]
 print 'Average performance: {:0.1%}'.format(float(nRewardedTrials)/nValidTrials)
 
 # -- Plot psychometric curve --
+plt.clf()
 (pline, pcaps, pbars, pdots) = behavioranalysis.plot_frequency_psycurve(behavData,fontsize=14)
 plt.show()
 
+'''
+plt.clf()
+freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+behavioranalysis.plot_summary(behavData,fontsize=14,soundfreq=freqsToUse)
+plt.show()
+
+plt.clf()
+freqsToUse = [behavData['lowFreq'][-1],behavData['highFreq'][-1]]
+behavioranalysis.plot_dynamics(behavData,winsize=40,fontsize=14,soundfreq=freqsToUse)
+plt.show()
+'''

@@ -538,6 +538,58 @@ def merge_kk_clusters(animalName,ephysSession,tetrode,clustersToMerge,reportDir=
     ClusterReportTetrode(animalName,ephysSession,tetrode,reportDir)
 
 
+def estimate_spike_peaks(waveforms, srate, align=True, ninterp=200):
+    '''
+    This function calculates the peaks of the spike.
+    The peaks of the action potential are: (1) capacitive, (2) Na+, (3) K+
+    The function assumes Na+ peak is negative.
+
+    waveforms: (numpy.array float) [nSpikes, nChannels, nSamples] Baseline of waveforms should zero.
+    srate: (float) Sampling rate in samples/sec.
+    align: (boolean) align spikes if True.
+    ninterp: (int) number of samples to use in the interpolated waveform.
+
+    Returns:
+    (peakTimes, peakAmplitudes, averageWaveform)
+    peakTimes and peakAmplitudes have 3 elements (one for each peak)
+    '''
+    from scipy.interpolate import interp1d
+    if align:
+        # FIXME: will this change waveforms outside this method?
+        waveforms = align_waveforms(waveforms)
+    avWaveforms = np.mean(waveforms,0)
+    energyEachChannel = np.sum(np.abs(avWaveforms),1)
+    maxChannel = np.argmax(energyEachChannel)
+    spikeShape = avWaveforms[maxChannel,:]
+    sampVals = np.arange(0,len(spikeShape)/srate,1/srate)
+
+    interpFun = interp1d(sampVals, spikeShape, kind='cubic')
+    interpSampVals = np.linspace(0, sampVals[-1], ninterp)
+    interpSpikeShape = interpFun(interpSampVals)
+
+    # -- Calculate the change in sign of slope (and pad to align to original vector)
+    dsign = np.r_[0,np.diff(np.sign(np.diff(interpSpikeShape)))]
+
+    peakNaSample = np.argmin(interpSpikeShape)
+    peakNaTime = interpSampVals[peakNaSample]
+    peakNaAmp = interpSpikeShape[peakNaSample]
+
+    extremePointsPre = np.flatnonzero(dsign[0:peakNaSample])
+    peakCapSample = extremePointsPre[-1] if len(extremePointsPre) else 0
+    peakCapTime = interpSampVals[peakCapSample]
+    peakCapAmp = interpSpikeShape[peakCapSample]
+
+    extremePointsPost = np.flatnonzero(dsign[peakNaSample+1:])
+    peakKSample = extremePointsPost[0]+peakNaSample+1 if len(extremePointsPost) else len(extremePointsPost)-1
+    peakKTime = interpSampVals[peakKSample]
+    peakKAmp = interpSpikeShape[peakKSample]
+
+    peakTimes = [peakCapTime, peakNaTime, peakKTime]
+    peakAmplitudes = [peakCapAmp, peakNaAmp, peakKAmp]
+    return (peakTimes, peakAmplitudes, spikeShape)
+
+
+
 if __name__ == "__main__":
     CASE = 4
     if CASE==1:
