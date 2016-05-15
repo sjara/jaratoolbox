@@ -311,8 +311,8 @@ def plot_summary(behavData,fontsize=12,soundfreq=None):
     ax.set_title(titleStr,fontweight='bold',fontsize=fontsize,y=0.95)
     ax.set_xlabel('Frequency (kHz)',fontsize=fontsize)
     extraplots.set_ticks_fontsize(ax,fontsize)
-    plt.draw()
-    plt.show()
+    #plt.draw()
+    #plt.show()
 
 
 def plot_frequency_psycurve(bdata,fontsize=12):
@@ -379,8 +379,8 @@ def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
     plt.ylabel('% rightward',fontsize=fontsize)
     plt.xlabel('Trial',fontsize=fontsize)
     extraplots.set_ticks_fontsize(ax,fontsize)
-    plt.draw()
-    plt.show()
+    #plt.draw()
+    #plt.show()
     return hPlots
 
 def calculate_psychometric(hitTrials,paramValueEachTrial,valid=None):
