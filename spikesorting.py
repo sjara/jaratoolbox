@@ -327,6 +327,8 @@ def plot_events_in_time(timeStamps,nBins=50,fontsize=8):
 def plot_waveforms(waveforms,ntraces=40,fontsize=8):
     '''
     Plot waveforms given array of shape (nChannels,nSamplesPerSpike,nSpikes)
+
+    The average waveform is over the randomly-selected spikes, and not all of the spikes. 
     '''
     (nSpikes,nChannels,nSamplesPerSpike) = waveforms.shape
     spikesToPlot = np.random.randint(nSpikes,size=ntraces)
