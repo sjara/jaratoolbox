@@ -25,7 +25,7 @@ def dict_from_HDF5(dictGroup):
     return newDict
 
 
-def path_to_behavior_data(subject,experimenter,paradigm,sessionstr):
+def path_to_behavior_data(subject,paradigm,sessionstr,experimenter=''):
     '''
     Return full path to data file. It assumes that data is in:
     BEHAVIOR_PATH/experimenter/subject/
