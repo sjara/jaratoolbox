@@ -1,5 +1,9 @@
 '''
-Script to read all separately written measurements: ISIviolation,maxZsound,maxZmovement,modulationIndex(for reward and movement) and modulationSignificance into one csv file.
+Script to read all separately written measurements: BehavSession, CellQuality, Tetrode, Cluster, ISIviolation,maxZsound,maxZmovement,modulationIndex(for reward and movement) and modulationSignificance into one csv file.
+Added waveform measures (the times and magnitudes of the capacitive peak, sodium peak, and potasium peak respectively). 
+
+-Last updated 2016-05-18 LG
+
 '''
 
 import time
@@ -9,6 +13,7 @@ import sys
 import importlib
 import os
 import codecs
+import numpy as np
 
 clusNum = 12 #Number of clusters that Klustakwik speparated into
 numTetrodes = 8 #Number of tetrodes
@@ -21,9 +26,39 @@ sys.path.append(settings.ALLCELLS_PATH)
 allcells = importlib.import_module(allcellsFileName)
 outputDir = '/home/languo/data/ephys/'+subject+'/'
 processedDir = os.path.join(outputDir,subject+'_stats')
+###########################################################################
+#THIS IS ANIMAL SPECIFIC. some sessions have a mid freq in addition to high and low frequencies, don't want to include all three frequencies otherwise array will be of different size. Set boundaries so that all low frequencies and high frequencies in all experiments are included but the middle frequencies are left out from the database
 
+if subject=='adap012':
+    lowFreqBoundary= 9500 #in Hz 
+    highFreqBoundary= 13400
+elif subject=='adap005':
+    lowFreqBoundary= 9000 #in Hz 
+    highFreqBoundary= 10000
+elif subject=='adap013':
+    lowFreqBoundary= 9000 #in Hz 
+    highFreqBoundary= 11000
+elif subject=='adap015':
+    lowFreqBoundary= 9000 #in Hz 
+    highFreqBoundary= 10000
+elif subject=='adap017':
+    lowFreqBoundary= 9000 #in Hz 
+    highFreqBoundary= 12000
+elif subject=='d1pi003':
+    lowFreqBoundary= 8000 #in Hz 
+    highFreqBoundary= 13000
 
-############################## ISI #########################################
+############################## Cell Quality #########################################
+cellsThisAnimal=allcells.cellDB
+cellQuality=[]
+for oneCell in cellsThisAnimal:
+    cellQuality.append(oneCell.quality)
+
+all_measures['cellQuality']=pd.DataFrame(cellQuality)
+
+##################################################################################
+
+############################## ISI,Tetrode,Cluster,behavSession #########################################
 ISIFilename = os.path.join(processedDir,'ISI_Violations_'+subject+'.txt')
 ISIFile = open(ISIFilename, 'r')
 
@@ -42,15 +77,18 @@ for line in ISIFile:
         ISIDict['behavSession'].extend([behavName]*cellNumPerSession)
     else:
         ISIDict['ISI'].extend([float(x) for x in line.split(',')[0:-1]])
-      
+ISIFile.close()      
+
 behavSessionNum_ISI=behavSessionCount
 ISI=pd.DataFrame(ISIDict)
 #print ISI[100:150]
 ISI.sort('behavSession',ascending=True,inplace=True)
 ISI=ISI.reset_index(drop=True)
 #print ISI[100:150]
-ISIFile.close()
+
 all_measures['behavSession']=ISI['behavSession']
+all_measures['Tetrode']=np.tile(np.repeat(range(1,9), 12),behavSessionCount)
+all_measures['Cluster']=np.tile(np.tile(range(1,13), 8),behavSessionCount)
 all_measures['ISI']=ISI['ISI']
 
 #end1=time.clock()
@@ -77,9 +115,9 @@ for line in maxZFile:
         maxZsoundDict['behavSession'].extend([behavName]*cellNumPerSession)
     else:
         freq=int(line.split()[0])
-        if freq < 9500:
+        if freq <= lowFreqBoundary:
             maxZsoundDict['maxZSoundLeft'].extend([float(x) for x in line.split()[1].split(',')[0:-1]])
-        elif freq >= 10000: #some sessions have a mid freq, THIS MIGHT BE ANIMAL SPECIFIC
+        elif freq >= highFreqBoundary: #some sessions have a mid freq, don't want to include all three frequencies otherwise array will be of different size, THIS MIGHT BE ANIMAL SPECIFIC
             maxZsoundDict['maxZSoundRight'].extend([float(x) for x in line.split()[1].split(',')[0:-1]])
 
 behavSessionNum_maxZsound=behavSessionCount
@@ -117,9 +155,9 @@ for line in movementmaxZFile:
         maxZmovementDict['behavSession'].extend([behavName]*cellNumPerSession)
     else:
         freq=int(line.split()[0])
-        if freq < 9500:
+        if freq <= lowFreqBoundary:
             maxZmovementDict['maxZMovementLeft'].extend([float(x) for x in line.split()[1].split(',')[0:-1]])
-        elif freq >= 10000: #some sessions have a mid freq
+        elif freq >= highFreqBoundary: #some sessions have a mid freq
             maxZmovementDict['maxZMovementRight'].extend([float(x) for x in line.split()[1].split(',')[0:-1]])
 behavSessionNum_maxZmovement=behavSessionCount
 maxZmovement=pd.DataFrame(maxZmovementDict)
@@ -135,6 +173,42 @@ movementmaxZFile.close()
 #print end-start, behavSessionList
 print 'read-in movement maxZ: ', behavSessionCount, 'sessions'
 ######################################################################
+
+#################### maxZ for laser responsiveness ################
+if subject == 'd1pi003':
+    nameOflasermaxZFile = 'maxZVal_laser_'+subject+'.txt'
+    lasermaxZFilename = os.path.join(processedDir,nameOflasermaxZFile)
+
+    lasermaxZFile = open(lasermaxZFilename, 'r')
+    maxZlaserDict = {'maxZLaser':[],'behavSession':[]}
+    behavSessionCount=0
+    behavSessionList=[]
+    cellIndex=range(cellNumPerSession)
+    #start=time.clock()
+    for line in lasermaxZFile:
+        if line.startswith(codecs.BOM_UTF8):
+            line = line[3:]
+        if (line.split(':')[0] == 'Behavior Session'):
+            behavName = line.split(':')[1][:-1]  
+            behavSessionList.append(behavName)
+            behavSessionCount+=1
+            maxZlaserDict['behavSession'].extend([behavName]*cellNumPerSession)
+        else:
+            maxZlaserDict['maxZLaser'].extend([float(x) for x in line.split(',')[0:-1]])
+           
+    behavSessionNum_maxZmovement=behavSessionCount
+    maxZlaser=pd.DataFrame(maxZlaserDict)
+
+    maxZlaser.sort('behavSession',ascending=True,inplace=True)
+    maxZlaser=maxZlaser.reset_index(drop=True)
+
+    all_measures['maxZLaser']=maxZlaser['maxZLaser']
+    #end=time.clock()
+
+    lasermaxZFile.close()
+    #print end-start, behavSessionList
+    print 'read-in laser maxZ: ', behavSessionCount, 'sessions'
+###############################################################################
 
 ######################### L-R movement Modulation Index ###########################
 nameOfmovementmodIFile_1 = 'modIndex_'+'LvsR_movement_0to0.1sec_window_'+subject+'.txt'
@@ -252,9 +326,9 @@ for (key,filename) in zip(listOfmodIMeasures,listOfmodIFiles):
             modIDict['behavSession'].extend([behavName]*cellNumPerSession)
         else:
             freq=int(line.split()[0])
-            if freq < 9500:
+            if freq <= lowFreqBoundary:
                 modIDict['modI'+key+'Left'].extend([float(x) for x in line.split()[1].split(',')[0:-1]])
-            elif freq >= 10000: #some sessions have a mid freq
+            elif freq >= highFreqBoundary: #some sessions have a mid freq
                 modIDict['modI'+key+'Right'].extend([float(x) for x in line.split()[1].split(',')[0:-1]])
     modI_current=pd.DataFrame(modIDict)
     modI_current.sort('behavSession',ascending=True,inplace=True) #sort dataframe so that behavSessions are in ascending order
@@ -293,9 +367,9 @@ for (key,filename) in zip(listOfmodSMeasures,listOfmodSFiles):
             modSDict['behavSession'].extend([behavName]*cellNumPerSession)
         else:
             freq=int(line.split()[0])
-            if freq < 9500:
+            if freq <= lowFreqBoundary:
                 modSDict['modS'+key+'Left'].extend([float(x) for x in line.split()[1].split(',')[0:-1]])
-            elif freq >= 10000: #some sessions have a mid freq
+            elif freq >= highFreqBoundary: #some sessions have a mid freq
                 modSDict['modS'+key+'Right'].extend([float(x) for x in line.split()[1].split(',')[0:-1]])
     modS_current=pd.DataFrame(modSDict)
     modS_current.sort(['behavSession'],ascending=True,inplace=True)
@@ -309,7 +383,35 @@ for (key,filename) in zip(listOfmodSMeasures,listOfmodSFiles):
 for f in listOfmodSFiles:
     f.close() 
 ###################################################################################
-all_measuresFilename=processedDir+'/all_measures_'+subject
+
+############## Waveform #####################################################################
+
+waveformData = pd.DataFrame(index=range(0,len(cellsThisAnimal)), columns=['peakCapAmp','peakNaAmp','peakKAmp','peakCapTime','peakNaTime','peakKTime','widthWaveform'])
+
+for index,oneCell in enumerate(cellsThisAnimal):
+    
+    if oneCell.quality!=1 and oneCell.quality!=6:
+        waveformDataThis=[0,0,0,0,0,0,0]
+    else:
+        spkData = ephyscore.CellData(oneCell)
+        #waveforms = spkData.spikes.samples
+        waveforms = spkData.spikes.samples.astype(float) - 2**15 # FIXME: this is specific to OpenEphys
+        # FIXME: This assumes the gain is the same for all channels and records
+        waveforms = (1000.0/spkData.spikes.gain[0,0]) * waveforms #this converts waveforms's unit to uV
+        samplingRate = spkData.spikes.samplingRate
+
+        (peakTimes, peakAmplitudes, avWaveform) = spikesorting.estimate_spike_peaks(waveforms,samplingRate)
+        peakCapAmp,peakNaAmp,peakKAmp=peakAmplitudes
+        peakCapTime,peakNaTime,peakKTime=peakTimes
+        widthWaveform=peakKTime-peakCapTime
+        waveformDataThis=[peakCapAmp,peakNaAmp,peakKAmp,peakCapTime,peakNaTime,peakKTime,widthWaveform]
+    waveformData.ix[index,:]=waveformDataThis
+
+all_measures=pd.concat((all_measures,waveformData), axis=1)
+##############################################################################################
+
+############### Write to csv file###########################################
+all_measuresFilename=processedDir+'/all_measures_'+subject+'.csv'
 all_measures.to_csv(all_measuresFilename)
 
 

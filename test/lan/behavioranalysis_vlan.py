@@ -322,10 +322,11 @@ def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
     ax = plt.gca()
     ax.cla()
     lineWidth = 2
-    if not soundfreq:
+    if not np.any(soundfreq):
         possibleFreq = np.unique(behavData['targetFrequency'])
     else:
         possibleFreq = soundfreq
+    print possibleFreq
     possibleColors = FREQCOLORS + ['k','m','c', 'b','r','g']
     colorEachFreq = dict(zip(possibleFreq,possibleColors))
 
@@ -340,6 +341,7 @@ def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
     rightChoice = behavData['choice']==behavData.labels['choice']['right']
 
     hPlots = []
+    curveLegends=list(possibleFreq)
     plt.hold(True)
     for indb in range(nBlocks):
         trialsThisBlock = trialsEachBlock[:,indb]
@@ -353,11 +355,14 @@ def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
             hp, = plt.plot(range(firstValidEachBlock[indb],lastValidEachBlock[indb]),100*movAvChoice,
                            lw=lineWidth,color=thisColor)
             hPlots.append(hp)
+    
     plt.ylim([-5,105])
     plt.axhline(50,color='0.5',ls='--')
     plt.ylabel('% rightward',fontsize=fontsize)
     plt.xlabel('Trial',fontsize=fontsize)
     extraplots.set_ticks_fontsize(ax,fontsize)
+    legend = plt.legend(hPlots,curveLegends,loc=2)
+    ax = plt.gca().add_artist(legend)
     plt.draw()
     plt.show()
     return hPlots

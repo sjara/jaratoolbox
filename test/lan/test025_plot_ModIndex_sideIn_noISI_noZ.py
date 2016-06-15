@@ -1,3 +1,4 @@
+
 '''
 Spike times aligned to Side In:
 Plots number of significantly and non-significantly modulated cells from modulation index of -1 to +1. Only using good quality cells (all_cells file only contain good quality cells), not considering whether sound responsive or not. Generates modulatedCellDB (without considering ISI)

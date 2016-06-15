@@ -16,7 +16,7 @@ from jaratoolbox import extraplots
 import matplotlib.pyplot as plt
 import sys
 import importlib
-
+import codecs
 
 mouseNameList = sys.argv[1:]
 
@@ -60,9 +60,10 @@ for mouseName in mouseNameList:
 
     try:
         text_file = open('%s/%s.txt' % (finalOutputDir,nameOfFile), 'r+') #open a text file to read and write in
-        text_file.readline()
         behavName = ''
         for line in text_file:
+            if line.startswith(codecs.BOM_UTF8):
+                line = line[3:]
             behavLine = line.split(':')
             freqLine = line.split()
             if (behavLine[0] == 'Behavior Session'):
@@ -125,12 +126,14 @@ for mouseName in mouseNameList:
     for bSession in ISIDict:
         if (bSession not in badSessionList):
             bSessionList.append(bSession)
+
     bSessionList.sort()
     for bSession in bSessionList:
-        text_file.write("Behavior Session:%s\n" % bSession)
-        for ISIfraction in ISIDict[bSession]:
-            text_file.write("%s," %ISIfraction)
-        text_file.write("\n")
+        if bSession not in ISIList:
+            text_file.write("Behavior Session:%s\n" %bSession)
+            for ISIfraction in ISIDict[bSession]:
+                text_file.write("%s," %ISIfraction)
+            text_file.write("\n")
     text_file.close()
 
     print 'error with sessions: '

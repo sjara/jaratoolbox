@@ -12,7 +12,7 @@ from jaratoolbox import loadbehavior
 from jaratoolbox import settings
 from jaratoolbox import colorpalette
 
-EXPERIMENTER = settings.DEFAULT_EXPERIMENTER
+#EXPERIMENTER = settings.DEFAULT_EXPERIMENTER
 FREQCOLORS = [colorpalette.TangoPalette['Chameleon3'],
               colorpalette.TangoPalette['ScarletRed1'],
               colorpalette.TangoPalette['SkyBlue2'] ]
@@ -154,7 +154,7 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',datesRange=None):
     for inda,animalName in enumerate(animalNames):
         for indsa,thisSession in enumerate(allSessions):
             try:
-                behavFile = loadbehavior.path_to_behavior_data(animalName,EXPERIMENTER,paradigm,thisSession)
+                behavFile = loadbehavior.path_to_behavior_data(animalName,paradigm,thisSession)
                 behavData = loadingClass(behavFile,readmode=readmode)
             except IOError:
                 print thisSession+' does not exist'
@@ -179,7 +179,7 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',datesRange=None):
     return allBehavData
 
 
-def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,soundfreq=None):
+def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm='2afc',soundfreq=None):
     '''
     subjects: an array of animals to analyze (it can also be a string for a single animal)
     sessions: an array of sessions to analyze (it can also be a string for a single session)
@@ -196,7 +196,6 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
     nAnimals = len(subjects)
 
     loadingClass = loadbehavior.FlexCategBehaviorData
-    paradigm = '2afc'
 
     gs = gridspec.GridSpec(nSessions*nAnimals, 3)
     gs.update(hspace=0.5,wspace=0.4)
@@ -204,7 +203,7 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm=None,s
     for inds,thisSession in enumerate(sessions):
         for inda,animalName in enumerate(subjects):
             try:
-                behavFile = loadbehavior.path_to_behavior_data(animalName,EXPERIMENTER,paradigm,thisSession)
+                behavFile = loadbehavior.path_to_behavior_data(animalName,paradigm,thisSession)
                 behavData = loadingClass(behavFile,readmode='full')
             except IOError:
                 print thisSession+' does not exist'
@@ -311,8 +310,8 @@ def plot_summary(behavData,fontsize=12,soundfreq=None):
     ax.set_title(titleStr,fontweight='bold',fontsize=fontsize,y=0.95)
     ax.set_xlabel('Frequency (kHz)',fontsize=fontsize)
     extraplots.set_ticks_fontsize(ax,fontsize)
-    plt.draw()
-    plt.show()
+    #plt.draw()
+    #plt.show()
 
 
 def plot_frequency_psycurve(bdata,fontsize=12):
@@ -379,8 +378,8 @@ def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
     plt.ylabel('% rightward',fontsize=fontsize)
     plt.xlabel('Trial',fontsize=fontsize)
     extraplots.set_ticks_fontsize(ax,fontsize)
-    plt.draw()
-    plt.show()
+    #plt.draw()
+    #plt.show()
     return hPlots
 
 def calculate_psychometric(hitTrials,paramValueEachTrial,valid=None):
