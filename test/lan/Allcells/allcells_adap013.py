@@ -111,6 +111,7 @@ oneES = eSession(animalName='adap013',
 cellDB.append_session(oneES)
 
 
+'''
 oneES = eSession(animalName='adap013',
                  ephysSession = '2016-03-23_14-27-04',
                  clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
@@ -164,3 +165,4 @@ oneES = eSession(animalName='adap013',
                  trialLimit=[],
                  clusterQuality = {1:[3,],2:[3,],3:[3,],4:[3,],5:[3,],6:[3,],7:[9,],8:[3,]})
 #cellDB.append_session(oneES)
+'''
