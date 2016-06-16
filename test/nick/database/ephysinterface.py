@@ -9,6 +9,7 @@ The job of the module will be to take session names, get the data, and then pass
 from jaratoolbox.test.nick.database import dataloader
 from jaratoolbox.test.nick.database import dataplotter
 reload(dataplotter)
+reload(dataloader)
 import os
 from matplotlib import pyplot as plt
 import numpy as np
@@ -69,6 +70,18 @@ class EphysInterface(object):
 
         plt.show()
 
+    def get_processed_session_data(self, session, tetrode, cluster=None):
+        spikeData= self.loader.get_session_spikes(session, tetrode)
+        eventData = self.loader.get_session_events(session)
+        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+        spikeTimestamps=spikeData.timestamps
+
+        if cluster:
+            spikeTimestamps = spikeTimestamps[spikeData.clusters==cluster]
+            
+        return (spikeTimestamps, eventOnsetTimes)
+        
+
     def plot_am_tuning(self, session, tetrode, behavSuffix, replace=1, timeRange=[-0.5, 1], ms=1):
 
         '''Helper fxn to plot AM modulation tuning rasters'''
@@ -126,7 +139,7 @@ class EphysInterface(object):
 
 
 
-    def plot_array_raster(self, session, replace=0, sortArray=[], timeRange = [-0.5, 1], tetrodes=None, ms=4):
+    def plot_array_raster(self, session, replace=0, sortArray=[], timeRange = [-0.5, 1], tetrodes=None, ms=4, electrodeName='Tetrode'):
         '''
         This is the much-improved version of a function to plot a raster for each tetrode. All rasters
         will be plotted using standardized plotting code, and we will simply call the functions.
@@ -145,7 +158,7 @@ class EphysInterface(object):
         else:
             fig = plt.figure()
         for ind , tetrode in enumerate(tetrodes):
-            spikeData = self.loader.get_session_spikes(session, tetrode)
+            spikeData = self.loader.get_session_spikes(session, tetrode, electrodeName=electrodeName)
             if ind == 0:
                 ax = fig.add_subplot(numTetrodes,1,ind+1)
             else:
