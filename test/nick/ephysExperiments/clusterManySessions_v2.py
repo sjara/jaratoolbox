@@ -8,17 +8,20 @@ import numpy as np
 reload(spikesorting)
 import os
 
-'''The goal is to load many sessions, put the spikes from all of the sessions into a single structure in some kind of organized fashion, and then cluster the whole structure at once so that we can compare a cell across multiple sessions. 
+'''The goal is to load many sessions, put the spikes from all of the sessions into a single structure in some kind of organized fashion, and then cluster the whole structure at once so that we can compare a cell across multiple sessions.
 '''
 
 class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
 
     '''
+
+    This inherits the run_clustering method from spikesorting.TetrodeToCluster
+
     Cluster many ephys sessions at the same time
 
-    This class will compile the spikes from multiple sessions into a single data structure, 
+    This class will compile the spikes from multiple sessions into a single data structure,
     cluster the entire set of spikes at once, and then save the appropriate cluster files
-    as if one had simply clustered a session on its own. 
+    as if one had simply clustered a session on its own.
     '''
 
     def __init__(self, animalName, sessionList, tetrode, analysisDate):
@@ -41,13 +44,14 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
 
         self.report = None
         self.reportFileName = '{0}.png'.format(self.tetrode)
-        
-        self.featureNames = ['peak','valley','energy']
+
+        # self.featureNames = ['peak','valley','energy']
+        self.featureNames = ['peak','valleyFirstHalf']
         self.nFeatures = len(self.featureNames)
         self.featureValues = None
 
         self.process = None
-        
+
     def load_all_waveforms(self):
         for ind, session in enumerate(self.sessionList):
             if session: #This is a fix for when some sessions are 'None'
@@ -55,15 +59,15 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
                 spikeFile = os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(self.tetrode))
                 dataSpkObj = loadopenephys.DataSpikes(spikeFile)
                 numSpikes = dataSpkObj.nRecords
-            
-                #Add the ind to a vector of zeros, indicates which recording this is from. 
+
+                #Add the ind to a vector of zeros, indicates which recording this is from.
                 sessionVector = np.zeros(numSpikes)+ind
 
                 samplesThisSession = dataSpkObj.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
                 samplesThisSession = (1000.0/dataSpkObj.gain[0,0]) * samplesThisSession
                 timestampsThisSession = dataSpkObj.timestamps/self.SAMPLING_RATE
-            
-                #Set the values when working with the first session, then append for the other sessions. 
+
+                #Set the values when working with the first session, then append for the other sessions.
                 if ind==0:
                     self.samples = samplesThisSession
                     self.timestamps = timestampsThisSession
@@ -72,7 +76,7 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
                     self.samples = np.concatenate([self.samples, samplesThisSession])
                     self.timestamps = np.concatenate([self.timestamps, timestampsThisSession])
                     self.recordingNumber = np.concatenate([self.recordingNumber, sessionVector])
-            
+
         self.nSpikes = len(self.timestamps)
 
     def create_multisession_fet_files(self):
@@ -83,7 +87,7 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
             self.load_waveforms()
         self.featureValues = spikesorting.calculate_features(self.samples,self.featureNames)
         spikesorting.write_fet_file(self.fetFilename, self.featureValues)
-        
+
     def set_clusters_from_file(self):
         clusterFile = os.path.join(self.clustersDir,'Tetrode%d.clu.1'%self.tetrode)
         self.clusters = np.fromfile(clusterFile,dtype='int32',sep=' ')[1:]
@@ -91,10 +95,10 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
 
     def save_single_session_clu_files(self, copyClusterReport = True):
         '''
-        Use the stored cluster and session information to write an individual clu file for each session. 
+        Use the stored cluster and session information to write an individual clu file for each session.
         This will make it easier for us to go back and work with the data later. There is also the option
-        to copy over the multisession cluster report to each directory that was included in the clustering. 
-        This might be overkill. 
+        to copy over the multisession cluster report to each directory that was included in the clustering.
+        This might be overkill.
         '''
 
         clusters = self.clusters
@@ -102,9 +106,9 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
         sessions = self.sessionList
 
         for indSession, session in enumerate(self.sessionList):
-            
+
             #Make the cluster file directory for this session if it does not already exist
-            sessionClusterDir = os.path.join(settings.EPHYS_PATH,self.animalName,session+'_kk') 
+            sessionClusterDir = os.path.join(settings.EPHYS_PATH,self.animalName,session+'_kk')
 
             if not os.path.exists(sessionClusterDir):
                 print 'Creating clusters directory: %s'%(sessionClusterDir)
@@ -125,11 +129,11 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
 
             if copyClusterReport: #Need to finish this
                 pass
-                #copyCommand = ['cp', 
+                #copyCommand = ['cp',
 
 
-                
-        
+
+
     def save_multisession_report(self):
         if self.clusters == None:
             self.set_clusters_from_file()
@@ -139,7 +143,7 @@ class MultipleSessionsToCluster(spikesorting.TetrodeToCluster):
                                             filename=self.reportFileName,figtitle=figTitle,
                                                 showfig=False)
 
-        
+
 class MultiSessionClusterReport(object):
     '''
     Need to finish reports when more than nrows<clusters.
@@ -159,7 +163,7 @@ class MultiSessionClusterReport(object):
         self.fig = None
         self.nPages = 0
         self.figTitle = figtitle
-        
+
         self.plot_report(showfig=showfig)
         if outputDir is not None:
             self.save_report(outputDir,filename)
@@ -200,7 +204,7 @@ class MultiSessionClusterReport(object):
                 plt.gca().set_xticklabels('')
             # -- Plot projections --
             plt.subplot(2*self.nRows,nCols,2*(indc*nCols)+3)
-            spikesorting.plot_projections(wavesThisCluster)  
+            spikesorting.plot_projections(wavesThisCluster)
             # -- Plot waveforms --
             plt.subplot(self.nRows,nCols,indc*nCols+2)
             spikesorting.plot_waveforms(wavesThisCluster)
@@ -232,7 +236,7 @@ class MultiSessionClusterReport(object):
 
 
 if __name__=="__main__":
-    
+
     from jaratoolbox.test.nick.ephysExperiments import ephys_experiment as ee
     reload(ee)
 
@@ -243,7 +247,7 @@ if __name__=="__main__":
     #2015-06-22_19-57-14 - 100msec laser pulses at 2mW
     #2015-06-22_19-59-48 - 100msec laser pulses at 1mW
     sessionList = ['2015-06-24_15-22-29', '2015-06-24_15-25-08', '2015-06-24_15-27-37', '2015-06-24_15-31-48', '2015-06-24_15-45-22']
-                      
+
     tetrode = 6
     oneTT = MultipleSessionsToCluster(animalName,sessionList,tetrode, '20150626site1')
 
@@ -253,29 +257,25 @@ if __name__=="__main__":
 
     clusterFile = os.path.join(oneTT.clustersDir,'Tetrode%d.clu.1'%oneTT.tetrode)
     if os.path.isfile(clusterFile):
-        oneTT.set_clusters_from_file() 
+        oneTT.set_clusters_from_file()
     else:
         oneTT.create_multisession_fet_files()
         oneTT.run_clustering()
-        oneTT.set_clusters_from_file() 
+        oneTT.set_clusters_from_file()
     oneTT.save_multisession_report()
     oneTT.save_single_session_clu_files()
-    
+
     ##PLot the noise burst response for a cluster
 
     figure()
     cluster = 3
     clusterSpikeTimestamps = oneTT.timestamps[(oneTT.clusters==cluster) & (oneTT.recordingNumber==0)]
-    
+
 
     exp = ee.EphysExperiment('pinp003', '2015-06-24')
-    
+
     spikeData, eventData, plotTitle = exp.get_session_ephys_data(sessionList[2], 6)
-    
+
     eventOnsetTimes = exp.get_event_onset_times(eventData)
-    
-    exp.plot_raster(clusterSpikeTimestamps, eventOnsetTimes, 'laserResponse')    
-    
 
-
-
+    exp.plot_raster(clusterSpikeTimestamps, eventOnsetTimes, 'laserResponse')
