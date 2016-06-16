@@ -131,7 +131,14 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
 
 
     for tetrode in site.tetrodes:
-        oneTT = cluster_site(site, siteName, tetrode)
+
+        #Tetrodes with no spikes will cause an error when clustering
+        try:
+            oneTT = cluster_site(site, siteName, tetrode)
+        except AttributeError:
+            print "There was an attribute error for tetrode {} at {}".format(tetrode, siteName)
+            continue
+
         possibleClusters=np.unique(oneTT.clusters)
 
 
@@ -210,15 +217,15 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
                 freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0]
                 intenLabels = ["%.1f" % inten for inten in possibleIntensity]
 
-                dataplotter.two_axis_heatmap(spikeTimestamps,
-                                            eventOnsetTimes,
-                                            intensityEachTrial,
-                                            freqEachTrial,
-                                            intenLabels,
-                                            freqLabels,
-                                            xlabel,
-                                            ylabel,
-                                            plotTitle,
+                dataplotter.two_axis_heatmap(spikeTimestamps=spikeTimestamps,
+                                            eventOnsetTimes=eventOnsetTimes,
+                                            firstSortArray=intensityEachTrial,
+                                            secondSortArray=freqEachTrial,
+                                            firstSortLabels=intenLabels,
+                                            secondSortLabels=freqLabels,
+                                            xlabel=xlabel,
+                                            ylabel=ylabel,
+                                            plotTitle=plotTitle,
                                             flipFirstAxis=True,
                                             flipSecondAxis=False,
                                             timeRange=[0, 0.1])
@@ -290,7 +297,11 @@ def am_mod_report(site, siteName, amSessionInd):
     loader = dataloader.DataLoader('offline', experimenter=site.experimenter)
 
     for tetrode in site.tetrodes:
-        oneTT = cluster_site(site, siteName, tetrode)
+        try:
+            oneTT = cluster_site(site, siteName, tetrode)
+        except AttributeError:
+            print "There was an attribute error for tetrode {} at {}".format(tetrode, siteName)
+            continue
         possibleClusters=np.unique(oneTT.clusters)
 
         for indClust, cluster in enumerate(possibleClusters):
