@@ -17,6 +17,7 @@ interface = ephysinterface.EphysInterface('pinp003', '2015-06-24', 'nick', 'lase
 #interface.plot_array_raster(-1)
 
 #This is working as expected. 
+
 # interface.plot_sorted_tuning_raster('15-31-48', 6, 'a')
 
 
