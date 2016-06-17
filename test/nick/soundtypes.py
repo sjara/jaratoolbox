@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from jaratoolbox import extraplots
 from jaratoolbox import extrastats
+from jaratoolbox import behavioranalysis
 
 
 def load_behavior_sessions_sound_type(animal, sessions):
@@ -21,14 +22,14 @@ def load_behavior_sessions_sound_type(animal, sessions):
 
     '''
 
-    bdata = load_many_sessions(animal, sessions)
+    bdata = behavioranalysis.load_many_sessions(animal, sessions)
     soundTypes = [bdata.labels['soundType'][x] for x in np.unique(bdata['soundType'])]
 
     dataObjs = []
     dataSoundTypes = {}
 
     for indType, thisType in enumerate(soundTypes):
-        bdataThisType = load_many_sessions(animal, sessions)
+        bdataThisType = behavioranalysis.load_many_sessions(animal, sessions)
 
         #The inds where this kind of sound was presented
         boolThisType = bdataThisType['soundType']==bdataThisType.labels['soundType'][thisType]
@@ -256,7 +257,7 @@ def sound_type_behavior_summary(subjects, sessions, output_dir, trialslim=None):
                 break
 
             #All the bdata together for plotting the dynamics
-            allBehavData = load_many_sessions(animalName, [session])
+            allBehavData = behavioranalysis.load_many_sessions(animalName, [session])
             nSoundTypes = len(bdataSoundTypes) #This should hopefully be the same for all the animals being plotted
 
             #Keeps track of the min and max for each sound type for plotting dynamics
@@ -287,12 +288,12 @@ def sound_type_behavior_summary(subjects, sessions, output_dir, trialslim=None):
                         plt.ylabel('')
                 else:
                     thisBehavData.find_trials_each_block()
-                    plot_summary(thisBehavData,fontsize=8,soundfreq=freqsToUse)
+                    behavioranalysis.plot_summary(thisBehavData,fontsize=8,soundfreq=freqsToUse)
                     plt.title(soundType)
 
             #Plot the dynamics for all the sound types
             plt.subplot2grid((nAnimals*nSessions, nSoundTypes+2), (yInd, nSoundTypes), colspan=2)
-            plot_dynamics(allBehavData, soundfreq = allFreqsToUse)
+            behavioranalysis.plot_dynamics(allBehavData, soundfreq = allFreqsToUse)
             plt.ylabel('')
             if trialslim:
                 plt.xlim(trialslim)
