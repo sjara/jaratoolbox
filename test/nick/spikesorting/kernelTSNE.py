@@ -5,55 +5,10 @@ from matplotlib import pyplot as plt
 import os
 import numpy as np
 
+import sklearn
 import sklearn.manifold
 import sklearn.neighbors
 import sklearn.mixture
-
-
-
-
-euc = sklearn.neighbors.DistanceMetric.get_metric('euclidean')
-
-
-
-
-
-
-
-
-def determine_sigma_from_X(X, k_nb, local=True):
-    #Adapted from KMap Toolbox by Barbara Hammer's group
-    #Just needs the raw vectors, not a distance matrix
-
-    k = k_nb + 1 ##### We add 1 to the number of the neighbor to return because the first will always be zero (dist to self)
-
-    nbrs = sklearn.neighbors.NearestNeighbors(n_neighbors=k, algorithm='auto').fit(X)
-    distances, indices = nbrs.kneighbors(X)
-
-    if local:
-        return distances[:,-1] #Return distances to last (kth)
-    else:
-        return mean(distances[:,-1]) #Return average distance to the kth neighbor
-
-def kmap_train(X_dist, Y, sigma_scale):
-    #Ported from KMap Toolbox by Barbara Hammer's group
-
-    k_nb = 10 # Number of neighbors to use
-    f_local =1 # 0 for global, 1 for local
-
-    sig_nb=determine_sigma(X_dist, k_nb, f_local);
-    sig_nb = sig_nb**2
-    sib_nb = sig_nb * sigma_scale #Scale the sigma values
-
-    #Compute the kernel
-    kernel = np.exp(-1*(X_dist/sig_nb))
-
-    #Divide each row by the row sum (use newaxis trick to get broadcasting to behave)
-    kernel = kernel / np.sum(kernel, 1)[:,np.newaxis]
-
-    A = np.dot(np.linalg.pinv(kernel), Y)
-
-    return A, sig_nb
 
 
 class KernelTSNEClassifier(object):
@@ -70,10 +25,10 @@ class KernelTSNEClassifier(object):
 
         print("Calculating Pairwise Distances")
 
-        X_dist = self.euc.pairwise(self.data)
+        X_dist = self.euc.pairwise(self.trainingSet)
 
         print("Embedding training set")
-        model = sklearn.manifold.TSNE(n_components=2, method='barnes_hut', verbose=10, n_iter=1000, metric='precomputed')
+        model = sklearn.manifold.TSNE(n_components=2, verbose=10, n_iter=1000, metric='precomputed')
         self.Y_train = model.fit_transform(X_dist)
 
         print("Calculating Kernel")
@@ -86,8 +41,9 @@ class KernelTSNEClassifier(object):
 
     def predict_full_dataset(self, chunk=5000):
 
-        for oneItem in self.data:
-            clusterLabel = predict(oneItem)
+        for indItem, oneItem in enumerate(self.data):
+            clusterLabel = self.predict(oneItem)
+            print clusterLabel
 
 
     def predict(self, newData):
@@ -106,16 +62,16 @@ class KernelTSNEClassifier(object):
         clusterLabels = self.mixture.predict(Y_new)
         return clusterLabels
 
-    @staticmethod
-    def kmap_train(X_dist, Y, sigma_scale):
+    def kmap_train(self, X_dist, Y, sigma_scale):
         #Ported from KMap Toolbox by Barbara Hammer's group
 
         k_nb = 10 # Number of neighbors to use
         f_local =1 # 0 for global, 1 for local
 
-        sig_nb=determine_sigma(X_dist, k_nb, f_local);
+        # sig_nb=determine_sigma(X_dist, k_nb, f_local);
+        sig_nb = self.determine_sigma_from_X(self.trainingSet, k_nb, sigma_scale)
         sig_nb = sig_nb**2
-        sib_nb = sig_nb * sigma_scale #Scale the sigma values
+        sig_nb = sig_nb * sigma_scale #Scale the sigma values
 
         #Compute the kernel
         kernel = np.exp(-1*(X_dist/sig_nb))
@@ -138,6 +94,20 @@ class KernelTSNEClassifier(object):
 
         return Y_ose
 
+    @staticmethod
+    def determine_sigma_from_X(X, k_nb, local=True):
+        #Adapted from KMap Toolbox by Barbara Hammer's group
+        #Just needs the raw vectors, not a distance matrix
+
+        k = k_nb + 1 ##### We add 1 to the number of the neighbor to return because the first will always be zero (dist to self)
+
+        nbrs = sklearn.neighbors.NearestNeighbors(n_neighbors=k, algorithm='auto').fit(X)
+        distances, indices = nbrs.kneighbors(X)
+
+        if local:
+            return distances[:,-1] #Return distances to last (kth)
+        else:
+            return mean(distances[:,-1]) #Return average distance to the kth neighbor
 
 if __name__=='__main__':
     animalName='pinp013'
@@ -162,3 +132,23 @@ if __name__=='__main__':
 
     elapsed = timeit.default_timer() - start_time
     print 'ELAPSED TIME: {} mins'.format(elapsed/60)
+
+
+    from sklearn.datasets import load_iris
+
+    data = load_iris()
+
+    kernClass = KernelTSNEClassifier(data.data, trainingSetSize=50)
+    kernClass.train()
+    kernClass.predict_full_dataset()
+
+
+    X_dist = kernClass.euc.pairwise(data.data)
+
+   model =  sklearn.manifold.TSNE(n_components=2, verbose=10, n_iter=1000, metric='precomputed')
+    
+   Y = model.fit_transform(X_dist)
+
+   plot(Y[:,0], Y[:,1], '.')
+
+
