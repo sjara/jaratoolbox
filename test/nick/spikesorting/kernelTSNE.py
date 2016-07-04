@@ -317,3 +317,39 @@ if __name__=='__main__':
     # ylim([-15, 15])
 
     spikesorting.ClusterReportFromData(dataSpikes, outputDir='/home/nick/Desktop', filename = 'testKTSNEclusterHUGEset1000PCA.png')
+
+
+
+
+    #Test just using PCA and a GMM
+    spikesToUse = np.random.randint(len(pcWaves), size=1000)
+    pcWavesToUse = pcWaves[spikesToUse, :]
+
+    pcGMM = sklearn.mixture.GMM(n_components=12)
+    pcGMM.fit(pcWavesToUse)
+    labels = pcGMM.predict(pcWaves)
+
+    dataSpikes.clusters = labels
+    spikesorting.ClusterReportFromData(dataSpikes, outputDir='/home/nick/Desktop', filename = 'test50PC_GMM.png')
+
+
+
+
+
+    start_time = timeit.default_timer()
+    pcWaves = sklearn.decomposition.PCA(n_components = 50).fit_transform(allWaves)
+    spikesToUse = np.random.randint(len(pcWaves), size=10000)
+    pcWavesToUse = pcWaves[spikesToUse, :]
+
+    pcGMM = sklearn.mixture.GMM(n_components=12)
+    pcGMM.fit(pcWavesToUse)
+    labels = pcGMM.predict(pcWaves)
+
+    dataSpikes.clusters = labels
+
+    elapsed = timeit.default_timer() - start_time
+    print 'ELAPSED TIME: {} mins'.format(elapsed/60)
+
+    spikesorting.ClusterReportFromData(dataSpikes, outputDir='/home/nick/Desktop', filename = 'test50PC_GMM.png')
+
+
