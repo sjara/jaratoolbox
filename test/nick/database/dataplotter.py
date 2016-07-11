@@ -175,6 +175,8 @@ def two_axis_heatmap(spikeTimestamps,
                      eventOnsetTimes,
                      firstSortArray, #Should be intensity in F/I TC (Y axis)
                      secondSortArray, #Should be frequency in F/I TC (X Axis)
+                     firstPossibleVals=None,
+                     secondPossibleVals=None,
                      firstSortLabels=None,
                      secondSortLabels=None,
                      xlabel=None,
@@ -182,7 +184,8 @@ def two_axis_heatmap(spikeTimestamps,
                      plotTitle=None,
                      flipFirstAxis=True, #Useful for making the highest intensity plot on top
                      flipSecondAxis=False,
-                     timeRange=[0, 0.1]):
+                     timeRange=[0, 0.1],
+                     cmap='Blues'):
     '''
     This function takes two arrays and uses them to sort spikes into trials by combinaion,
     and then plots the average number of spikes after the stim in heatmap form.
@@ -216,8 +219,10 @@ def two_axis_heatmap(spikeTimestamps,
         ylabel = ''
     if not plotTitle:
         plotTitle = ''
-    firstPossibleVals = np.unique(firstSortArray)
-    secondPossibleVals = np.unique(secondSortArray)
+    if not firstPossibleVals:
+        firstPossibleVals = np.unique(firstSortArray)
+    if not secondPossibleVals:
+        secondPossibleVals = np.unique(secondSortArray)
     if firstSortLabels == None:
         firstSortLabels = []
     if secondSortLabels == None:
@@ -240,12 +245,14 @@ def two_axis_heatmap(spikeTimestamps,
     spikeArray = avg_spikes_in_event_locked_timerange_each_cond(
         spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
     #Plot the array as a heatmap
+
     ax, cax, cbar = plot_array_as_heatmap(spikeArray,
                                           xlabel=xlabel,
                                           ylabel=ylabel,
                                           xtickLabels=secondSortLabels,
                                           ytickLabels=firstSortLabels,
-                                          cbarLabel=cbarLabel)
+                                          cbarLabel=cbarLabel,
+                                          cmap=cmap)
     return ax, cax, cbar
 
 

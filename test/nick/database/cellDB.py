@@ -499,7 +499,7 @@ class Session(object):
         self.sessionType = sessionType
 
     def __repr__(self):
-        return "{0} - {1}".format(self.session, self.sessionType)
+        return "{0} - {1}".format(self.ephysFilename, self.sessionType)
 
     def __str__(self):
         return "{0} - {1}".format(self.session, self.sessionType)

@@ -524,11 +524,14 @@ def psycurve_fit_from_bdata(bdata, plotFits=True):
     print 'FIXME: Arbitrary constraints for alpha pos!!'
     lowerFreqConstraint = possibleFreq[1]
     upperFreqConstraint = possibleFreq[-2]
+    # lowerFreqConstraint = possibleFreq[0]
+    # upperFreqConstraint = possibleFreq[-1]
     maxFreq = max(possibleFreq)
     minFreq = min(possibleFreq)
 
 
-    constraints = ( 'Uniform({}, {})'.format(lowerFreqConstraint, upperFreqConstraint), 'Uniform(0,5)' ,'Uniform(0,1)', 'Uniform(0,1)')
+    constraints = ( 'Uniform({}, {})'.format(lowerFreqConstraint, upperFreqConstraint), 'Uniform(0,5)' ,'Uniform(0,0.5)', 'Uniform(0,0.5)')
+    # constraints = ( 'unconstrained', 'Uniform(0,2)' ,'Uniform(0,1)', 'Uniform(0,1)')
     estimate = extrastats.psychometric_fit(possibleFreq, nTrialsEachValue, nHitsEachValue, constraints)
 
     if plotFits:
@@ -569,12 +572,12 @@ def plot_psycurve_fit_and_data(bdata, plotColor):
     upperWhisker = ciHitsEachValue[1,:]-fractionHitsEachValue
     lowerWhisker = fractionHitsEachValue-ciHitsEachValue[0,:]
     (pline, pcaps, pbars) = plt.errorbar(possibleValues, fractionHitsEachValue,
-                                            yerr = [lowerWhisker, upperWhisker],color='k', fmt=None)
-    pdots = plt.plot(possibleValues, fractionHitsEachValue, 'o',mec='none',mfc='k',ms=8)
+                                            yerr = [lowerWhisker, upperWhisker],color='k', fmt=None, clip_on=False)
+    pdots = plt.plot(possibleValues, fractionHitsEachValue, 'o',mec='none',mfc='k',ms=8, clip_on=False)
 
-    setp(pcaps, color=plotColor)
-    setp(pbars, color=plotColor)
-    setp(pdots, markerfacecolor=plotColor)
+    plt.setp(pcaps, color=plotColor)
+    plt.setp(pbars, color=plotColor)
+    plt.setp(pdots, markerfacecolor=plotColor)
 
     if np.unique(freqEachTrial)[0]<1000: #If Hz
         ax.set_xticks(possibleValues)
@@ -587,13 +590,43 @@ def plot_psycurve_fit_and_data(bdata, plotColor):
         plt.xlabel('Frequency (kHz)')
 
 
-    ax.plot(fitxval, fityvals, color=plotColor)
+    ax.plot(fitxval, fityvals, color=plotColor, clip_on=False)
     plt.ylim([0, 1])
     plt.ylabel('Fraction Rightward Trials')
 
     return estimate
 
-def sound_type_behavior_summary(subjects, sessions, output_dir):
+def nice_psycurve_settings(ax, fitcolor=None, fontsize=20, lineweight=3, fitlineinds=[3]):
+
+    '''
+    A hack for setting some psycurve axes properties, especially the weight of the line and the xticks
+    I made this because I am using the fxn plot_psycurve_fit_and_data, which obscures handles to things
+    that I later need (like the lines, etc. ) This function will be useless if I make plots in a better way. 
+
+    '''
+
+    extraplots.boxoff(ax)
+    extraplots.set_ticks_fontsize(ax, fontsize)
+
+
+    for lineind in fitlineinds:
+        fitline = ax.lines[lineind]
+        plt.setp(fitline, lw=lineweight)
+
+    if fitcolor:
+        plt.setp(fitline, color=fitcolor)
+
+    xticklabels = [item.get_text() for item in ax.get_xticklabels()]
+    xticks = ax.get_xticks()
+    newXtickLabels = np.logspace(xticks[0], xticks[-1], 3, base=2)
+
+    ax.set_xticks(np.log2(np.array(newXtickLabels)))
+    if min(newXtickLabels) > 1000:
+        ax.set_xticklabels(['{:.3}'.format(x/1000.0) for x in newXtickLabels])
+    else:
+        ax.set_xticklabels(['{:.3}'.format(x) for x in newXtickLabels])
+
+def sound_type_behavior_summary(subjects, sessions, output_dir, trialslim=None):
 
     '''
     Nick 2016-05-20
@@ -605,6 +638,7 @@ def sound_type_behavior_summary(subjects, sessions, output_dir):
     subjects (list of str): The animals to plot (example: ['amod002', 'amod003'])
     sessions (list of str): The sessions to plot for each animal (example: ['20160529a'])
     output_dir (str): FIXME currently unused, for saving the report
+    trialslim (list): upper and lower trial number to plot dynamics
 
     '''
 
@@ -664,6 +698,8 @@ def sound_type_behavior_summary(subjects, sessions, output_dir):
             plt.subplot2grid((nAnimals*nSessions, nSoundTypes+2), (yInd, nSoundTypes), colspan=2)
             plot_dynamics(allBehavData, soundfreq = allFreqsToUse)
             plt.ylabel('')
+            if trialslim:
+                plt.xlim(trialslim)
             plt.title('{}, {}'.format(animalName, session))
             plt.subplots_adjust(hspace = 0.7)
 

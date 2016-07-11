@@ -21,3 +21,7 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+/TAGS
+/test/nick/ephysExperiments/.ropeproject/config.py
+/test/nick/ephysExperiments/.ropeproject/history
+/test/nick/ephysExperiments/.ropeproject/objectdb

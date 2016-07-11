@@ -9,6 +9,34 @@ import scipy.stats
 import numpy as np
 import sys
 
+
+def weibull(xval,alpha,beta):
+    '''Weibull function
+    alpha: bias
+    beta: related to slope
+    NOTE: this function isnot symmetric
+    '''
+    return 1 - np.exp(-pow(xval/alpha,beta))
+
+def gaussianCDF(xval,mu,sigma):
+    from scipy.stats import norm
+    return norm.cdf(xval,mu,sigma)
+
+def logistic(xval,alpha,beta):
+    return 1/(1+np.exp(-(xval-alpha)/beta))
+
+def psychfun(xval,alpha,beta,lamb,gamma):
+    '''Psychometric function that allowing arbitrary asymptotes.
+    alpha: bias
+    beta : related to slope
+    lamb : lapse term (up)
+    gamma: lapse term (down)
+    '''
+    #return gamma + (1-gamma-lamb)*weibull(xval,alpha,beta)
+    #return gamma + (1-gamma-lamb)*gaussianCDF(xval,alpha,beta)
+    return gamma + (1-gamma-lamb)*logistic(xval,alpha,beta)
+
+
 def psychometric_fit(xValues, nTrials, nHits, constraints=None, alpha=0.05):
     '''
     Given performance for each value of parameter, estimate the curve.
@@ -24,11 +52,11 @@ def psychometric_fit(xValues, nTrials, nHits, constraints=None, alpha=0.05):
     if constraints is None:
         constraints = ( 'flat', 'Uniform(0,0.3)' ,'Uniform(0,0.2)', 'Uniform(0,0.2)')
     data = np.c_[xValues,nHits,nTrials]
-    session = psi.BootstrapInference(data,sample=False,priors=constraints,nafc=1)
-    #session = psi.BayesInference(data,sample=False,priors=constraints,nafc=1)
-    (pHit,confIntervals) = binofit(nHits,nTrials,alpha)
-    return (session.estimate,pHit,confIntervals)
-
+    session = psi.BootstrapInference(data,sample=False, priors=constraints, nafc=1)
+    # session = psi.BayesInference(data,sample=False,priors=constraints,nafc=1)
+    # (pHit,confIntervals) = binofit(nHits,nTrials,alpha)
+    # return (session.estimate,pHit,confIntervals)
+    return session.estimate
 
 
 if __name__ == "__main__":

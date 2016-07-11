@@ -9,6 +9,7 @@ from jaratoolbox import settings
 from jaratoolbox import ephyscore
 import os
 import numpy as np
+from jaratoolbox import behavioranalysis
 from jaratoolbox import loadopenephys
 from jaratoolbox import spikesanalysis
 from jaratoolbox import extraplots
@@ -37,7 +38,7 @@ paradigm = '2afc'
 
 numOfCells = len(allcells.cellDB) #number of cells that were clustered on all sessions clustered
 
-minBlockSize = 20 #This is so that if the last block is small, it wont be plotted
+minBlockSize = 40 #This is so that if the last block is small, it wont be plotted
 
 
 '''
@@ -68,7 +69,6 @@ for cellID in range(0,numOfCells):
             # -- Load Behavior Data --
             behaviorFilename = loadbehavior.path_to_behavior_data(subject,experimenter,paradigm,behavSession)
             bdata = loadbehavior.FlexCategBehaviorData(behaviorFilename)
-            bdata.find_trials_each_block()
 
             # -- Load event data and convert event timestamps to ms --
             ephysDir = os.path.join(ephysRoot, ephysSession)
@@ -79,6 +79,14 @@ for cellID in range(0,numOfCells):
             soundOnsetEvents = (events.eventID==1) & (events.eventChannel==soundTriggerChannel)
 
             eventOnsetTimes = eventTimes[soundOnsetEvents]
+            soundOnsetTimeBehav = bdata['timeTarget']
+
+            # Find missing trials
+            missingTrials = behavioranalysis.find_missing_trials(eventOnsetTimes,soundOnsetTimeBehav)
+            # Remove missing trials
+            bdata.remove_trials(missingTrials)
+
+            bdata.find_trials_each_block()
 
             correct = bdata['outcome']==bdata.labels['outcome']['correct']
 
@@ -116,6 +124,7 @@ for cellID in range(0,numOfCells):
 
         plt.clf()
         ax1 =  plt.subplot2grid((3,1), (0, 0), rowspan=2)
+        plt.setp(ax1.get_xticklabels(), visible=False)
         extraplots.raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEachCond=correctTrialsEachBlock,
                                colorEachCond=colorEachBlock,fillWidth=None,labels=None)
         #plt.yticks([0,trialsEachCond.sum()])
