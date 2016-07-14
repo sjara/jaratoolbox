@@ -271,6 +271,7 @@ if __name__=='__main__':
 
     figure(figsize=(10, 20))
     labels = cluster_labels
+    uniqueLabels = np.unique(cluster_labels)
     rav = allWaves.ravel()
     maxv = percentile(rav, 99.95)
     minv = percentile(rav, 0.05)

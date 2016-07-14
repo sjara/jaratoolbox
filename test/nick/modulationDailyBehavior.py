@@ -9,6 +9,12 @@ if len(sys.argv)>1:
     sessions = sys.argv[1:]
     #sessions = input("Enter sessions (in a list of strings ['','']) to check behavior performance:")
 
-soundtypes.sound_type_behavior_summary(subjects, sessions, '', trialslim=[0, 1200])
+else:
+    sessions = ['20160621a', '20160622a', '20160623a', '20160624a', '20160625a', '20160626a', '20160627a', '20160628a', '20160629a', '20160630a', '20160701a', '20160702a', '20160703a', '20160704a', '20160705a', '20160706a', '20160707a', '20160708a', '20160709a', '20160710a']
 
-plt.show()
+for session in sessions:
+    soundtypes.sound_type_behavior_summary(subjects, session, '', trialslim=[0, 1200])
+    plt.show()
+    plt.savefig('/tmp/{}-{}_{}.png'.format(subjects[0], subjects[-1], session))
+
+

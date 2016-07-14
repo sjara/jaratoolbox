@@ -23,7 +23,7 @@ tetrode=2
 spikesFn = os.path.join(ephyspath, ephysfn, 'Tetrode{}.spikes'.format(tetrode))
 dataSpikes = loadopenephys.DataSpikes(spikesFn)
 
-(numSpikes, numChans, numSamples) = shape(dataSpikes.samples)
+(numSpikes, numChans, numSamples) = np.shape(dataSpikes.samples)
 allWaves = dataSpikes.samples.reshape(numSpikes, numChans*numSamples)
 
 import timeit

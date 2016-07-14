@@ -10,7 +10,8 @@ reload(behavioranalysis)
 # subjects = ['amod001', 'amod002', 'amod003', 'amod004', 'amod005']
 # subjects = ['adap026', 'adap027', 'adap028', 'adap029', 'adap030', ]
 # subjects = ['adap021', 'adap022', 'adap023', 'adap024', 'adap025' ]
-subjects = ['adap022', 'adap026', 'adap027', 'adap030'] #New muscimol animals
+# subjects = ['adap022', 'adap026', 'adap027', 'adap030'] #New muscimol animals
+subjects = ['adap025', 'adap028', 'adap029']
 
 if len(sys.argv)>1:
     sessions = sys.argv[1:]

@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 # subjects = ['adap022', 'adap026', 'adap027', 'adap030']
 # sessions = ['20160612a', '20160613a', '20160614a', '20160615a', '20160616a', '20160617a', '20160618a', '20160619a', '20160620a', '20160621a', '20160622a']
 
+subjects = ['adap025']
+sessions = ['20160712a','20160713a']
+
 
 def light_discrim_behavior_report(subjects, sessions, outputDir=None):
 
@@ -75,6 +78,7 @@ def light_discrim_behavior_report(subjects, sessions, outputDir=None):
 
     plt.legend(loc=8)
     plt.xlabel('session')
+    plt.show()
 
     if outputDir:
         subjectString = '-'.join(subjects)
@@ -82,3 +86,6 @@ def light_discrim_behavior_report(subjects, sessions, outputDir=None):
         figName = '{}.png'.format('_'.join([subjectString, dateString]))
         fullFigPath = os.path.join(outputDir, figName)
         plt.savefig(fullFigPath)
+
+if __name__=='__main__':
+    light_discrim_behavior_report(subjects, sessions)
