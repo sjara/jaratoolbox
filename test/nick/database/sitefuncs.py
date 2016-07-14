@@ -35,6 +35,29 @@ def cluster_site(site, siteName, tetrode, report=True):
 
     return oneTT #This is a little bit lazy, it should really spit out some attributes not the whole object
 
+def cluster_site_PCA(site, siteName, tetrode, report=True, **kwargs):
+
+    from jaratoolbox.test.nick.spikesorting import pcasort
+
+    oneTT = cms2.MultipleSessionsToCluster(site.animalName, site.get_session_ephys_filenames(), tetrode, '{}_{}'.format(site.date, siteName))
+    oneTT.load_all_waveforms()
+
+    clusterFile = os.path.join(oneTT.clustersDir,'Tetrode%d.clu.1'%oneTT.tetrode)
+    if os.path.isfile(clusterFile):
+        oneTT.set_clusters_from_file()
+
+    else:
+        (numSpikes, numChans, numSamples) = np.shape(oneTT.samples)
+        allWaves = oneTT.samples.reshape(numSpikes, numChans*numSamples)
+        sorter = pcasort.PCASpikeSorter(allWaves, **kwargs)
+        oneTT.clusters = sorter.clusters
+        oneTT.save_single_session_clu_files()
+
+    if report:
+        plt.clf()
+        oneTT.save_multisession_report()
+
+    return oneTT
 
 def calculate_site_ISI_violations(site, siteName):
 
@@ -122,7 +145,7 @@ def find_good_clusters(site, siteName, soundInd, laserInd, maxISI=0.02, minSound
     return list(set(goodISI) & set(soundResponsive) & set(laserResponsive))
 
 
-def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
+def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind, pcasort=True):
     '''
 
     '''
@@ -134,7 +157,10 @@ def nick_lan_daily_report(site, siteName, mainRasterInds, mainTCind):
 
         #Tetrodes with no spikes will cause an error when clustering
         try:
-            oneTT = cluster_site(site, siteName, tetrode)
+            if pcasort:
+                oneTT = cluster_site_PCA(site, siteName, tetrode)
+            else:
+                oneTT = cluster_site(site, siteName, tetrode)
         except AttributeError:
             print "There was an attribute error for tetrode {} at {}".format(tetrode, siteName)
             continue

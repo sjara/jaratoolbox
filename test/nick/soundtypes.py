@@ -3,7 +3,12 @@ import matplotlib.pyplot as plt
 from jaratoolbox import extraplots
 from jaratoolbox import extrastats
 from jaratoolbox import behavioranalysis
+from jaratoolbox import colorpalette
 
+FREQCOLORS = [colorpalette.TangoPalette['Chameleon3'],
+              colorpalette.TangoPalette['ScarletRed1'],
+              colorpalette.TangoPalette['SkyBlue2'],
+              colorpalette.TangoPalette['Orange2']]
 
 def load_behavior_sessions_sound_type(animal, sessions):
 
@@ -277,7 +282,7 @@ def sound_type_behavior_summary(subjects, sessions, output_dir, trialslim=None):
 
                 #Plot psycurves or summaries
                 if any(thisBehavData['psycurveMode']):
-                    (pline, pcaps, pbars, pdots) = plot_frequency_psycurve(thisBehavData)
+                    (pline, pcaps, pbars, pdots) = behavioranalysis.plot_frequency_psycurve(thisBehavData)
                     thisColor = FREQCOLORS[indSoundType*2]
                     plt.setp(pline, color=thisColor)
                     plt.setp(pcaps, color=thisColor)
