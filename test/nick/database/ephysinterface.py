@@ -209,6 +209,43 @@ class EphysInterface(object):
 
         plt.show()
 
+    def plot_two_axis_sorted_raster(self, session, tetrode, behavSuffix, firstSortVar, secondSortVar, cluster = None, replace=0, timeRange = [-0.5, 1], ms = 1):
+        '''
+        Plot the tuning of a tetrode as a sorted tuning raster
+        '''
+        bdata = self.loader.get_session_behavior(behavSuffix)
+        plotTitle = self.loader.get_session_filename(session)
+        eventData = self.loader.get_session_events(session)
+        spikeData = self.loader.get_session_spikes(session, tetrode)
+
+        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+        spikeTimestamps=spikeData.timestamps
+
+        freqEachTrial = bdata[firstSortVar]
+        intensityEachTrial = bdata[secondSortVar]
+
+        possibleFreq = np.unique(freqEachTrial)
+        possibleIntensity = np.unique(intensityEachTrial)
+        freqLabels = ['{0:.1f}'.format(freq/1000.0) for freq in possibleFreq]
+        intensityLabels = ['{:.0f} dB'.format(intensity) for intensity in possibleIntensity]
+        xLabel="Time from sound onset (sec)"
+
+        plt.figure()
+
+        dataplotter.two_axis_sorted_raster(spikeTimestamps,
+                                           eventOnsetTimes,
+                                           freqEachTrial,
+                                           intensityEachTrial,
+                                           freqLabels,
+                                           intensityLabels,
+                                           xLabel,
+                                           plotTitle,
+                                           flipFirstAxis=False,
+                                           flipSecondAxis=True,
+                                           timeRange=timeRange,
+                                           ms=ms)
+
+        plt.show()
 
     #Relies on external TC heatmap plotting functions
     def plot_session_tc_heatmap(self, session, tetrode, behavSuffix, replace=True, timeRange=[0, 0.1]):
