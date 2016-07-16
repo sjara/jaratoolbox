@@ -170,4 +170,41 @@ class MultiUnitDatabase(list):
         sessionanalysis.save_data_each_mu(self,outputDir,timeRange=timeRange,lockTo=1)
 
 
+# ----------------------- THE NEW (2016) VERSION ------------------------
 
+class Experiment(object):
+    '''
+    Experiment is a container of Sites.
+    '''
+    def __init__(self, animalName, date, experimenter, defaultParadigm=''):
+        self.animalName = animalName
+        self.date = date
+        self.experimenter = experimenter
+        self.defaultParadigm = defaultParadigm
+        self.siteList = []
+    def add_site(self, depth, tetrodes):
+        '''
+        Args:
+
+        depth (int): The depth of the site in microns
+        tetrodes (list): A list of the tetrode numbers that have good signals
+        '''
+        site = Site(animalName=self.animalName,
+                    date=self.date,
+                    experimenter=self.experimenter,
+                    defaultParadigm=self.defaultParadigm,
+                    tetrodes=tetrodes,
+                    depth=depth)
+
+        self.siteList.append(site)
+        return site
+    def __repr__(self):
+        objStrings = []
+        for key,value in sorted(vars(self).iteritems()):
+            objStrings.append('%s: %s\n'%(key,str(value)))
+        return ''.join(objStrings)
+    def __str__(self):
+        objStr = '{0} recording on {1} by {2}'.format(self.animalName,
+                                                      self.date,
+                                                      self.experimenter)
+        return objStr
