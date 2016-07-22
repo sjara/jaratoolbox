@@ -172,39 +172,138 @@ class MultiUnitDatabase(list):
 
 # ----------------------- THE NEW (2016) VERSION ------------------------
 
+'''
+Design decisions:
+
+- Experiment should add sessions directly to the last site in the list of sites.
+  This avoids needing to return a handle to each site during an experiment.
+  The experimenter can instead just return handles to each experiment object.
+  Pros:
+      - No need to return a handle to every site (it gets confusing quickly)
+  Cons:
+      - Sessions are always added to the last site that was created - the experimenter does not choose the site to add a session to (could be misleading?)
+'''
+
+class InfoRecording(object):
+     '''
+     InfoRecordings is a container of experiments.
+     One per subject
+     Attributes:
+         subject (str): The name of the subject
+         experiments (list): A list of all the experiments conducted with this subject
+     Methods:
+         add_experiment: Add a new experiment for this subject
+     '''
+     def __init__(self, subject):
+          self.subject=subject
+          self.experiments=[]
+     def add_experiment(self, date):
+          experiment=Experiment(self.subject,
+                                date)
+          self.experiments.append(experiment)
+
 class Experiment(object):
-    '''
-    Experiment is a container of Sites.
-    '''
-    def __init__(self, animalName, date, experimenter, defaultParadigm=''):
-        self.animalName = animalName
-        self.date = date
-        self.experimenter = experimenter
-        self.defaultParadigm = defaultParadigm
-        self.siteList = []
-    def add_site(self, depth, tetrodes):
-        '''
-        Args:
+     '''
+     Experiment is a container of sites.
+     One per day.
+     Attributes:
+         subject(str): Name of the subject
+         date (str): The date the experiment was conducted
+         sites (list): A list of all recording sites for this experiment
+     Methods:
+         new_site(depth): Add a new site when you move the electrodes to a new depth
+         add_session(timestamp, behavsuffix, sessiontype, paradigm): Add a recording session to the current site
+     TODO: Fail gracefully if the experimenter tries to add sessions without adding a site first
+     '''
+     def __init__(self, subject, date):
+          self.subject=subject
+          self.date=date
+          self.sites=[]
+     def new_site(self, depth):
+          site=Site(self.subject, self.date, depth)
+          self.sites.append(site)
+     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
+          activeSite=self.sites[-1] #Use the most recent site for this experiment
+          session = Session(activeSite.subject,
+                            activeSite.date,
+                            activeSite.depth,
+                            timestamp,
+                            behavsuffix,
+                            sessiontype,
+                            paradigm)
+          activeSite.sessions.append(session)
 
-        depth (int): The depth of the site in microns
-        tetrodes (list): A list of the tetrode numbers that have good signals
-        '''
-        site = Site(animalName=self.animalName,
-                    date=self.date,
-                    experimenter=self.experimenter,
-                    defaultParadigm=self.defaultParadigm,
-                    tetrodes=tetrodes,
-                    depth=depth)
+class Site(object):
+     '''
+     Site is a container of sessions.
+     One per group of sessions which contain the same neurons and should be clustered together
+     Attributes:
+         subject(str): Name of the subject
+         date (str): The date the experiment was conducted
+         depth (int): The depth in microns at which the sessions were recorded
+         sessions (list): A list of all the sessions recorded at this site
+     '''
+     def __init__(self, subject, date, depth):
+          self.subject=subject
+          self.date=date
+          self.depth=depth
+          self.sessions=[]
 
-        self.siteList.append(site)
-        return site
-    def __repr__(self):
-        objStrings = []
-        for key,value in sorted(vars(self).iteritems()):
-            objStrings.append('%s: %s\n'%(key,str(value)))
-        return ''.join(objStrings)
-    def __str__(self):
-        objStr = '{0} recording on {1} by {2}'.format(self.animalName,
-                                                      self.date,
-                                                      self.experimenter)
-        return objStr
+class Session(object):
+     '''
+     Session is a single recorded ephys file and the associated behavior file.
+     Attributes:
+         subject(str): Name of the subject
+         date (str): The date the experiment was conducted
+         depth (int): The depth in microns at which the sessions were recorded
+         timestamp (str): The timestamp used by openEphys GUI to name the session
+         behavsuffix (str): The suffix of the behavior file
+         sessiontype (str): A string describing what kind of session this is.
+         paradigm (str): The name of the paradigm used to collect the session
+     '''
+     def __init__(self, subject, date, depth, timestamp, behavsuffix, sessiontype, paradigm):
+          self.subject=subject
+          self.date=date
+          self.depth=depth
+          self.timestamp=timestamp
+          self.behavsuffix=behavsuffix
+          self.sessiontype=sessiontype
+          self.paradigm=paradigm
+
+
+# class Experiment(object):
+#     '''
+#     Experiment is a container of Sites.
+#     '''
+#     def __init__(self, animalName, date, experimenter, defaultParadigm=''):
+#         self.animalName = animalName
+#         self.date = date
+#         self.experimenter = experimenter
+#         self.defaultParadigm = defaultParadigm
+#         self.siteList = []
+#     def add_site(self, depth, tetrodes):
+#         '''
+#         Args:
+
+#         depth (int): The depth of the site in microns
+#         tetrodes (list): A list of the tetrode numbers that have good signals
+#         '''
+#         site = Site(animalName=self.animalName,
+#                     date=self.date,
+#                     experimenter=self.experimenter,
+#                     defaultParadigm=self.defaultParadigm,
+#                     tetrodes=tetrodes,
+#                     depth=depth)
+
+#         self.siteList.append(site)
+#         return site
+#     def __repr__(self):
+#         objStrings = []
+#         for key,value in sorted(vars(self).iteritems()):
+#             objStrings.append('%s: %s\n'%(key,str(value)))
+#         return ''.join(objStrings)
+#     def __str__(self):
+#         objStr = '{0} recording on {1} by {2}'.format(self.animalName,
+#                                                       self.date,
+#                                                       self.experimenter)
+#         return objStr
