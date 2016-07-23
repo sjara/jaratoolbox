@@ -182,6 +182,43 @@ Design decisions:
       - No need to return a handle to every site (it gets confusing quickly)
   Cons:
       - Sessions are always added to the last site that was created - the experimenter does not choose the site to add a session to (could be misleading?)
+
+- 'tetrodes' should not be specified when creating individual sites
+  Everyone clusters all tetrodes anyway
+  (Nick originally included the 'tetrodes' argument to specify which tetrodes had good signals at a specific site,
+  but even he just clusters everything now).
+
+  Alternatives for the 'tetrodes' variable:
+     * Specify it at the experiment level
+       Pros:
+            - Having 'tetrodes' as an attribute is really convenient to iterate over when clustering.
+       Cons:
+            - The numbers rarely change and can be determined from the data (the names of the .spikes files)
+            - Sometimes we use single electrodes (very rarely) and might possibly use stereotrodes or
+            silicon probes with a linear array of recording sites - neither would be added to openEphys GUI as
+            a 'Tetrode' and the .spikes file would show up as something like 'SingleElectrode1.spikes' or
+            'Stereotrode1.spikes'. Having an argument for 'tetrode' may not always be applicable to all experiments
+
+      * Do not specify it at all
+        Pros:
+            - More flexibility (applicable to experiments where we are not recording with tetrodes)
+        Cons:
+            - When clustering, we will need to read the ephys session files to find out which tetrodes were collected
+
+      * Specify both an electrode name and a range of values ('Tetrode', [1, 2, 3, 4])
+        Pros:
+            - Applicable to other recording setups (e.g. 'SingleElectrode', range(1, 33) for 32 single electrode recording sites on a linear array)
+        Cons:
+            - More variables to store, and we don't use other kinds of recording setups now.
+      * Have a dict of metadata entries store the tetrode numbers
+        Something like:
+              experiment.metadata={'electrodeName':  'Tetrode',
+                                   'electrodeNums': [1, 2, 3, 4, 5, 6, 7, 8],
+                                   'location':       'cortex'}
+        Pros:
+            - Flexible, can add any metadata that you want about the experiment and can have a set of defaults per animal
+        Cons:
+            - Need to have the right key names to be able to use the values in scripts later
 '''
 
 class InfoRecording(object):
