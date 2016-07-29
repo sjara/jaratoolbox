@@ -238,6 +238,7 @@ class InfoRecording(object):
           experiment=Experiment(self.subject,
                                 date)
           self.experiments.append(experiment)
+	  return experiment
 
 class Experiment(object):
      '''
