@@ -6,6 +6,7 @@
 import numpy as np
 import os
 from jaratoolbox import settings
+import pandas as pd
 
 class EphysSessionInfo(object):
      def __init__(self, animalName, ephysSession, behavSession,
@@ -219,6 +220,18 @@ Design decisions:
             - Flexible, can add any metadata that you want about the experiment and can have a set of defaults per animal
         Cons:
             - Need to have the right key names to be able to use the values in scripts later
+
+* Should sessions convert the and date into the ephys session folder and store that?
+  Also convert the behav suffix and paradigm into the behav filename?
+
+  Pros:
+      The relevant information for clustering and plotting reports will be easy to add
+      to a pandas dataframe because we can do vars(session) and this returns a dict, 
+      which we can add to a pandas dataframe directly. Later, we can simply use this 
+      column instead of having to get multiple columns and create the correct 
+  Cons:
+      This is redundant if we are also storing the date, timestamp, paradigm, etc. 
+
 '''
 
 class InfoRecording(object):
@@ -307,41 +320,23 @@ class Session(object):
           self.behavsuffix=behavsuffix
           self.sessiontype=sessiontype
           self.paradigm=paradigm
+     def full_ephys_path(self):
+	  path = os.path.join(settings.EPHYS_PATH,
+			      self.subject,
+			      '{}_{}'.format(self.date, self.timestamp))
+          return path
+     def full_behav_filename(self):
+          date = ''.join(self.date.split('-'))
+          fn = os.path.join(settings.BEHAVIOR_PATH,
+                            self.subject,
+                            '{}_{}_{}{}.h5'.format(self.subject,
+                                                self.paradigm,
+                                                date,
+                                                self.behavsuffix))
+          return fn
 
 
-# class Experiment(object):
-#     '''
-#     Experiment is a container of Sites.
-#     '''
-#     def __init__(self, animalName, date, experimenter, defaultParadigm=''):
-#         self.animalName = animalName
-#         self.date = date
-#         self.experimenter = experimenter
-#         self.defaultParadigm = defaultParadigm
-#         self.siteList = []
-#     def add_site(self, depth, tetrodes):
-#         '''
-#         Args:
+class NewCellDB(object):
+    def __init__(self):
+        self.db = pd.DataFrame()
 
-#         depth (int): The depth of the site in microns
-#         tetrodes (list): A list of the tetrode numbers that have good signals
-#         '''
-#         site = Site(animalName=self.animalName,
-#                     date=self.date,
-#                     experimenter=self.experimenter,
-#                     defaultParadigm=self.defaultParadigm,
-#                     tetrodes=tetrodes,
-#                     depth=depth)
-
-#         self.siteList.append(site)
-#         return site
-#     def __repr__(self):
-#         objStrings = []
-#         for key,value in sorted(vars(self).iteritems()):
-#             objStrings.append('%s: %s\n'%(key,str(value)))
-#         return ''.join(objStrings)
-#     def __str__(self):
-#         objStr = '{0} recording on {1} by {2}'.format(self.animalName,
-#                                                       self.date,
-#                                                       self.experimenter)
-#         return objStr
