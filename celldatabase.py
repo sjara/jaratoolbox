@@ -232,10 +232,8 @@ Design decisions:
   Cons:
       This is redundant if we are also storing the date, timestamp, paradigm, etc. 
 
-'''
+---
 
-class InfoRecording(object):
-     '''
      InfoRecordings is a container of experiments.
      One per subject
      Attributes:
@@ -243,15 +241,33 @@ class InfoRecording(object):
          experiments (list): A list of all the experiments conducted with this subject
      Methods:
          add_experiment: Add a new experiment for this subject
+
+
+
+'''
+
+class InfoRecording(object):
+     '''
+     InfoRecordings is a container of experiments. One per subject.
      '''
      def __init__(self, subject):
-          self.subject=subject
-          self.experiments=[]
+          '''
+          Args:
+              subject (str): subject's name
+          '''
+          self.subject = subject
+          self.experiments = []
      def add_experiment(self, date):
+          '''
+          Adds an Experiment object to the list.
+          Args:
+              date (str): date in format YYYY-MM-DD
+          '''
           experiment=Experiment(self.subject,
                                 date)
           self.experiments.append(experiment)
 	  return experiment
+
 
 class Experiment(object):
      '''
@@ -270,10 +286,14 @@ class Experiment(object):
           self.subject=subject
           self.date=date
           self.sites=[]
-     def new_site(self, depth):
+     def add_site(self, depth):
           site=Site(self.subject, self.date, depth)
           self.sites.append(site)
+          return site
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
+          '''
+          Adds a session to the last site added.
+          '''
           activeSite=self.sites[-1] #Use the most recent site for this experiment
           session = Session(activeSite.subject,
                             activeSite.date,
@@ -283,6 +303,7 @@ class Experiment(object):
                             sessiontype,
                             paradigm)
           activeSite.sessions.append(session)
+
 
 class Site(object):
      '''
@@ -299,6 +320,7 @@ class Site(object):
           self.date=date
           self.depth=depth
           self.sessions=[]
+
 
 class Session(object):
      '''
