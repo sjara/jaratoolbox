@@ -232,7 +232,7 @@ Design decisions:
   Cons:
       This is redundant if we are also storing the date, timestamp, paradigm, etc. 
 
-'''
+---
 
 class InfoRecording(object):
      '''
@@ -243,11 +243,28 @@ class InfoRecording(object):
          experiments (list): A list of all the experiments conducted with this subject
      Methods:
          add_experiment: Add a new experiment for this subject
+
+
+
+'''
+
+class InfoRecording(object):
+     '''
+     InfoRecordings is a container of experiments. One per subject.
      '''
      def __init__(self, subject):
-          self.subject=subject
-          self.experiments=[]
+          '''
+          Args:
+              subject (str): subject's name
+          '''
+          self.subject = subject
+          self.experiments = []
      def add_experiment(self, date):
+          '''
+          Adds an Experiment object to the list.
+          Args:
+              date (str): date in format YYYY-MM-DD
+          '''
           experiment=Experiment(self.subject,
                                 date)
           self.experiments.append(experiment)
@@ -387,7 +404,12 @@ class Session(object):
           return path
      def behav_filename(self):
           date = ''.join(self.date.split('-'))
-          fn = '{}_{}_{}{}.h5'.format(self.subject, self.paradigm, date, self.behavsuffix)
+          fn = os.path.join(settings.BEHAVIOR_PATH,
+                            self.subject,
+                            '{}_{}_{}{}.h5'.format(self.subject,
+                                                self.paradigm,
+                                                date,
+                                                self.behavsuffix))
           return fn
      def cluster_info(self):
           infoDict = {
