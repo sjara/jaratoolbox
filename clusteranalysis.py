@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from jaratoolbox import ephyscore
 from jaratoolbox import spikesorting
+from jaratoolbox import celldatabase
 
 def calculate_avg_waveforms(cellDB, wavesize=160):
     '''
@@ -71,12 +72,12 @@ def plot_correlation(ccSelf,ccAccross):
     plt.clf()
     for inds in range(nSessions):
         plt.subplot2grid((2,nSessions),(0,inds))
-        plt.imshow(ccSelf[inds],clim=[0,1], cmap='hot')
+        plt.imshow(ccSelf[inds],clim=[0,1], cmap='hot',interpolation='nearest')
         plt.axis('image')
         #title('')
     for inds in range(nSessions-1):
         plt.subplot2grid((2,nSessions-1),(1,inds))
-        plt.imshow(ccAccross[inds],clim=[0,1], cmap='hot')
+        plt.imshow(ccAccross[inds],clim=[0,1], cmap='hot',interpolation='nearest')
         plt.axis('image')
     plt.colorbar()
     plt.draw()
@@ -84,7 +85,7 @@ def plot_correlation(ccSelf,ccAccross):
 
 if __name__=='__main__':
     ### Useful trick:   np.set_printoptions(linewidth=160)
-    CASE = 0
+    CASE = 1
     if CASE==0:
         nSamples = 4*40
         nClusters = 12
@@ -114,12 +115,16 @@ if __name__=='__main__':
                          clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),
                                                 5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
                          behavSession = '20150731a')
+        cellDB.append_session(oneES)
         oneES = eSession(animalName='test089',
                          ephysSession = '2015-08-21_16-16-16',
                          clustersEachTetrode = {1:range(1,13),2:range(1,13),3:range(1,13),4:range(1,13),
                                                 5:range(1,13),6:range(1,13),7:range(1,13),8:range(1,13)},
                          behavSession = '20150821a')
         cellDB.append_session(oneES)
+
+        # -- Get list of sessions --
+        sessionsList = np.unique(cellDB.get_vector('ephysSession'))
 
         #awave = calculate_avg_waveforms(cellDB)
 
