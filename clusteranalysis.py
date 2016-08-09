@@ -2,11 +2,6 @@
 Analyze the quality of clusters produced by spike-sorting
 '''
 
-'''
-Useful trick:
-np.set_printoptions(linewidth=160)
-'''
-
 import numpy as np
 
 def row_corrcoeff(A,B):
@@ -26,19 +21,6 @@ def row_corrcoeff(A,B):
 
     # Finally get corr coeff
     return np.dot(A_mA,B_mB.T)/np.sqrt(np.dot(ssA[:,None],ssB[None]))
-
-
-def OBSOLETE_spikeshape_correlation(waveforms1, waveforms2):
-    '''
-    Find the correlation between spikes shapes across sessions.
-    Args:
-        waveforms1 (np.array): waveforms for all clusters in one session
-                               with size [nClusters,nSamples]
-        waveforms2 (np.array): waveforms for all clusters in one session
-                               with size [nClusters,nSamples]
-    '''
-    ccmat = row_corrcoeff(waveforms1,waveforms2)
-    return ccmat
 
 
 def spikeshape_correlation(waveforms):
@@ -62,8 +44,9 @@ def spikeshape_correlation(waveforms):
     return (ccSelf,ccAccross)
 
 
+
 if __name__=='__main__':
-    # -- Test ---
+    ### Useful trick:   np.set_printoptions(linewidth=160)
     nSamples = 40
     nClusters = 12
     basewave = np.sin(2*np.pi*np.linspace(0,2,nSamples))
