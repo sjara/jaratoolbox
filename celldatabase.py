@@ -252,6 +252,38 @@ class InfoRecording(object):
                                 date)
           self.experiments.append(experiment)
 	  return experiment
+     def add_site(self, depth):
+          '''
+          Add a site to the last experiment
+          '''
+          activeExperiment = self.experiments[-1]
+          site = activeExperiment.add_site(depth)
+          return site
+     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
+          activeExperiment = self.experiments[-1] #Use the most recent experiment
+          session = activeExperiment.add_session(timestamp,
+                                 behavsuffix,
+                                 sessiontype,
+                                 paradigm)
+          return session
+     def __str__(self):
+          message = []
+          message.append('Subject: {}'.format(self.subject))
+          message.append('{} Experiments:'.format(len(self.experiments)))
+          for indExp, experiment in enumerate(self.experiments):
+               date = experiment.date
+               numSites = len(experiment.sites)
+               numSessions = 0
+               #count total number of sessions
+               for site in experiment.sites:
+                    for session in site.sessions:
+                         numSessions += 1
+               message.append('Experiment {} on {}: {} Sites, {} Total sessions'.format(indExp,
+                                                                                        date,
+                                                                                        numSites,
+                                                                                        numSessions))
+          return '\n'.join(message)
+
 
 class Experiment(object):
      '''
@@ -270,19 +302,20 @@ class Experiment(object):
           self.subject=subject
           self.date=date
           self.sites=[]
-     def new_site(self, depth):
+     def add_site(self, depth):
           site=Site(self.subject, self.date, depth)
           self.sites.append(site)
+          return site
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
-          activeSite=self.sites[-1] #Use the most recent site for this experiment
-          session = Session(activeSite.subject,
-                            activeSite.date,
-                            activeSite.depth,
-                            timestamp,
-                            behavsuffix,
-                            sessiontype,
-                            paradigm)
-          activeSite.sessions.append(session)
+          '''
+          Add a session to the most recent site
+          '''
+          activeSite = self.sites[-1] #Use the most recent site for this experiment
+          session = activeSite.add_session(timestamp,
+                                 behavsuffix,
+                                 sessiontype,
+                                 paradigm)
+          return session
 
 class Site(object):
      '''
@@ -299,6 +332,35 @@ class Site(object):
           self.date=date
           self.depth=depth
           self.sessions=[]
+     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
+          session = Session(self.subject,
+                            self.date,
+                            self.depth,
+                            timestamp,
+                            behavsuffix,
+                            sessiontype,
+                            paradigm)
+          self.sessions.append(session)
+          return session
+     def session_ephys_dirs(self):
+          dirs = [session.ephys_dir() for session in self.sessions]
+          return dirs
+     def session_behav_filenames(self):
+          fns = [session.behav_filename() for session in self.sessions]
+          return fns
+     def session_types(self):
+          types=[session.sessiontype for session in self.sessions]
+          return types
+     def cluster_info(self):
+          infoDict = {
+               'subject':self.subject,
+               'date':self.date,
+               'depth':self.depth,
+               'ephys':self.session_ephys_dirs(),
+               'behavior':self.session_behav_filenames(),
+               'sessiontype':self.session_types()
+          }
+          return infoDict
 
 class Session(object):
      '''
@@ -320,20 +382,23 @@ class Session(object):
           self.behavsuffix=behavsuffix
           self.sessiontype=sessiontype
           self.paradigm=paradigm
-     def full_ephys_path(self):
-	  path = os.path.join(settings.EPHYS_PATH,
-			      self.subject,
-			      '{}_{}'.format(self.date, self.timestamp))
+     def ephys_dir(self):
+          path = os.path.join('{}_{}'.format(self.date, self.timestamp))
           return path
-     def full_behav_filename(self):
+     def behav_filename(self):
           date = ''.join(self.date.split('-'))
-          fn = os.path.join(settings.BEHAVIOR_PATH,
-                            self.subject,
-                            '{}_{}_{}{}.h5'.format(self.subject,
-                                                self.paradigm,
-                                                date,
-                                                self.behavsuffix))
+          fn = '{}_{}_{}{}.h5'.format(self.subject, self.paradigm, date, self.behavsuffix)
           return fn
+     def cluster_info(self):
+          infoDict = {
+               'subject':self.subject,
+               'date':self.date,
+               'depth':self.depth,
+               'ephys':self.ephys_dir(),
+               'behavior':self.behav_filename(),
+               'sessiontype':self.sessiontype()
+          }
+          return infoDict
 
 
 class NewCellDB(object):
