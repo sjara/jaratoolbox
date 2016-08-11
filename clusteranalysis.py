@@ -4,27 +4,61 @@ Analyze the quality of clusters produced by spike-sorting
 
 import numpy as np
 import matplotlib.pyplot as plt
-from jaratoolbox import ephyscore
 from jaratoolbox import spikesorting
 from jaratoolbox import celldatabase
+from jaratoolbox import loadopenephys
+#from jaratoolbox import ephyscore
 
-def calculate_avg_waveforms(cellDB, wavesize=160):
+
+def find_ephys_sessions(cellDB):
+    return list(np.unique(cellDB.get_vector('ephysSession')))
+
+
+def waveforms_many_sessions(subject, ephysSessions, tetrode, clustersPerTetrode=12, wavesize=160):
+    '''
+    Create a list of arrays containing waveforms for each session for one tetrode.
+    '''
+    waveformsOneTetrode = []
+    for oneSession in ephysSessions:
+        waves = calculate_avg_waveforms(subject, ephysSession, tetrode,
+                                clustersPerTetrode=clustersPerTetrode, wavesize=wavesize)
+        waveformsOneTetrode.append(waves)
+    return waveformsOneTetrode
+
+
+def calculate_avg_waveforms(subject, ephysSession, tetrode, clustersPerTetrode=12, wavesize=160):
     '''
     NOTE: This methods should look through sessions, not clusters.
           The idea is to compare clusters within a tetrode, and then across sessions
           but still within a tetrode.
     NOTE: This method is inefficient because it load the spikes file for each cluster.
     '''
-    allWaveforms = np.empty((len(cellDB),wavesize))
-    for indc,oneCell in enumerate(cellDB):
-        print 'Estimating average waveform for {0}'.format(oneCell)
-        ephysData = ephyscore.CellData(oneCell)
-        waveforms = ephysData.spikes.samples.astype(float)-2**15 #This is specific to open Ephys
-        waveforms = (1000.0/ephysData.spikes.gain[0,0]) * waveforms
+
+    # TODO: Load data for one tetrodes and calculate average for each cluster.
+    #ephysFilename = ???
+    #spikes = loadopenephys.DataSpikes(ephysFilename)
+
+    # TODO: Load cluster file
+    #kkDataDir = os.path.dirname(self.filename)+'_kk'
+    #clusterFilename = 'Tetrode{0}.clu.1'.format(tetrode)
+    #fullPath = os.path.join(kkDataDir,clusterFilename)
+    #clusters = np.fromfile(fullPath,dtype='int32',sep=' ')[1:]
+
+    # TODO: loop through clusters
+    allWaveforms = np.empty((clustersPerTetrode,wavesize))
+    for indc in range(clustersPerTetrode):
+        print 'Estimating average waveform for {0} T{1}c{2}'.format(ephysSession,tetrode,indc)
+
+        # TODO: get waveforms for one cluster
+        # waveforms = ??????????
         alignedWaveforms = spikesorting.align_waveforms(waveforms)
         meanWaveforms = np.mean(alignedWaveforms,axis=0)
         allWaveforms[indc,:] = meanWaveforms.flatten()
     return allWaveforms
+
+
+###waveforms = ephysData.spikes.samples.astype(float)-2**15 #This is specific to open Ephys
+###waveforms = (1000.0/ephysData.spikes.gain[0,0]) * waveforms
 
 def row_corrcoeff(A,B):
     '''
@@ -85,7 +119,7 @@ def plot_correlation(ccSelf,ccAccross):
 
 if __name__=='__main__':
     ### Useful trick:   np.set_printoptions(linewidth=160)
-    CASE = 1
+    CASE = 0
     if CASE==0:
         nSamples = 4*40
         nClusters = 12
