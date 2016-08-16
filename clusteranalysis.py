@@ -9,8 +9,16 @@ from jaratoolbox import spikesorting
 # from jaratoolbox import celldatabase
 from jaratoolbox import loadopenephys
 from jaratoolbox import settings
-import itertools
-import pickle
+
+import itertools #For making string combinations of all comparisons
+import pickle #For saving the waveform objects
+
+#For importing cellDB files
+import sys
+import importlib
+
+#For calling rsync to get just the data we need
+import subprocess
 
 #from jaratoolbox import ephyscore
 
@@ -145,6 +153,25 @@ def rsync_session_data(subject,
     else:
         subprocess.call(transferCommand)
 
+def rsync_ISI_file(subject,
+                   serverUser = 'jarauser',
+                   serverName = 'jarastore',
+                   serverEphysPath = '/data2016/ephys',
+                   skipIfExists=False):
+
+    isiFn = 'ISI_Violations.txt'
+    fullRemotePath = os.path.join(serverEphysPath, '{}_processed'.format(subject), isiFn)
+    serverDataPath = '{}@{}:{}'.format(serverUser, serverName, fullRemotePath)
+    localDataPath = os.path.join(settings.EPHYS_PATH, subject) + os.sep
+    transferCommand = ['rsync', '-av', serverDataPath, localDataPath]
+    fullLocalFilename = os.path.join(localDataPath, isiFn)
+    if skipIfExists:
+        if not os.path.isfile(fullLocalFilename):
+            subprocess.call(transferCommand)
+    else:
+        subprocess.call(transferCommand)
+
+
 
 def comparison_label_array(session1, session2, tetrode):
     '''
@@ -157,7 +184,22 @@ def comparison_label_array(session1, session2, tetrode):
     return larray
 
 
-def session_good_clusters(cellDB, session, tetrode):
+def read_ISI_dict(fileName):
+    '''
+    This is how Billy and Lan read the ISI files
+    '''
+    ISIFile = open(fileName, 'r')
+    ISIDict = {}
+    behavName = ''
+    for line in ISIFile:
+        if (line.split(':')[0] == 'Behavior Session'):
+            behavName = line.split(':')[1][:-1] #Drop the suffix, just keep the date
+        else:
+            ISIDict[behavName] = [float(x) for x in line.split(',')[0:-1]] #There is an extra comma at the end of the line, so take to  -1
+    return ISIDict
+
+
+def session_good_clusters(cellDB, session, tetrode, isiThresh=None, isiDict=None):
     '''
     Return a 12-item vector, containing 1 if the cluster was good quality and zero otherwise
     '''
@@ -171,22 +213,42 @@ def session_good_clusters(cellDB, session, tetrode):
     #Whether each cell in the db is good
     allcellsGoodQuality = ((allcellsQuality==1) | (allcellsQuality==6))
     #Whether the cells that we want to use are good
-    goodQualityToUse = allcellsGoodQuality[cellsToUse].astype(int)
+    goodQualityToUse = allcellsGoodQuality[cellsToUse]
     #The cluster number for each cluster (in case not full 12, or does not start at 1)
     allcellsClusterNumber = cellDB.get_vector('cluster')
     clusterNumsToUse = allcellsClusterNumber[cellsToUse]
     #Initialize to zero
-    passingClusters = np.zeros(12)
+    passingClusters = np.zeros(12, dtype='bool')
     # Set the good quality clusters to 1
     for indClust, clusterNum in np.ndenumerate(clusterNumsToUse):
         passingClusters[clusterNum-1]=goodQualityToUse[indClust]
+
+    if isiThresh:
+        allcellsBehavSessions = cellDB.get_vector('behavSession')
+        behavSessionsThisSession = allcellsBehavSessions[cellsThisSession]
+        behavSession = np.unique(behavSessionsThisSession)
+        assert len(behavSession)==1, 'More than 1 behavior session for this ephys session'
+
+        #These are already limited by session
+        #DONE: Limit to cells this tetrode
+        isiThisSession = np.array(isiDict[behavSession[0]])
+
+        tetrodesThisSession = allcellsTetrode[cellsThisSession]
+        cellsThisTetrode = tetrodesThisSession==tetrode
+        isiThisTetrode = isiThisSession[cellsThisTetrode]
+
+        assert len(isiThisTetrode)==len(passingClusters), "isiThisTetrode not correct length"
+
+        isiPass = isiThisTetrode < isiThresh
+        passingClusters = passingClusters & isiPass
+
     return passingClusters
 
-def comparison_quality_filter(cellDB, session1, session2, tetrode):
+def comparison_quality_filter(cellDB, session1, session2, tetrode, isiThresh=None, isiDict=None):
     #DONE: FINISH THIS FUNCTION
 
-    session1good = session_good_clusters(cellDB, session1, tetrode)
-    session2good = session_good_clusters(cellDB, session2, tetrode)
+    session1good = session_good_clusters(cellDB, session1, tetrode, isiThresh, isiDict).astype(int)
+    session2good = session_good_clusters(cellDB, session2, tetrode, isiThresh, isiDict).astype(int)
 
     #Make a boolean matrix from the two quality vectors, with 1 only if both are 1
     #DONE: Which should come first for the across session comparisons?
@@ -197,19 +259,11 @@ def comparison_quality_filter(cellDB, session1, session2, tetrode):
 
 def triangle_filter(qualityMat):
 
-    #For the self analysis, we want to exclude the diagonal and the bottom half of the
+    #For the self analysis, we want to exclude the diagonal and the top half of the
     #triangle
     #We use the -1th diagonal so that the self comparisons are filtered out
     qualityMat = np.tril(qualityMat, k=-1)
     return qualityMat
-
-def ISI_filter(subject, session1, session2, tetrode):
-    '''
-    Read isi violations for each session and filter for comparisons between
-    cells that do not violate
-
-    '''
-    pass
 
 def print_reports_clusters(subject, sessions, tetrode, printer):
     '''
@@ -304,14 +358,12 @@ if __name__=='__main__':
     elif CASE==3:
 
         from jaratest.billy.scripts import celldatabase_quality_tuning as cellDB
-        import sys
-        import importlib
-        import subprocess
 
         ##
-        subject = 'adap017'
+        subject = 'adap013'
         tetrodes = range(1, 9)
-        threshold = 0.7
+        corrThresh = 0.7 #The lower limit for the correlation value 
+        isiThresh = 0.02 #The upper threshold for ISI violations
         ##
 
         ### -- DO THIS PER ANIMAL -- ###
@@ -321,9 +373,13 @@ if __name__=='__main__':
 
         allcells = importlib.import_module(allcellsFilename)
 
+        #Get the isi information for each cell in the allcells file
+        rsync_ISI_file(subject, skipIfExists=True)
+        isiFn = os.path.join(settings.EPHYS_PATH, subject, 'ISI_Violations.txt') #TODO: this is wet
+        isiDict = read_ISI_dict(isiFn)
+
         #Find all the sessions for this allcells file
         sessions = find_ephys_sessions(allcells.cellDB)
-
         clusterDirs = ['{}_kk'.format(session) for session in sessions]
 
         #Rsync the data from jarastore for these sessions if needed
@@ -341,6 +397,7 @@ if __name__=='__main__':
             # #DONE: stop calculating waves every time
             if os.path.isfile(waveFile):
                 #Load the waves
+                #NOTE: I first used np.savez, but it saved a dict and did not preserve the order of the sessions. Pickle saves the actual object.
                 print "Loading average waves for {} tetrode {}".format(subject, tetrode)
                 sessionWaves = pickle.load(open(waveFile, 'rb'))
             else:
@@ -365,19 +422,19 @@ if __name__=='__main__':
             #DONE: Name the file according to animal and tetrode
             allSelfCorrVals = []
             allSelfCorrComps = []
-            f = open('/tmp/{}_TT{}_SELF_{}thresh.txt'.format(subject, tetrode, threshold), 'w')
+            f = open('/tmp/{}_TT{}_SELF_{}thresh.txt'.format(subject, tetrode, corrThresh), 'w')
             header = '{}  TT{}  SELF correlation'.format(subject, tetrode)
             f.write(header)
             f.write('\n')
             for indSession, session in enumerate(sessions):
                 selfCompThisSession = ccSelf[indSession]
-                qualityMat = comparison_quality_filter(allcells.cellDB, session, session, tetrode)
+                qualityMat = comparison_quality_filter(allcells.cellDB, session, session, tetrode, isiThresh, isiDict)
                 qualityMat = triangle_filter(qualityMat)
                 larray = comparison_label_array(session, session, tetrode)
                 goodCorrVals = selfCompThisSession[qualityMat]
                 goodCompLabs = larray[qualityMat]
-                corrAboveThreshold = goodCorrVals[goodCorrVals>threshold]
-                compsAboveThreshold = goodCompLabs[goodCorrVals>threshold]
+                corrAboveThreshold = goodCorrVals[goodCorrVals>corrThresh]
+                compsAboveThreshold = goodCompLabs[goodCorrVals>corrThresh]
                 #save out the values
                 allSelfCorrVals.extend(list(goodCorrVals))
                 message = '\n##------------## Session {} Self Comparison ##------------##\n'.format(session)
@@ -385,33 +442,32 @@ if __name__=='__main__':
                 # for corr in compsAboveThreshold:
                 #     f.write(corr)
                 #     f.write('\n')
-                for ind in np.argsort(corrAboveThreshold)[::-1]:
+                for ind in np.argsort(corrAboveThreshold)[::-1]: #Argsort to print in descending order
                     f.write('{0:.2f} - '.format(corrAboveThreshold[ind]))
                     f.write(compsAboveThreshold[ind])
                     f.write('\n')
             f.close()
 
-            #Loop cross session comparisons no threshold
             #DONE: Name the file according to animal and tetrode
             allCrossCorrVals = []
             allCrossCorrComps = []
-            f = open('/tmp/{}_TT{}_CROSS_{}thresh.txt'.format(subject, tetrode, threshold), 'w')
+            f = open('/tmp/{}_TT{}_CROSS_{}thresh.txt'.format(subject, tetrode, corrThresh), 'w')
             header = '{}  TT{}  CROSS correlation'.format(subject, tetrode)
             f.write(header)
             f.write('\n')
             for indComp, (session1, session2) in enumerate(zip(sessions, sessions[1:])):
                 crossCompTheseSessions = ccAcross[indComp]
-                qualityMat = comparison_quality_filter(allcells.cellDB, session1, session2, tetrode)
+                qualityMat = comparison_quality_filter(allcells.cellDB, session1, session2, tetrode, isiThresh, isiDict)
                 larray = comparison_label_array(session1, session2, tetrode)
                 goodCorrVals = crossCompTheseSessions[qualityMat]
                 goodCompLabs = larray[qualityMat]
-                corrAboveThreshold = goodCorrVals[goodCorrVals>threshold]
-                compsAboveThreshold = goodCompLabs[goodCorrVals>threshold]
+                corrAboveThreshold = goodCorrVals[goodCorrVals>corrThresh]
+                compsAboveThreshold = goodCompLabs[goodCorrVals>corrThresh]
                 #save out the values
                 allCrossCorrVals.extend(list(goodCorrVals))
                 message = '\n##------Cross Comp {} x {}------##\n'.format(session1, session2)
                 f.write(message)
-                for ind in np.argsort(corrAboveThreshold)[::-1]:
+                for ind in np.argsort(corrAboveThreshold)[::-1]: #Argsort to print in descending order
                     f.write('{0:.2f} - '.format(corrAboveThreshold[ind]))
                     f.write(compsAboveThreshold[ind])
                     f.write('\n')
