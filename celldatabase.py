@@ -235,7 +235,6 @@ Design decisions:
 ---
 
 class InfoRecording(object):
-     '''
      InfoRecordings is a container of experiments.
      One per subject
      Attributes:
