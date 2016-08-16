@@ -402,11 +402,13 @@ class Session(object):
           path = os.path.join('{}_{}'.format(self.date, self.timestamp))
           return path
      def behav_filename(self):
-          date = ''.join(self.date.split('-'))
-          fn = '{}_{}_{}{}.h5'.format(self.subject,
-                                      self.paradigm,
-                                      date,
-                                      self.behavsuffix)
+          fn=None
+          if self.behavsuffix:
+               date = ''.join(self.date.split('-'))
+               fn = '{}_{}_{}{}.h5'.format(self.subject,
+                                        self.paradigm,
+                                        date,
+                                        self.behavsuffix)
           return fn
      def cluster_info(self):
           infoDict = {
