@@ -249,6 +249,7 @@ class InfoRecording(object):
 
 class InfoRecording(object):
      '''
+     DEPRECATED: Use Experiment objects instead
      InfoRecordings is a container of experiments. One per subject.
      '''
      def __init__(self, subject):
@@ -303,6 +304,7 @@ class InfoRecording(object):
 
 class Experiment(object):
      '''
+     #TODO: default tetrodes, sites and sessions can redefine them though
      Experiment is a container of sites.
      One per day.
      Attributes:
@@ -319,6 +321,7 @@ class Experiment(object):
           self.date=date
           self.sites=[]
      def add_site(self, depth):
+          #TODO: default tetrode are self.tetrodes, can redefine per site if needed
           site=Site(self.subject, self.date, depth)
           self.sites.append(site)
           return site
@@ -335,6 +338,11 @@ class Experiment(object):
 
 class Site(object):
      '''
+     #TODO: Attribute for reference (does not inherit from top)
+     #TODO: reference (example 'T1ch1' or 'GND')
+     #NOTE: Channels from 1 (not 0) because this is the way it is in openephys GUI
+     #TODO: Explicitly define ref if it is ground
+     #TODO: Force ref definition when creating a new site
      Site is a container of sessions.
      One per group of sessions which contain the same neurons and should be clustered together
      Attributes:
@@ -404,6 +412,7 @@ class Session(object):
      def behav_filename(self):
           fn=None
           if self.behavsuffix:
+               #TODO: check if date is a module, don't use that var name
                date = ''.join(self.date.split('-'))
                fn = '{}_{}_{}{}.h5'.format(self.subject,
                                         self.paradigm,
@@ -411,6 +420,10 @@ class Session(object):
                                         self.behavsuffix)
           return fn
      def cluster_info(self):
+          '''
+          Returns a dict
+          '''
+          #TODO: rename to info
           infoDict = {
                'subject':self.subject,
                'date':self.date,
