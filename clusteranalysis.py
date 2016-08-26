@@ -140,6 +140,8 @@ def rsync_session_data(subject,
                        serverEphysPath = '/data2016/ephys',
                        skipIfExists=False):
     '''
+    #TODO: server user and server name as one string
+    #TODO: server ephys path and user in settings file
     Rsync just the sessions you need from jarahub
     '''
     fullRemotePath = os.path.join(serverEphysPath, subject, session)
@@ -360,7 +362,7 @@ if __name__=='__main__':
         from jaratest.billy.scripts import celldatabase_quality_tuning as cellDB
 
         ##
-        subject = 'adap013'
+        subject = 'adap015'
         tetrodes = range(1, 9)
         corrThresh = 0.7 #The lower limit for the correlation value 
         isiThresh = 0.02 #The upper threshold for ISI violations
@@ -398,6 +400,8 @@ if __name__=='__main__':
             if os.path.isfile(waveFile):
                 #Load the waves
                 #NOTE: I first used np.savez, but it saved a dict and did not preserve the order of the sessions. Pickle saves the actual object.
+                #TODO: Use np.savez with the data object to save as the list of arrays
+                #TODO: Also see if we should use savez_compressed
                 print "Loading average waves for {} tetrode {}".format(subject, tetrode)
                 sessionWaves = pickle.load(open(waveFile, 'rb'))
             else:
