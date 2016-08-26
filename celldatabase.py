@@ -269,12 +269,12 @@ class InfoRecording(object):
                                 date)
           self.experiments.append(experiment)
 	  return experiment
-     def add_site(self, depth):
+     def add_site(self, depth, tetrodes = [1,2,3,4,5,6,7,8]):
           '''
           Add a site to the last experiment
           '''
           activeExperiment = self.experiments[-1]
-          site = activeExperiment.add_site(depth)
+          site = activeExperiment.add_site(depth, tetrodes)
           return site
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
           activeExperiment = self.experiments[-1] #Use the most recent experiment
@@ -320,9 +320,12 @@ class Experiment(object):
           self.subject=subject
           self.date=date
           self.sites=[]
-     def add_site(self, depth):
+          self.tetrodes = [1,2,3,4,5,6,7,8]
+     def add_site(self, depth, tetrodes = None):
           #TODO: default tetrode are self.tetrodes, can redefine per site if needed
-          site=Site(self.subject, self.date, depth)
+          if not tetrodes:
+              tetrodes = self.tetrodes
+          site=Site(self.subject, self.date, depth, tetrodes)
           self.sites.append(site)
           return site
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
@@ -351,10 +354,11 @@ class Site(object):
          depth (int): The depth in microns at which the sessions were recorded
          sessions (list): A list of all the sessions recorded at this site
      '''
-     def __init__(self, subject, date, depth):
+     def __init__(self, subject, date, depth, tetrodes):
           self.subject=subject
           self.date=date
           self.depth=depth
+          self.tetrodes = tetrodes
           self.sessions=[]
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
           session = Session(self.subject,
@@ -380,6 +384,7 @@ class Site(object):
                'subject':self.subject,
                'date':self.date,
                'depth':self.depth,
+               'tetrodes':self.tetrodes,
                'ephys':self.session_ephys_dirs(),
                'behavior':self.session_behav_filenames(),
                'sessiontype':self.session_types()
