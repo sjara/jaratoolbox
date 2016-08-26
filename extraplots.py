@@ -203,7 +203,7 @@ def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,
     return (pline, pcaps, pbars, pdots)
 
 
-def plot_psychcurve_fit(xValues,nTrials,nHits,curveParams=[],color='k'):
+def plot_psychometric_fit(xValues,nTrials,nHits,curveParams=[],color='k'):
     '''
     Plot average performance for each value and fitted curve.
     '''
