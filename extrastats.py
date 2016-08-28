@@ -41,11 +41,11 @@ def psychometric_fit(xValues, nTrials, nHits, constraints=None, alpha=0.05):
     '''
     Given performance for each value of parameter, estimate the curve.
     This function uses psignifit (BootstrapInference)
-    
+    http://psignifit.sourceforge.net/TUTORIAL_BOOTSTRAP.html
+
     xValues: 1-D array of size M
     nHits:   1-D array of size M
     nTrials: 1-D array of size M
-
     '''
     import pypsignifit as psi
 
