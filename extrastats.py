@@ -26,7 +26,7 @@ def logistic(xval,alpha,beta):
     return 1/(1+np.exp(-(xval-alpha)/beta))
 
 def psychfun(xval,alpha,beta,lamb,gamma):
-    '''Psychometric function that allowing arbitrary asymptotes.
+    '''Psychometric function (allows defining asymptotes)
     alpha: bias
     beta : related to slope
     lamb : lapse term (up)
