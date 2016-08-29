@@ -203,6 +203,35 @@ def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,
     return (pline, pcaps, pbars, pdots)
 
 
+def plot_psychometric_fit(xValues,nTrials,nHits,curveParams=[],color='k'):
+    '''
+    Plot average performance for each value and fitted curve.
+    '''
+    import extrastats
+    solidXvalues = np.flatnonzero((nTrials/sum(nTrials).astype(float))>(1.0/len(nTrials)))
+    yValues = nHits.astype(float)/nTrials
+    xRange = xValues[-1]-xValues[1]
+    hfit = []
+    if len(curveParams):
+        fitxval = np.linspace(xValues[0]-0.1*xRange,xValues[-1]+0.1*xRange,40)
+        fityval = extrastats.psychfun(fitxval,*curveParams)
+        hfit = plt.plot(fitxval,100*fityval,'-',linewidth=2,color=color)
+        plt.hold(True)
+    hp = []
+    for ind in range(len(xValues)):
+        htemp,=plt.plot(xValues[ind],100*yValues[ind],'o',mfc=color)
+        hp.append(htemp)
+        plt.hold(True)
+    plt.setp(hp,mec=color,mfc='w',mew=2,markersize=6)
+    for solid in solidXvalues:
+        plt.setp(hp[solid],mfc=color,markersize=8)
+    #ylim([-0.1,1.1])
+    plt.ylim([-10,110])
+    #hline = axhline(0.5)
+    #setp(hline,linestyle=':',color='k')
+    return (hp,hfit)
+
+
 def set_log_ticks(ax,tickValues,axis='x'):
     tickLogValues = np.log10(tickValues);
     tickLabels = ['%d'%(1e-3*xt) for xt in tickValues];
@@ -218,11 +247,10 @@ def save_figure(filename, fileformat, figsize, outputDir='./'):
     plt.gcf().set_size_inches(figsize)
     figName = filename+'.{0}'.format(fileformat)
     fullName = os.path.join(outputDir,figName)
-    print 'Saving figure to %s'%fullName
     plt.gcf().set_frameon(False)
     plt.savefig(fullName,format=fileformat,facecolor='none')
     plt.gcf().set_frameon(True)
-    print '... figure saved.'
+    print 'Figure saved to {0}'.format(fullName)
 
 
 class FlipThrough(object):
