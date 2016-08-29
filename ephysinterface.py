@@ -22,13 +22,19 @@ class EphysInterface(object):
 
         self.filepath = filepath
         self.inforec = self.load_inforec()
-        self.loader = dataloader.DataLoader(inforec.subject)
+        self.loader = dataloader.DataLoader(self.inforec.subject)
 
     def load_inforec(self):
         inforec = imp.load_source('module.name', self.filepath)
         return inforec
+    
+    def get_colours(self, ncolours):
+        ''' returns n distinct colours for plotting purpouses when you don't want to manually specify colours'''
+        from matplotlib.pyplot import cm 
+        colours = cm.rainbow(np.linspace(0,1,ncolours))
+        return colours
 
-    def get_session_obj(self, session, experiment=-1, site=-1):
+    def get_session_obj(self, session, experiment, site):
 
         '''
         Return the inforec session object - can be used to get ephys,
@@ -54,7 +60,7 @@ class EphysInterface(object):
             sessionIndex = session #Use session as an index directly
         elif isinstance(session, str):
             #Get the session by name
-            date = inforec.experiments[experiment].date
+            date = self.inforec.experiments[experiment].date
             session = '_'.join([date, session])
             sessionIndex = sessionNames.index(session)
         else:
@@ -63,11 +69,17 @@ class EphysInterface(object):
         sessionObj = sessions[sessionIndex] #Get the right session object
         return sessionObj
 
-    def plot_session_raster(self, session, tetrode, experiment=-1, site=-1, cluster = None, sortArray = [], timeRange=[-0.5, 1], replace=0, ms=4, colorEachCond=None):
+    def plot_session_raster(self, session, tetrode, experiment=-1, site=-1, cluster = None, sortArray = 'currentFreq', timeRange=[-0.5, 1], replace=0, ms=4, colorEachCond=None):
         ##  ---  ###
         #TODO: Use this to get the data for all the plots we do
-        sessionObj = self.get_session_obj(session)
+        sessionObj = self.get_session_obj(session, experiment, site)
         sessionDir = sessionObj.ephys_dir()
+        behavFile = sessionObj.behav_filename()
+        if not behavFile:
+            sortArray = []
+        else:
+            bdata = self.loader.get_session_behavior(behavFile)
+            sortArray = bdata[sortArray]
         spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
         eventData = self.loader.get_session_events(sessionDir)
         eventOnsetTimes = self.loader.get_event_onset_times(eventData)
@@ -80,9 +92,17 @@ class EphysInterface(object):
             plt.figure()
         dataplotter.plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, ms=ms, colorEachCond=colorEachCond)
 
-    def plot_session_PSTH(self, session, tetrode, cluster = None, sortArray = [], timeRange = [-0.5, 1], replace=0, lw=3, colorEachCond=None):
-        sessionObj = self.get_session_obj(session)
+    def plot_session_PSTH(self, session, tetrode, experiment=-1, site=-1, cluster = None, sortArray = 'currentFreq', timeRange = [-0.5, 1], replace=0, lw=3, colorEachCond=None):
+        sessionObj = self.get_session_obj(session, experiment, site)
         sessionDir = sessionObj.ephys_dir()
+        behavFile = sessionObj.behav_filename()
+        if not behavFile:
+            sortArray = []
+        else:
+            bdata = self.loader.get_session_behavior(behavFile)
+            sortArray = bdata[sortArray]
+            if colorEachCond is None:
+                colorEachCond = self.get_colours(len(np.unique(sortArray)))
         plotTitle = sessionDir
         spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
         eventData = self.loader.get_session_events(sessionDir)
@@ -94,75 +114,54 @@ class EphysInterface(object):
             plt.figure()
         dataplotter.plot_psth(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, lw=lw, colorEachCond=colorEachCond)
 
-    def get_processed_session_data(self, session, tetrode, cluster=None):
+    #does this function even do anything?
+    '''def get_processed_session_data(self, session, tetrode, cluster=None):
         sessionObj = self.get_session_obj(session)
         sessionDir = sessionObj.ephys_dir()
         spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
         eventData = self.loader.get_session_events(sessionDir)
         eventOnsetTimes = self.loader.get_event_onset_times(eventData)
         spikeTimestamps=spikeData.timestamps
-        return (spikeTimestamps, eventOnsetTimes)
+        return (spikeTimestamps, eventOnsetTimes)'''
 
-    def plot_am_tuning(self, session, tetrode, replace=0, timeRange=[-0.2, 0.8], ms=1, lw=3, colorEachCond=None):
-        '''Helper fxn to plot AM modulation tuning rasters'''
-        sessionObj = self.get_session_obj(session)
-        sessionDir = sessionObj.ephys_dir()
-        sessionBehavFn = sessionObj.behav_filename()
+    def plot_am_freq_tuning(self, freqsession, amsession, tetrode, experiment=-1, site=-1, freqTimeRange = [-0.1, 0.3], amTimeRange = [-0.2, 0.8], colorEachCond=None, replace=1, ms=1, lw=3):
         if replace:
             plt.cla()
         else:
             plt.figure()
-        bdata=self.loader.get_session_behavior(sessionBehavFn) #DONE change where behav comes from
-        freqEachTrial = bdata['currentFreq']
-        plt.subplot(211)
-        self.plot_session_raster(session, tetrode, sortArray=freqEachTrial, replace=1, timeRange=timeRange, ms=ms, colorEachCond=colorEachCond)
-        plt.subplot(212)
-        self.plot_session_PSTH(session, tetrode, sortArray=freqEachTrial, replace=1, timeRange=timeRange, lw=lw, colorEachCond=colorEachCond)
-        #plt.show()
-
-    def plot_am_freq_tuning(self, freqsession, amsession, freqBehavSuffix, amBehavSuffix, tetrode, freqTimeRange = [-0.1, 0.3], amTimeRange = [-0.2, 0.8], colorEachCond=None, replace=1, ms=1, lw=3):
-        '''Fxn to easier assess both characteristic frequency and best AM rate
-        takes as input two separate behaviour files and sessions (freq tuning and am tuning)'''
-        sessionObj = self.get_session_obj(session)
-        sessionDir = sessionObj.ephys_dir()
-        #TODO: Get the freq and AM tuning behavior from the session object and change below
-        if replace:
-            plt.cla()
-        else:
-            plt.figure()
-        bdata =self.loader.get_session_behavior(freqBehavSuffix)
-        freqEachTrial = bdata['currentFreq']
-        bdata2=self.loader.get_session_behavior(amBehavSuffix)
-        rateEachTrial = bdata2['currentFreq']
+        if colorEachCond is None:
+            colorEachCond = self.get_colours(5)
         plt.subplot(221)
-        self.plot_session_raster(amsession, tetrode, sortArray=rateEachTrial, replace=1, timeRange=amTimeRange, ms=ms, colorEachCond=colorEachCond)
+        self.plot_session_raster(amsession, tetrode, experiment, site, replace=1, timeRange=amTimeRange, ms=ms, colorEachCond=colorEachCond)
         plt.xlabel('Time from event onset (sec)')
         plt.ylabel('Modulation rate (Hz)')
         plt.subplot(223)
-        self.plot_session_PSTH(amsession, tetrode, sortArray=rateEachTrial, replace=1, timeRange=amTimeRange, lw=lw, colorEachCond=colorEachCond)
+        self.plot_session_PSTH(amsession, tetrode, experiment, site, replace=1, timeRange=amTimeRange, lw=lw, colorEachCond=colorEachCond)
         plt.xlabel('Time from event onset (sec)')
         plt.ylabel('Firing rate (Hz)')
         plt.subplot(222)
-        self.plot_session_raster(freqsession, tetrode, sortArray=freqEachTrial, replace=1, timeRange=freqTimeRange, ms=ms)
+        self.plot_session_raster(freqsession, tetrode, experiment, site, replace=1, timeRange=freqTimeRange, ms=ms)
         plt.xlabel('Time from event onset (sec)')
         plt.ylabel('Frequency (Hz)')
         plt.subplot(224)
-        self.plot_session_freq_tuning(freqsession, tetrode, sortArray=freqEachTrial, replace=1, timeRange=[0, 0.1])
+        self.plot_session_freq_tuning(freqsession, tetrode, experiment, site, replace=1, timeRange=[0, 0.1])
         plt.xlabel('Frequency (kHz)')
         plt.ylabel('Average number of spikes in range [0, 0.1]')
         plt.suptitle('TT{}'.format(tetrode))
 
-    def plot_session_freq_tuning(self, session, tetrode, sortArray=[], replace=0, timeRange=[0,0.1]):
+    def plot_session_freq_tuning(self, session, tetrode, experiment = -1, site = -1, cluster = None, sortArray='currentFreq', replace=0, timeRange=[0,0.1]):
         if replace:
             plt.cla()
         else:
             plt.figure()
-        sessionObj = self.get_session_obj(session)
+        sessionObj = self.get_session_obj(session, experiment, site)
         sessionDir = sessionObj.ephys_dir()
+        behavFile = sessionObj.behav_filename()
+        bdata = self.loader.get_session_behavior(behavFile)
+        freqEachTrial = bdata[sortArray]
         eventData = self.loader.get_session_events(sessionDir)
         eventOnsetTimes = self.loader.get_event_onset_times(eventData)
         plotTitle = sessionDir
-        freqEachTrial = sortArray
         freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]
         spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster)
         spikeTimestamps = spikeData.timestamps
