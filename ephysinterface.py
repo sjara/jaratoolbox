@@ -129,6 +129,7 @@ class EphysInterface(object):
             plt.cla()
         else:
             plt.figure()
+        #FIXME: currently hardcoded for number of am rates Anna uses
         if colorEachCond is None:
             colorEachCond = self.get_colours(5)
         plt.subplot(221)
@@ -219,15 +220,23 @@ class EphysInterface(object):
 
 
 
-    def plot_array_raster(self, session, replace=0, sortArray=[], timeRange = [-0.5, 1], tetrodes=None, ms=4, electrodeName='Tetrode'):
+    def plot_array_raster(self, session, experiment=-1, site=-1, replace=0, sortArray='currentFreq', timeRange = [-0.5, 1], tetrodes=None, ms=4, electrodeName='Tetrode'):
         '''
         This is the much-improved version of a function to plot a raster for each tetrode. All rasters
         will be plotted using standardized plotting code, and we will simply call the functions.
         In this case, we get the event data once, and then loop through the tetrodes, getting the
         spike data and calling the plotting code for each tetrode.
         '''
+        sessionObj = self.get_session_obj(session, experiment, site)
+        sessionDir = sessionObj.ephys_dir()
+        behavFile = sessionObj.behav_filename()
+        if not behavFile:
+            sortArray = []
+        else:
+            bdata = self.loader.get_session_behavior(behavFile)
+            sortArray = bdata[sortArray]
         if not tetrodes:
-            tetrodes=self.defaultTetrodes
+            tetrodes=sessionObj.tetrodes
         numTetrodes = len(tetrodes)
         eventData = self.loader.get_session_events(sessionDir)
         eventOnsetTimes = self.loader.get_event_onset_times(eventData)
@@ -238,7 +247,7 @@ class EphysInterface(object):
         else:
             fig = plt.figure()
         for ind , tetrode in enumerate(tetrodes):
-            spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster, electrodeName=electrodeName)
+            spikeData = self.loader.get_session_spikes(sessionDir, tetrode)
             if ind == 0:
                 ax = fig.add_subplot(numTetrodes,1,ind+1)
             else:

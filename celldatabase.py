@@ -364,6 +364,7 @@ class Site(object):
           session = Session(self.subject,
                             self.date,
                             self.depth,
+                            self.tetrodes,
                             timestamp,
                             behavsuffix,
                             sessiontype,
@@ -403,10 +404,11 @@ class Session(object):
          sessiontype (str): A string describing what kind of session this is.
          paradigm (str): The name of the paradigm used to collect the session
      '''
-     def __init__(self, subject, date, depth, timestamp, behavsuffix, sessiontype, paradigm):
+     def __init__(self, subject, date, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm):
           self.subject=subject
           self.date=date
           self.depth=depth
+          self.tetrodes=tetrodes
           self.timestamp=timestamp
           self.behavsuffix=behavsuffix
           self.sessiontype=sessiontype
@@ -433,6 +435,7 @@ class Session(object):
                'subject':self.subject,
                'date':self.date,
                'depth':self.depth,
+               'tetrodes':self.tetrodes,
                'ephys':self.ephys_dir(),
                'behavior':self.behav_filename(),
                'sessiontype':self.sessiontype()
