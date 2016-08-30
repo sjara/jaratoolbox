@@ -1,5 +1,5 @@
 '''
-2015-08-01 Nick Ponvert
+2016-08-29 Nick Ponvert and Anna Lakunina
 
 This module will provide a frontend for plotting data during an ephys experiment
 
@@ -114,16 +114,6 @@ class EphysInterface(object):
             plt.figure()
         dataplotter.plot_psth(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, lw=lw, colorEachCond=colorEachCond)
 
-    #does this function even do anything?
-    '''def get_processed_session_data(self, session, tetrode, cluster=None):
-        sessionObj = self.get_session_obj(session)
-        sessionDir = sessionObj.ephys_dir()
-        spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
-        eventData = self.loader.get_session_events(sessionDir)
-        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
-        spikeTimestamps=spikeData.timestamps
-        return (spikeTimestamps, eventOnsetTimes)'''
-
     def plot_am_freq_tuning(self, freqsession, amsession, tetrode, experiment=-1, site=-1, freqTimeRange = [-0.1, 0.3], amTimeRange = [-0.2, 0.8], colorEachCond=None, replace=1, ms=1, lw=3):
         if replace:
             plt.cla()
@@ -171,16 +161,18 @@ class EphysInterface(object):
         ax.set_xticks(range(len(freqLabels)))
         ax.set_xticklabels(freqLabels, rotation='vertical')
 
-    def plot_array_freq_tuning(self, session, behavSuffix, replace=0, tetrodes=None, timeRange=[0, 0.1]):
+    def plot_array_freq_tuning(self, session, experiment=-1, site=-1, tetrodes=None, replace=0, timeRange=[0, 0.1]):
 
+        sessionObj = self.get_session_obj(session, experiment, site)
+        sessionDir = sessionObj.ephys_dir()
+        behavFile = sessionObj.behav_filename()
         if not tetrodes:
-            tetrodes=self.defaultTetrodes
-
+            tetrodes=sessionObj.tetrodes
         numTetrodes = len(tetrodes)
         eventData = self.loader.get_session_events(sessionDir)
         eventOnsetTimes = self.loader.get_event_onset_times(eventData)
         plotTitle = sessionDir
-        bdata=self.loader.get_session_behavior(behavSuffix)
+        bdata=self.loader.get_session_behavior(behavFile)
         freqEachTrial = bdata['currentFreq']
         freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]
 
@@ -193,7 +185,7 @@ class EphysInterface(object):
 
         for ind , tetrode in enumerate(tetrodes):
 
-            spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster)
+            spikeData = self.loader.get_session_spikes(sessionDir, tetrode)
 
             if ind == 0:
                 ax = fig.add_subplot(numTetrodes,1,ind+1)
@@ -220,7 +212,7 @@ class EphysInterface(object):
 
 
 
-    def plot_array_raster(self, session, experiment=-1, site=-1, replace=0, sortArray='currentFreq', timeRange = [-0.5, 1], tetrodes=None, ms=4, electrodeName='Tetrode'):
+    def plot_array_raster(self, session, experiment=-1, site=-1, tetrodes=None, replace=0, sortArray='currentFreq', timeRange = [-0.5, 1], ms=4, electrodeName='Tetrode'):
         '''
         This is the much-improved version of a function to plot a raster for each tetrode. All rasters
         will be plotted using standardized plotting code, and we will simply call the functions.
@@ -260,63 +252,39 @@ class EphysInterface(object):
         plt.xlabel('time (sec)')
         plt.show()
 
-    def plot_sorted_tuning_raster(self, session, tetrode, behavSuffix, cluster = None, replace=0, timeRange = [-0.5, 1], ms = 1):
+    def plot_two_axis_sorted_raster(self, session, tetrode, experiment=-1, site=-1, firstSort='currentFreq', secondSort='currentIntensity', cluster = None, replace=0, timeRange = [-0.5, 1], ms = 1, firstLabels=None, secondLabels=None, yLabel=None, plotTitle=None):
         '''
-        Plot the tuning of a tetrode as a sorted tuning raster
+        Plot rasters sorted by 2 arrays.
+        By default, sorts by frequency and intensity to copy functionality of old plot_sorted_tuning_raster method. 
+        However, can specify different arrays to sort by.
         '''
-        bdata = self.loader.get_session_behavior(behavSuffix)
+        sessionObj = self.get_session_obj(session, experiment, site)
+        sessionDir = sessionObj.ephys_dir()
+        behavFile = sessionObj.behav_filename()
+        bdata = self.loader.get_session_behavior(behavFile)
         plotTitle = sessionDir
         eventData = self.loader.get_session_events(sessionDir)
-        spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster, cluster)
-
+        spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster)
+         
         eventOnsetTimes = self.loader.get_event_onset_times(eventData)
         spikeTimestamps=spikeData.timestamps
-
-        freqEachTrial = bdata['currentFreq']
-        intensityEachTrial = bdata['currentIntensity']
-
-        possibleFreq = np.unique(freqEachTrial)
-        possibleIntensity = np.unique(intensityEachTrial)
-        freqLabels = ['{0:.1f}'.format(freq/1000.0) for freq in possibleFreq]
-        intensityLabels = ['{:.0f} dB'.format(intensity) for intensity in possibleIntensity]
-        xLabel="Time from sound onset (sec)"
-
-        dataplotter.two_axis_sorted_raster(spikeTimestamps,
-                                           eventOnsetTimes,
-                                           freqEachTrial,
-                                           intensityEachTrial,
-                                           freqLabels,
-                                           intensityLabels,
-                                           xLabel,
-                                           plotTitle,
-                                           flipFirstAxis=False,
-                                           flipSecondAxis=True,
-                                           timeRange=timeRange,
-                                           ms=ms)
-
-    def plot_two_axis_sorted_raster(self, session, tetrode, firstSortArray, secondSortArray, cluster = None, replace=0, timeRange = [-0.5, 1], ms = 1, firstLabels=None, secondLabels=None, yLabel=None, plotTitle=None):
-        '''
-        Plot rasters sorted by 2 arrays
-        '''
-        if not plotTitle:
-            # plotTitle = self.loader.get_session_filename(session) #Broken in new version
-            plotTitle = ''
-
-        eventData = self.loader.get_session_events(sessionDir)
-        spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster, cluster=cluster)
-
-        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
-        spikeTimestamps=spikeData.timestamps
+        
+        firstSortArray = bdata[firstSort]
+        secondSortArray = bdata[secondSort]
 
         if not firstLabels:
             possibleFirst = np.unique(firstSortArray)
-            firstLabels = ['{}'.format(val) for val in possibleFirst]
-            # firstLabels = ['{0:.1f}'.format(val) for val in possibleFirst]
+            if firstSort == 'currentFreq':
+                firstLabels = ['{0:.1f}'.format(freq/1000.0) for freq in possibleFirst]
+            else:
+                firstLabels = ['{}'.format(val) for val in possibleFirst]
 
         if not secondLabels:
             possibleSecond = np.unique(secondSortArray)
-            secondLabels = ['{}'.format(val) for val in possibleSecond]
-            # secondLabels = ['{:.0f} dB'.format(val) for val in possibleSecond]
+            if secondSort == 'currentIntensity':
+                secondLabels = ['{:.0f} dB'.format(intensity) for intensity in possibleSecond]
+            else:
+                secondLabels = ['{}'.format(val) for val in possibleSecond]
 
         xLabel="Time from sound onset (sec)"
 
@@ -343,8 +311,11 @@ class EphysInterface(object):
         plt.show()
 
     #Relies on external TC heatmap plotting functions
-    def plot_session_tc_heatmap(self, session, tetrode, behavSuffix, replace=True, timeRange=[0, 0.1]):
-        bdata = self.loader.get_session_behavior(behavSuffix)
+    def plot_session_tc_heatmap(self, session, tetrode, experiment=-1, site=-1, cluster=None, replace=True, timeRange=[0, 0.1]):
+        sessionObj = self.get_session_obj(session, experiment, site)
+        sessionDir = sessionObj.ephys_dir()
+        behavFile = sessionObj.behav_filename()
+        bdata = self.loader.get_session_behavior(behavFile)
         plotTitle = sessionDir
         eventData = self.loader.get_session_events(sessionDir)
         spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster)
@@ -372,18 +343,18 @@ class EphysInterface(object):
         freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0] #FIXME: This should be outside this function
         intenLabels = ['{}'.format(inten) for inten in possibleIntensity]
 
-        dataplotter.two_axis_heatmap(spikeTimestamps,
-                                     eventOnsetTimes,
-                                     intensityEachTrial,
-                                     freqEachTrial,
-                                     intenLabels,
-                                     freqLabels,
-                                     xlabel,
-                                     ylabel,
-                                     plotTitle,
-                                     flipFirstAxis=True,
-                                     flipSecondAxis=False,
-                                     timeRange=timeRange)
+        dataplotter.two_axis_heatmap(spikeTimestamps=spikeTimestamps,
+                                            eventOnsetTimes=eventOnsetTimes,
+                                            firstSortArray=intensityEachTrial,
+                                            secondSortArray=freqEachTrial,
+                                            firstSortLabels=intenLabels,
+                                            secondSortLabels=freqLabels,
+                                            xlabel='Frequency (kHz)',
+                                            ylabel='Intensity (dB SPL)',
+                                            plotTitle=plotTitle,
+                                            flipFirstAxis=True,
+                                            flipSecondAxis=False,
+                                            timeRange=[0, 0.1])
 
         plt.show()
 
@@ -472,29 +443,33 @@ class EphysInterface(object):
         flipper = extraplots.FlipThrough(self.plot_sorted_tuning_raster, dataList)
         return flipper
 
-    def flip_freq_am_tuning(self, freqsession, amsession, freqBehavSuffix, amBehavSuffix, tetrodes=[1,2,3,4,5,6,7,8], freqRange = [-0.1, 0.3], amRange = [-0.2, 0.8], colorEachCond=None):
+    def flip_freq_am_tuning(self, freqsession, amsession, experiment=-1, site=-1, tetrodes=None, freqRange = [-0.1, 0.3], amRange = [-0.2, 0.8], colorEachCond=None):
         freqsessionList=[]
         amsessionList=[]
-        freqBehavSuffixList=[]
-        amBehavSuffixList=[]
+        experimentList=[]
+        siteList=[]
         tetrodeList=[]
         amRangeList=[]
         freqRangeList=[]
         colorList=[]
+        
+        sessionObj = self.get_session_obj(freqsession, experiment, site)
+        if not tetrodes:
+            tetrodes=sessionObj.tetrodes
 
         from jaratoolbox import extraplots
 
         for tetrode in tetrodes:
             freqsessionList.append(freqsession)
             amsessionList.append(amsession)
-            freqBehavSuffixList.append(freqBehavSuffix)
-            amBehavSuffixList.append(amBehavSuffix)
+            experimentList.append(experiment)
+            siteList.append(site)
             tetrodeList.append(tetrode)
             amRangeList.append(amRange)
             freqRangeList.append(freqRange)
             colorList.append(colorEachCond)
 
-        dataList=zip(freqsessionList, amsessionList, freqBehavSuffixList, amBehavSuffixList, tetrodeList, freqRangeList, amRangeList, colorList)
+        dataList=zip(freqsessionList, amsessionList, tetrodeList, experimentList, siteList, freqRangeList, amRangeList, colorList)
         flipper=extraplots.FlipThrough(self.plot_am_freq_tuning, dataList)
         return flipper
 
