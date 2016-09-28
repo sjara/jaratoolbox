@@ -153,13 +153,13 @@ class TetrodeToCluster(object):
             self.load_waveforms()
         self.featureValues = calculate_features(self.dataTT.samples,self.featureNames)
         write_fet_file(self.fetFilename,self.featureValues)
-    def run_clustering(self):
+    def run_clustering(self, MinClusters=10, MaxClusters=12, MaxPossibleClusters=12):
         # FIXME: it should not depend on dataTT, that way one can run it with just the FET file
         maxNumberOfEventsToUse = 1e5
         Subset = np.floor(self.nSpikes/min(self.nSpikes,maxNumberOfEventsToUse))
-        MinClusters = 10 #10          # See KlustaKwik.C for definition
-        MaxClusters = 12 #24          # See KlustaKwik.C for definition
-        MaxPossibleClusters = 12  # See KlustaKwik.C for definition
+        MinClusters = MinClusters #10          # See KlustaKwik.C for definition
+        MaxClusters = MaxClusters #24          # See KlustaKwik.C for definition
+        MaxPossibleClusters = MaxPossibleClusters  # See KlustaKwik.C for definition
         UseFeatures = (self.nFeatures*N_CHANNELS)*'1'
         KKtetrode = 'Tetrode%s'%(self.tetrode)
         KKsuffix = '1'
