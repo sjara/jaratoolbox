@@ -20,11 +20,12 @@ import importlib
 #For calling rsync to get just the data we need
 import subprocess
 
+import pandas as pd
+
 #from jaratoolbox import ephyscore
 
 def find_ephys_sessions(cellDB):
     return list(np.unique(cellDB.get_vector('ephysSession')))
-
 
 def waveforms_many_sessions(subject, ephysSessions, tetrode, clustersPerTetrode=12, wavesize=160):
     '''
@@ -36,7 +37,6 @@ def waveforms_many_sessions(subject, ephysSessions, tetrode, clustersPerTetrode=
                                 clustersPerTetrode=clustersPerTetrode, wavesize=wavesize)
         waveformsOneTetrode.append(waves)
     return waveformsOneTetrode
-
 
 def calculate_avg_waveforms(subject, ephysSession, tetrode, clustersPerTetrode=12, wavesize=160):
     '''
@@ -140,6 +140,7 @@ def rsync_session_data(subject,
                        serverEphysPath = '/data2016/ephys',
                        skipIfExists=False):
     '''
+    #NOTE: Deprecated now, use jaratest.nick.utils.transferutils module for these rsync funcs
     #TODO: server user and server name as one string
     #TODO: server ephys path and user in settings file
     Rsync just the sessions you need from jarahub
@@ -269,6 +270,7 @@ def triangle_filter(qualityMat):
 
 def print_reports_clusters(subject, sessions, tetrode, printer):
     '''
+    Automatically print (on paper, with a printer) the cluster reports for some sessions
     use lpstat -p to find printers
     use lpadmin -p printername to add a printer as the default
     '''
@@ -282,10 +284,9 @@ def print_reports_clusters(subject, sessions, tetrode, printer):
         # subprocess.call(printcommand)
 
 
-
 if __name__=='__main__':
     ### Useful trick:   np.set_printoptions(linewidth=160)
-    CASE = 3
+    CASE = 4
     if CASE==0:
         nSamples = 4*40
         nClusters = 12
@@ -476,3 +477,4 @@ if __name__=='__main__':
                     f.write(compsAboveThreshold[ind])
                     f.write('\n')
             f.close()
+
