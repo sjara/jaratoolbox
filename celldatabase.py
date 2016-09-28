@@ -442,8 +442,31 @@ class Session(object):
           }
           return infoDict
 
+def save_dataframe_as_HDF5(path, dataframe):
+    '''
+    Saves a dataframe to HDF5 format.
 
-class NewCellDB(object):
-    def __init__(self):
-        self.db = pd.DataFrame()
+    Args:
+        path (str): /path/to/file.h5
+        dataframe (pandas.DataFrame): dataframe object
+    '''
+    dataframe.to_hdf(path, 'dataframe')
 
+def load_dataframe_from_HDF5(path, **kwargs):
+    '''
+    See pandas.read_hdf docs for useful kwargs (loading only certain rows, cols, etc)
+    Args:
+        path (str): /path/to/file.h5
+    '''
+    dataframe = pd.read_hdf(path, key='dataframe', **kwargs)
+    return dataframe
+
+
+if __name__=="__main__":
+     CASE=0
+     if CASE==0: #Verify that saving to and loading from h5 preserves cell dtype
+        d = {'a': [1, 2], 'b': [['a', 'b'], ['b', 'c']]}
+        df = pd.DataFrame(d)
+        save_dataframe_as_HDF5('/tmp/df_test.h5', df)
+        df2 = load_dataframe_from_HDF5('/tmp/df_test.h5')
+        print type(df2['b'][0])
