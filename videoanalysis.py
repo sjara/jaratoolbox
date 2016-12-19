@@ -35,10 +35,24 @@ class ColorRange(object):
         self.lower = np.array(colorLimits[0], dtype = "uint8")
         self.upper = np.array(colorLimits[1], dtype = "uint8")
     def __str__(self):
-        return 'B:{0}-{1} R:{2}-{3} G:{4}-{5}'.format(self.lower[0],self.lower[1],self.lower[2],
-                                                      self.upper[0],self.upper[1],self.upper[2])
+        return 'B:{0}-{1} \t R:{2}-{3} \t G:{4}-{5}'.format(self.lower[0],self.upper[0],
+                                                            self.lower[1],self.upper[1],
+                                                            self.lower[2],self.upper[2])
     
-    
+
+def massCenter(img):
+    '''Find center of mass of binary image
+    http://docs.opencv.org/2.4/modules/imgproc/doc/structural_analysis_and_shape_descriptors.html
+    '''
+    if np.any(img):
+        imgMoments = cv2.moments(img)
+        xbar = imgMoments['m10']/imgMoments['m00']
+        ybar = imgMoments['m01']/imgMoments['m00']
+        return [xbar,ybar]
+    else:
+        return [np.nan,np.nan]
+
+
 class ColorTracker(Video):
     '''
     Subclass with methods for tracking mouse.
@@ -55,14 +69,34 @@ class ColorTracker(Video):
         super(ColorTracker, self).__init__(filename)
         self.colorLimits = colorLimits
         self.nColors = len(self.colorLimits)
-        self.colors = []
-        self.set_color_ranges()
-    def set_color_ranges(self):
-        
-    def process(self):
-        
-        pass
-
+        self.colorRanges = []
+        self.set_color_ranges(self.colorLimits)  # This defines self.colorRanges
+        plt.clf()
+    def set_color_ranges(self, colorLimits):
+        for theseColorLims in colorLimits:
+            self.colorRanges.append(ColorRange(theseColorLims))
+    def print_colors(self):
+        for oneColorRange in self.colorRanges:
+            print oneColorRange
+    def process(self, verboseInterval=100, showImage=False):
+        colorMask = np.empty([self.frameSize[1],self.frameSize[0],self.nColors],dtype=np.uint8)
+        colorCenter = np.empty((2,self.nFrames,self.nColors))
+        zeroFrame = np.zeros([self.frameSize[1],self.frameSize[0]],dtype=np.uint8)
+        #for indf in range(200):#range(self.nFrames):
+        for indf in range(self.nFrames):
+            if indf%verboseInterval==0:
+                print 'Processing frame {0}/{1}'.format(self.get_current_frame(),self.nFrames)
+            self.ret, self.frame = self.cap.read()
+            for indColor,oneColRange in enumerate(self.colorRanges):
+                colorMask[:,:,indColor] = cv2.inRange(self.frame, oneColRange.lower, oneColRange.upper)
+                colorCenter[:,indf,indColor] = massCenter(colorMask[:,:,indColor])
+            if showImage:
+                newimg = np.dstack((colorMask,zeroFrame))
+                plt.imshow(newimg)
+                plt.draw()
+                #plt.waitforbuttonpress()
+        return colorCenter
+    
     
 class ImageRegion(object):
     '''Define coordinates of a region'''
@@ -91,21 +125,20 @@ class StimDetector(Video):
         self.set_coords(self.coords) # This will set self.regions
         self.intensity = np.empty((self.nRegions,self.nFrames))
     def set_coords(self,coords):
-        for indregion,thesecoords in enumerate(coords):
-            self.regions.append(ImageRegion(thesecoords))
+        for theseCoords in coords:
+            self.regions.append(ImageRegion(theseCoords))
     def print_regions(self):
         for oneRegion in self.regions:
             print oneRegion
-    def measure(self):
+    def measure(self, verboseInterval=100):
         '''Measure average intensity in regions'''
         for indf in range(self.nFrames):
-            if indf%100==0:
+            if indf%verboseInterval==0:
                 print 'Processing frame {0}/{1}'.format(self.get_current_frame(),self.nFrames)
             self.ret, self.frame = self.cap.read()
             gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
             for indregion,oneregion in enumerate(self.regions):
                 chunk = gray[slice(*oneregion.vrange), slice(*oneregion.hrange)]
-                #1/0
                 self.intensity[indregion,indf] = np.mean(chunk)
         
     
@@ -148,7 +181,7 @@ class DefineCoordinates(Video):
         plt.draw()
 
 if __name__ == "__main__":
-    CASE=3
+    CASE=5
     if CASE==1:
         filename = '/data/videos/d1pi013/d1pi013_20160519-5.mkv'
         vid = ColorTracker(filename)
@@ -165,11 +198,43 @@ if __name__ == "__main__":
         vid.measure()
         plt.clf()
         plt.plot(vid.intensity.T)
+        #np.savez('/var/tmp/stimtrack.npz',stimIntensity=vid.intensity)
     if CASE==4:
         filename = '/data/videos/d1pi013/d1pi013_20160519-5.mkv'
         limitsR = [[40, 20, 150],
                    [90, 70, 255]]
         limitsG = [[70, 170, 110],
                    [150, 255, 150]]
-        colorRange = [limitsR,limitsG]
-        
+        colorLimits = [limitsR,limitsG]
+        vid = ColorTracker(filename,colorLimits)
+        vid.print_colors()
+        colorCenter = vid.process(showImage=0)
+        plt.clf()
+        plt.hold(1)
+        plt.xlim([0,800]); plt.ylim([0,600])
+        for indc in range(2):
+            plt.plot(colorCenter[0,:,indc],colorCenter[1,:,indc],'.-')
+            plt.draw()
+        #np.savez('/var/tmp/colortrack.npz',colorCenter=colorCenter)
+    if CASE==5:
+        colortrack = np.load('/var/tmp/colortrack.npz')
+        colorCenter = colortrack['colorCenter']
+        stimtrack = np.load('/var/tmp/stimtrack.npz')
+        stimIntensity = stimtrack['stimIntensity']
+        plt.clf()
+        plt.hold(1)
+        if 0:  # Plot detected position in 2D
+            plt.xlim([0,800]); plt.ylim([0,600])
+            plt.gca().invert_yaxis()
+            for indc in range(2):
+                plt.plot(colorCenter[0,:,indc],colorCenter[1,:,indc],'.-')
+                plt.draw()
+        else: # Plot detected coords in 1D
+            for indc in range(2):
+                ax1 = plt.subplot(3,1,1)
+                plt.plot(colorCenter[0,:,indc],'.-')
+                ax2 = plt.subplot(3,1,2,sharex=ax1)
+                plt.plot(colorCenter[1,:,indc],'.-')
+                ax3 = plt.subplot(3,1,3,sharex=ax1)
+                plt.plot(stimIntensity.T,'.-')
+            plt.draw()
