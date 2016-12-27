@@ -71,7 +71,7 @@ class ColorTracker(Video):
         self.nColors = len(self.colorLimits)
         self.colorRanges = []
         self.set_color_ranges(self.colorLimits)  # This defines self.colorRanges
-        plt.clf()
+        self.colorCenter = np.empty((2,self.nColors,self.nFrames))
     def set_color_ranges(self, colorLimits):
         for theseColorLims in colorLimits:
             self.colorRanges.append(ColorRange(theseColorLims))
@@ -95,6 +95,7 @@ class ColorTracker(Video):
                 plt.imshow(newimg)
                 plt.draw()
                 #plt.waitforbuttonpress()
+        self.colorCenter = colorCenter
         return colorCenter
     
     
@@ -140,7 +141,8 @@ class StimDetector(Video):
             for indregion,oneregion in enumerate(self.regions):
                 chunk = gray[slice(*oneregion.vrange), slice(*oneregion.hrange)]
                 self.intensity[indregion,indf] = np.mean(chunk)
-        
+        return self.intensity
+    
     
 class DefineCoordinates(Video):
     '''
@@ -181,10 +183,10 @@ class DefineCoordinates(Video):
         plt.draw()
 
 if __name__ == "__main__":
-    CASE=5
+    CASE=4
     if CASE==1:
         filename = '/data/videos/d1pi013/d1pi013_20160519-5.mkv'
-        vid = ColorTracker(filename)
+        vid = Video(filename)
         vid.release()
     if CASE==2:
         filename = '/data/videos/d1pi013/d1pi013_20160519-5.mkv'
@@ -195,9 +197,10 @@ if __name__ == "__main__":
         #coords = [[[279, 68], [297, 82]], [[534, 64], [550, 76]]]
         vid = StimDetector(filename,coords)
         vid.print_regions()
-        vid.measure()
+        intensity = vid.measure()
         plt.clf()
-        plt.plot(vid.intensity.T)
+        plt.plot(intensity.T)
+        plt.show()
         #np.savez('/var/tmp/stimtrack.npz',stimIntensity=vid.intensity)
     if CASE==4:
         filename = '/data/videos/d1pi013/d1pi013_20160519-5.mkv'
@@ -208,13 +211,14 @@ if __name__ == "__main__":
         colorLimits = [limitsR,limitsG]
         vid = ColorTracker(filename,colorLimits)
         vid.print_colors()
-        colorCenter = vid.process(showImage=0)
+        colorCenter = vid.process(showImage=False)
         plt.clf()
         plt.hold(1)
         plt.xlim([0,800]); plt.ylim([0,600])
         for indc in range(2):
             plt.plot(colorCenter[0,:,indc],colorCenter[1,:,indc],'.-')
             plt.draw()
+        plt.show()
         #np.savez('/var/tmp/colortrack.npz',colorCenter=colorCenter)
     if CASE==5:
         colortrack = np.load('/var/tmp/colortrack.npz')
@@ -238,3 +242,4 @@ if __name__ == "__main__":
                 ax3 = plt.subplot(3,1,3,sharex=ax1)
                 plt.plot(stimIntensity.T,'.-')
             plt.draw()
+        plt.show()
