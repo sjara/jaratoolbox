@@ -242,6 +242,14 @@ def set_log_ticks(ax,tickValues,axis='x'):
         ax.set_yticks(tickLogValues)
         ax.set_yticklabels(tickLabels)
 
+def scalebar(xpos,ypos,width,height,xstring,ystring,fontsize=10):
+    '''Show scale bars with labels'''
+    pbar = plt.plot([xpos,xpos,xpos+width],[ypos+height,ypos,ypos],'k',lw=2, clip_on=False)
+    xstring = plt.text(xpos+0.5*width, ypos-0.15*height, xstring,
+                       va='top', ha='center', fontsize=fontsize, clip_on=False)
+    ystring = plt.text(xpos-0.15*width, ypos+0.5*height, ystring, rotation=90,
+                       va='center', ha='right', fontsize=fontsize, clip_on=False)
+    return(pbar,xstring,ystring)
 
 def save_figure(filename, fileformat, figsize, outputDir='./'):
     plt.gcf().set_size_inches(figsize)
