@@ -316,27 +316,30 @@ class Experiment(object):
          add_session(timestamp, behavsuffix, sessiontype, paradigm): Add a recording session to the current site
      TODO: Fail gracefully if the experimenter tries to add sessions without adding a site first
      '''
-     def __init__(self, subject, date):
+     def __init__(self, subject, date, brainarea, info=''):
           self.subject=subject
           self.date=date
+          self.brainarea=brainarea
+          self.info=info
           self.sites=[]
           self.tetrodes = [1,2,3,4,5,6,7,8]
      def add_site(self, depth, tetrodes = None):
           #TODO: default tetrode are self.tetrodes, can redefine per site if needed
           if not tetrodes:
               tetrodes = self.tetrodes
-          site=Site(self.subject, self.date, depth, tetrodes)
+          site=Site(self.subject, self.date, self.brainarea, self.info, depth, tetrodes)
           self.sites.append(site)
           return site
-     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
+     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
           '''
           Add a session to the most recent site
           '''
           activeSite = self.sites[-1] #Use the most recent site for this experiment
           session = activeSite.add_session(timestamp,
-                                 behavsuffix,
-                                 sessiontype,
-                                 paradigm)
+                                           behavsuffix,
+                                           sessiontype,
+                                           paradigm,
+                                           date)
           return session
 
 class Site(object):
@@ -354,15 +357,21 @@ class Site(object):
          depth (int): The depth in microns at which the sessions were recorded
          sessions (list): A list of all the sessions recorded at this site
      '''
-     def __init__(self, subject, date, depth, tetrodes):
+     def __init__(self, subject, date, brainarea, info, depth, tetrodes):
           self.subject=subject
           self.date=date
+          self.brainarea=brainarea
+          self.info=info
           self.depth=depth
           self.tetrodes = tetrodes
           self.sessions=[]
-     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
+     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
+          if not date:
+               date=self.date
           session = Session(self.subject,
-                            self.date,
+                            date,
+                            self.brainarea,
+                            self.info,
                             self.depth,
                             self.tetrodes,
                             timestamp,
@@ -384,6 +393,8 @@ class Site(object):
           infoDict = {
                'subject':self.subject,
                'date':self.date,
+               'brainarea': self.brainarea,
+               'info': self.info,
                'depth':self.depth,
                'tetrodes':self.tetrodes,
                'ephys':self.session_ephys_dirs(),
@@ -404,7 +415,7 @@ class Session(object):
          sessiontype (str): A string describing what kind of session this is.
          paradigm (str): The name of the paradigm used to collect the session
      '''
-     def __init__(self, subject, date, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm):
+     def __init__(self, subject, date, brainarea, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm):
           self.subject=subject
           self.date=date
           self.depth=depth
@@ -426,21 +437,27 @@ class Session(object):
                                         date,
                                         self.behavsuffix)
           return fn
-     def cluster_info(self):
-          '''
-          Returns a dict
-          '''
-          #TODO: rename to info
-          infoDict = {
-               'subject':self.subject,
-               'date':self.date,
-               'depth':self.depth,
-               'tetrodes':self.tetrodes,
-               'ephys':self.ephys_dir(),
-               'behavior':self.behav_filename(),
-               'sessiontype':self.sessiontype()
-          }
-          return infoDict
+
+     # DEPRECATED: All clusters will get their info from the site, not the session
+     # If needed this could point to the parent site's method
+     #
+     # def cluster_info(self):
+     #      '''
+     #      Returns a dict
+     #      '''
+     #      #TODO: rename to info
+     #      infoDict = {
+     #           'subject':self.subject,
+     #           'date':self.date,
+     #           'brainarea': self.brainarea,
+     #           'info': self.info,
+     #           'depth':self.depth,
+     #           'tetrodes':self.tetrodes,
+     #           'ephys':self.ephys_dir(),
+     #           'behavior':self.behav_filename(),
+     #           'sessiontype':self.sessiontype()
+     #      }
+     #      return infoDict
 
 def save_dataframe_as_HDF5(path, dataframe):
     '''
