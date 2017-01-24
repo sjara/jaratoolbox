@@ -8,6 +8,13 @@ Additional functions often used but not available in python modules.
 import numpy as np
 import datetime
 
+def interpolate_nan(xvals):
+    '''Creates a new array with interpolated values where elements were NaN'''
+    ixvals = xvals.copy()
+    nans = np.isnan(xvals)
+    indfun = lambda z: z.flatnonzero()
+    ixvals[nans]= np.interp(np.flatnonzero(nans), np.flatnonzero(~nans), xvals[~nans])
+    return ixvals
 
 def parse_isodate(dateStr):
     '''
