@@ -247,59 +247,6 @@ class InfoRecording(object):
 
 '''
 
-class InfoRecording(object):
-     '''
-     DEPRECATED: Use Experiment objects instead
-     InfoRecordings is a container of experiments. One per subject.
-     '''
-     def __init__(self, subject):
-          '''
-          Args:
-              subject (str): subject's name
-          '''
-          self.subject = subject
-          self.experiments = []
-     def add_experiment(self, date):
-          '''
-          Adds an Experiment object to the list.
-          Args:
-              date (str): date in format YYYY-MM-DD
-          '''
-          experiment=Experiment(self.subject,
-                                date)
-          self.experiments.append(experiment)
-	  return experiment
-     def add_site(self, depth, tetrodes = [1,2,3,4,5,6,7,8]):
-          '''
-          Add a site to the last experiment
-          '''
-          activeExperiment = self.experiments[-1]
-          site = activeExperiment.add_site(depth, tetrodes)
-          return site
-     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
-          activeExperiment = self.experiments[-1] #Use the most recent experiment
-          session = activeExperiment.add_session(timestamp,
-                                 behavsuffix,
-                                 sessiontype,
-                                 paradigm)
-          return session
-     def __str__(self):
-          message = []
-          message.append('Subject: {}'.format(self.subject))
-          message.append('{} Experiments:'.format(len(self.experiments)))
-          for indExp, experiment in enumerate(self.experiments):
-               date = experiment.date
-               numSites = len(experiment.sites)
-               numSessions = 0
-               #count total number of sessions
-               for site in experiment.sites:
-                    for session in site.sessions:
-                         numSessions += 1
-               message.append('Experiment {} on {}: {} Sites, {} Total sessions'.format(indExp,
-                                                                                        date,
-                                                                                        numSites,
-                                                                                        numSessions))
-          return '\n'.join(message)
 
 
 class Experiment(object):
@@ -487,3 +434,60 @@ if __name__=="__main__":
         save_dataframe_as_HDF5('/tmp/df_test.h5', df)
         df2 = load_dataframe_from_HDF5('/tmp/df_test.h5')
         print type(df2['b'][0])
+
+# '''
+
+# class InfoRecording(object):
+#      '''
+#      DEPRECATED: Use Experiment objects instead
+#      InfoRecordings is a container of experiments. One per subject.
+#      '''
+#      def __init__(self, subject):
+#           '''
+#           Args:
+#               subject (str): subject's name
+#           '''
+#           self.subject = subject
+#           self.experiments = []
+#      def add_experiment(self, date):
+#           '''
+#           Adds an Experiment object to the list.
+#           Args:
+#               date (str): date in format YYYY-MM-DD
+#           '''
+#           experiment=Experiment(self.subject,
+#                                 date)
+#           self.experiments.append(experiment)
+# 	  return experiment
+#      def add_site(self, depth, tetrodes = [1,2,3,4,5,6,7,8]):
+#           '''
+#           Add a site to the last experiment
+#           '''
+#           activeExperiment = self.experiments[-1]
+#           site = activeExperiment.add_site(depth, tetrodes)
+#           return site
+#      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
+#           activeExperiment = self.experiments[-1] #Use the most recent experiment
+#           session = activeExperiment.add_session(timestamp,
+#                                  behavsuffix,
+#                                  sessiontype,
+#                                  paradigm)
+#           return session
+#      def __str__(self):
+#           message = []
+#           message.append('Subject: {}'.format(self.subject))
+#           message.append('{} Experiments:'.format(len(self.experiments)))
+#           for indExp, experiment in enumerate(self.experiments):
+#                date = experiment.date
+#                numSites = len(experiment.sites)
+#                numSessions = 0
+#                #count total number of sessions
+#                for site in experiment.sites:
+#                     for session in site.sessions:
+#                          numSessions += 1
+#                message.append('Experiment {} on {}: {} Sites, {} Total sessions'.format(indExp,
+#                                                                                         date,
+#                                                                                         numSites,
+#                                                                                         numSessions))
+#           return '\n'.join(message)
+# '''
