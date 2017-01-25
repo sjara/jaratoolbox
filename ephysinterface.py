@@ -27,10 +27,10 @@ class EphysInterface(object):
     def load_inforec(self):
         inforec = imp.load_source('module.name', self.filepath)
         return inforec
-    
+
     def get_colours(self, ncolours):
         ''' returns n distinct colours for plotting purpouses when you don't want to manually specify colours'''
-        from matplotlib.pyplot import cm 
+        from matplotlib.pyplot import cm
         colours = cm.rainbow(np.linspace(0,1,ncolours))
         return colours
 
@@ -112,7 +112,7 @@ class EphysInterface(object):
             plt.cla()
         else:
             plt.figure()
-        dataplotter.plot_psth(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, lw=lw, colorEachCond=colorEachCond)
+        dataplotter.plot_psth(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, lw=lw, colorEachCond=colorEachCond, plotLegend=1)
 
     def plot_am_freq_tuning(self, freqsession, amsession, tetrode, experiment=-1, site=-1, freqTimeRange = [-0.1, 0.3], amTimeRange = [-0.2, 0.8], colorEachCond=None, replace=1, ms=1, lw=3):
         if replace:
@@ -352,7 +352,7 @@ class EphysInterface(object):
                                             xlabel='Frequency (kHz)',
                                             ylabel='Intensity (dB SPL)',
                                             plotTitle=plotTitle,
-                                            flipFirstAxis=True,
+                                            flipFirstAxis=False,
                                             flipSecondAxis=False,
                                             timeRange=[0, 0.1])
 
@@ -368,7 +368,7 @@ class EphysInterface(object):
         sessionObj = self.get_session_obj(session, experiment, site)
 
         oneTT = spikesorting.TetrodeToCluster(sessionObj.subject,
-                                              sessionObj.session_ephys_dir(),
+                                              sessionObj.ephys_dir(),
                                               tetrode)
 
         oneTT.load_waveforms()
