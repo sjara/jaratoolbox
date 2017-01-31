@@ -98,29 +98,32 @@ class SessionToCluster(object):
 
         
 class TetrodeToCluster(object):
-    def __init__(self,animalName,ephysSession,tetrode,features=None):
-        self.animalName = animalName
-        self.ephysSession = ephysSession
+    def __init__(self,subject,session,tetrode,features=None):
+        self.subject = subject
+        self.session = session
         self.tetrode = tetrode
-        self.dataTT = None
+        # self.dataTT = None
+        self.timestamps = None
+        self.samples = None
+        self.clusters = None
         self.nSpikes = None
 
         '''
-        self.dataDir = os.path.join(settings.EPHYS_PATH,'%s/%s/'%(self.animalName,self.ephysSession))
-        self.clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,self.ephysSession))
-        #self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.animalName,self.ephysSession))
-        self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.animalName,self.ephysSession))
+        self.dataDir = os.path.join(settings.EPHYS_PATH,'%s/%s/'%(self.subject,self.session))
+        self.clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.subject,self.session))
+        #self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.subject,self.session))
+        self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.subject,self.session))
         self.tetrodeFile = os.path.join(self.dataDir,'Tetrode%d.spikes'%tetrode)
         self.fetFilename = os.path.join(self.clustersDir,'Tetrode%d.fet.1'%self.tetrode)
         '''
 
-        self.dataDir = os.path.join(settings.EPHYS_PATH,self.animalName,self.ephysSession)
-        self.clustersDir = os.path.join(settings.EPHYS_PATH,self.animalName,self.ephysSession+'_kk')
+        self.dataDir = os.path.join(settings.EPHYS_PATH,self.subject,self.session)
+        self.clustersDir = os.path.join(settings.EPHYS_PATH,self.subject,self.session+'_kk')
         self.tetrodeFile = os.path.join(self.dataDir,'Tetrode{0}.spikes'.format(tetrode))
         self.fetFilename = os.path.join(self.clustersDir,'Tetrode{0}.fet.1'.format(tetrode))
-        #self.reportDir = os.path.join(settings.EPHYS_PATH,self.animalName,'reports_clusters')
+        #self.reportDir = os.path.join(settings.EPHYS_PATH,self.subject,'reports_clusters')
 
-        self.reportFileName = '{0}_{1}_T{2}.png'.format(self.animalName,ephysSession,tetrode)
+        self.reportFileName = '{0}_{1}_T{2}.png'.format(self.subject,session,tetrode)
         self.report = None
         
         if features is None:
@@ -138,20 +141,20 @@ class TetrodeToCluster(object):
         involves subtracting 32768, dividing by the gain, and multiplying by 1000.
         '''
         print 'Loading data...'
-        self.dataTT = loadopenephys.DataSpikes(self.tetrodeFile) #,readWaves=True)
-        self.nSpikes = self.dataTT.nRecords# FIXME: this is specific to the OpenEphys format
-        self.dataTT.samples = self.dataTT.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
+        dataTT = loadopenephys.DataSpikes(self.tetrodeFile) #,readWaves=True)
+        self.nSpikes = dataTT.nRecords# FIXME: this is specific to the OpenEphys format
+        self.samples = dataTT.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
         # FIXME: This assumes the gain is the same for all channels and records
-        self.dataTT.samples = (1000.0/self.dataTT.gain[0,0]) * self.dataTT.samples
-        self.dataTT.timestamps = self.dataTT.timestamps/self.dataTT.samplingRate
+        self.samples = (1000.0/dataTT.gain[0,0]) * self.samples
+        self.timestamps = dataTT.timestamps/dataTT.samplingRate
     def create_fet_files(self):
         # -- Create output directory --
         if not os.path.exists(self.clustersDir):
             print 'Creating clusters directory: %s'%(self.clustersDir)
             os.makedirs(self.clustersDir)
-        if self.dataTT is None:
+        if self.samples is None:
             self.load_waveforms()
-        self.featureValues = calculate_features(self.dataTT.samples,self.featureNames)
+        self.featureValues = calculate_features(self.samples,self.featureNames)
         write_fet_file(self.fetFilename,self.featureValues)
     def run_clustering(self, MinClusters=10, MaxClusters=12, MaxPossibleClusters=12):
         # FIXME: it should not depend on dataTT, that way one can run it with just the FET file
@@ -186,15 +189,19 @@ class TetrodeToCluster(object):
         print 'Done!'
         '''
     def save_report(self, dirname='reports_clusters'):
-        reportDir = os.path.join(settings.EPHYS_PATH,self.animalName,dirname)
-        if self.dataTT is None:
+        reportDir = os.path.join(settings.EPHYS_PATH,self.subject,dirname)
+        if self.samples is None:
             self.load_waveforms()
-        self.dataTT.set_clusters(os.path.join(self.clustersDir,'Tetrode%d.clu.1'%self.tetrode))
+        # self.dataTT.set_clusters(os.path.join(self.clustersDir,'Tetrode%d.clu.1'%self.tetrode))
+        self.set_clusters_from_file()
         figTitle = self.dataDir+' (T%d)'%self.tetrode
         self.report = ClusterReportFromData(self.dataTT,outputDir=reportDir,
                                             filename=self.reportFileName,figtitle=figTitle,
                                             showfig=False)
-        
+    def set_clusters_from_file(self):
+        #TODO: This is a method stolen from loadopenephys.DataSpikes and needs to be defined only once, because its strange
+        clusterFile = os.path.join(self.clustersDir,'Tetrode%d.clu.1'%self.tetrode)
+        self.clusters = np.fromfile(clusterFile,dtype='int32',sep=' ')[1:]
 
 
 '''
@@ -382,8 +389,10 @@ class ClusterReportFromData(object):
     '''
     Need to finish reports when more than nrows<clusters.
     '''
-    def __init__(self,dataTT,outputDir=None,filename=None,showfig=True,figtitle='',nrows=12):
-        self.dataTT = dataTT
+    def __init__(self,timestamps,samples,clusters,outputDir=None,filename=None,showfig=True,figtitle='',nrows=12):
+        self.timestamps = timestamps
+        self.samples = samples
+        self.clusters = clusters
         self.nSpikes = 0
         self.clustersList = []
         self.nClusters = 0
@@ -399,8 +408,8 @@ class ClusterReportFromData(object):
         if outputDir is not None:
             self.save_report(outputDir,filename)
     def set_parameters(self):
-        self.nSpikes = len(self.dataTT.timestamps)
-        self.clustersList = np.unique(self.dataTT.clusters)
+        self.nSpikes = len(self.timestamps)
+        self.clustersList = np.unique(self.clusters)
         self.nClusters = len(self.clustersList)
         self.find_spikes_each_cluster()
         self.nPages = self.nClusters//(self.nRows+1)+1
@@ -409,7 +418,7 @@ class ClusterReportFromData(object):
     def find_spikes_each_cluster(self):
         self.spikesEachCluster = np.empty((self.nClusters,self.nSpikes),dtype=bool)
         for indc,clusterID in enumerate(self.clustersList):
-            self.spikesEachCluster[indc,:] = (self.dataTT.clusters==clusterID)
+            self.spikesEachCluster[indc,:] = (self.clusters==clusterID)
     def plot_report(self,showfig=False):
         print 'Plotting report...'
         #plt.figure(self.fig)
@@ -424,8 +433,8 @@ class ClusterReportFromData(object):
             if (indc+1)>self.nRows:
                 print 'WARNING! This cluster was ignore (more clusters than rows)'
                 continue
-            tsThisCluster = self.dataTT.timestamps[self.spikesEachCluster[indc,:]]
-            wavesThisCluster = self.dataTT.samples[self.spikesEachCluster[indc,:],:,:]
+            tsThisCluster = self.timestamps[self.spikesEachCluster[indc,:]]
+            wavesThisCluster = self.samples[self.spikesEachCluster[indc,:],:,:]
             # -- Plot ISI histogram --
             plt.subplot(self.nRows,nCols,indc*nCols+1)
             plot_isi_loghist(tsThisCluster)
@@ -601,7 +610,7 @@ class MultipleSessionsToCluster(TetrodeToCluster):
     as if one had simply clustered a session on its own.
     '''
 
-    def __init__(self, subject, sessions, tetrode, idString):
+    def __init__(self, subject, sessions, tetrode, idString, features=None):
         '''
         Args:
             subject (str): Name of the animal
@@ -609,29 +618,18 @@ class MultipleSessionsToCluster(TetrodeToCluster):
             tetrode (int): The tetrode to cluster
             idString (str): An identifier used to name the directory that contains the clustering results.
                             Use something like 'exp0site1' or '{date}_{depth}'
-
         '''
-        self.subject = subject
-        self.sessions = sessions #Sort the list of sessions so that there will not be any negative ISIs
-        self.SAMPLING_RATE = 30000.0
-        self.tetrode = tetrode
-        self.dataTT = None
-        self.recordingNumber = np.array([])
-        self.samples = None
-        self.timestamps = None
-        self.clusters = None
-        self.nSpikes = None
+        #To init the super I just use the first session. Will this mess me up?
+        super(MultipleSessionsToCluster, self).__init__(subject, sessions[0], tetrode, features)
+        self.sessions = sessions
         self.idString = idString
+        self.recordingNumber = np.array([])
         self.clustersDir = os.path.join(settings.EPHYS_PATH,self.subject,'multisession_{}'.format(self.idString))
-        self.fetFilename = os.path.join(self.clustersDir,'Tetrode%d.fet.1'%self.tetrode)
         self.report = None
-        self.reportFileName = '{0}.png'.format(self.tetrode)
-        # self.featureNames = ['peak','valley','energy']
-        self.featureNames = ['peak','valleyFirstHalf']
-        self.nFeatures = len(self.featureNames)
         self.featureValues = None
+        self.reportFileName = 'multisession_{}{}{}.png'.format(self.subject, self.tetrode, self.idString)
 
-    def load_all_waveforms(self):
+    def load_waveforms(self):
         for ind, session in enumerate(self.sessions):
             if session: #This is a fix for when some sessions are 'None'
                 ephysDir = os.path.join(settings.EPHYS_PATH, self.subject, session)
@@ -660,19 +658,6 @@ class MultipleSessionsToCluster(TetrodeToCluster):
                         self.recordingNumber = np.concatenate([self.recordingNumber, sessionVector])
         self.nSpikes = len(self.timestamps)
 
-    def create_multisession_fet_files(self):
-        if not os.path.exists(self.clustersDir):
-            print 'Creating clusters directory: %s'%(self.clustersDir)
-            os.makedirs(self.clustersDir)
-        if self.samples is None:
-            self.load_all_waveforms()
-        self.featureValues = calculate_features(self.samples,self.featureNames)
-        write_fet_file(self.fetFilename, self.featureValues)
-
-    def set_clusters_from_file(self):
-        clusterFile = os.path.join(self.clustersDir,'Tetrode%d.clu.1'%self.tetrode)
-        self.clusters = np.fromfile(clusterFile,dtype='int32',sep=' ')[1:]
-
     def save_single_session_clu_files(self):
         '''
         Use the stored cluster and session information to write an individual clu file for each session.
@@ -699,192 +684,146 @@ class MultipleSessionsToCluster(TetrodeToCluster):
                 fid.write('{0}\n'.format(cn))
             fid.close()
 
-    def save_multisession_report(self):
-        if self.clusters == None:
-            self.set_clusters_from_file()
-        figTitle = 'Multisession Report TT{}'.format(self.tetrode)
-        self.report = MultiSessionClusterReport(self.samples, self.timestamps, self.clusters,
-                                            outputDir=self.clustersDir,
-                                            filename=self.reportFileName,figtitle=figTitle,
-                                                showfig=False)
+    #NOTE: You have to call the parent's save_report method with dirname=self.clustersDir. If you do that,
+    #it should have pretty much the same behavior
+    # def save_multisession_report(self):
+    #     if self.clusters == None:
+    #         self.set_clusters_from_file()
+    #     figTitle = 'Multisession Report TT{}'.format(self.tetrode)
+    #     self.report = MultiSessionClusterReport(self.samples, self.timestamps, self.clusters,
+    #                                         outputDir=self.clustersDir,
+    #                                         filename=self.reportFileName,figtitle=figTitle,
+    #                                             showfig=False)
 
-def multisession_isi_loghist(timeStamps,nBins=350,fontsize=8):
-    '''
-    Plot histogram of inter-spike interval (in msec, log scale)
+# def multisession_isi_loghist(timeStamps,nBins=350,fontsize=8):
+#     '''
+#     Plot histogram of inter-spike interval (in msec, log scale)
 
-    NOTE:
-    Nick: I needed to make a copy of this function from jaratoolbox.spikesorting
-    because if the acquisition system is ever stopped and restarted between sessions,
-    then the timestamps will not be sequential. The easiest fix is to ignore any ISIs
-    that are less than 0. The more complicated way would be to ignore the ISIs at the
-    boundaries of the sessions. 
+#     NOTE:
+#     Nick: I needed to make a copy of this function from jaratoolbox.spikesorting
+#     because if the acquisition system is ever stopped and restarted between sessions,
+#     then the timestamps will not be sequential. The easiest fix is to ignore any ISIs
+#     that are less than 0. The more complicated way would be to ignore the ISIs at the
+#     boundaries of the sessions. 
 
-    FIXME: I am doing the easy fix for now (2016-10-19)
+#     FIXME: I am doing the easy fix for now (2016-10-19)
 
-    Parameters
-    ----------
-    timeStamps : array (float in sec)
-    '''
-    fontsizeLegend = fontsize
-    xLims = [1e-1,1e4]
-    ax = plt.gca()
-    ISI = np.diff(timeStamps)
-    if np.any(ISI<0):
-        ISI = ISI[ISI>0] #NOTE: The change is here
-    if len(ISI)==0:  # Hack in case there is only one spike
-        ISI = np.array(10)
-    logISI = np.log10(ISI)
-    [ISIhistogram,ISIbinsLog] = np.histogram(logISI,bins=nBins)
-    ISIbins = 1000*(10**ISIbinsLog[:-1]) # Conversion to msec
-    fractionViolation = np.mean(ISI<1e-3) # Assumes ISI in usec
-    fractionViolation2 = np.mean(ISI<2e-3) # Assumes ISI in usec
-    hp, = plt.semilogx(ISIbins,ISIhistogram,color='k')
-    plt.setp(hp,lw=0.5,color='k')
-    yLims = plt.ylim()
-    plt.xlim(xLims)
-    plt.text(0.15,0.85*yLims[-1],'N={0}'.format(len(timeStamps)),fontsize=fontsizeLegend,va='top')
-    plt.text(0.15,0.6*yLims[-1],'{0:0.2%}\n{1:0.2%}'.format(fractionViolation,fractionViolation2),
-             fontsize=fontsizeLegend,va='top')
-    #plt.text(0.15,0.6*yLims[-1],'%0.2f%%\n%0.2f%%'%(percentViolation,percentViolation2),
-    #         fontsize=fontsizeLegend,va='top')
-    #'VerticalAlignment','top','HorizontalAlignment','left','FontSize',FontSizeAxes);
-    ax.xaxis.grid(True)
-    ax.yaxis.grid(False)
-    plt.xlabel('Interspike interval (ms)')
-    ax.set_yticks(plt.ylim())
-    extraplots.set_ticks_fontsize(ax,fontsize)
-    return (hp,ISIhistogram,ISIbins)
+#     Parameters
+#     ----------
+#     timeStamps : array (float in sec)
+#     '''
+#     fontsizeLegend = fontsize
+#     xLims = [1e-1,1e4]
+#     ax = plt.gca()
+#     ISI = np.diff(timeStamps)
+#     if np.any(ISI<0):
+#         ISI = ISI[ISI>0] #NOTE: The change is here
+#     if len(ISI)==0:  # Hack in case there is only one spike
+#         ISI = np.array(10)
+#     logISI = np.log10(ISI)
+#     [ISIhistogram,ISIbinsLog] = np.histogram(logISI,bins=nBins)
+#     ISIbins = 1000*(10**ISIbinsLog[:-1]) # Conversion to msec
+#     fractionViolation = np.mean(ISI<1e-3) # Assumes ISI in usec
+#     fractionViolation2 = np.mean(ISI<2e-3) # Assumes ISI in usec
+#     hp, = plt.semilogx(ISIbins,ISIhistogram,color='k')
+#     plt.setp(hp,lw=0.5,color='k')
+#     yLims = plt.ylim()
+#     plt.xlim(xLims)
+#     plt.text(0.15,0.85*yLims[-1],'N={0}'.format(len(timeStamps)),fontsize=fontsizeLegend,va='top')
+#     plt.text(0.15,0.6*yLims[-1],'{0:0.2%}\n{1:0.2%}'.format(fractionViolation,fractionViolation2),
+#              fontsize=fontsizeLegend,va='top')
+#     #plt.text(0.15,0.6*yLims[-1],'%0.2f%%\n%0.2f%%'%(percentViolation,percentViolation2),
+#     #         fontsize=fontsizeLegend,va='top')
+#     #'VerticalAlignment','top','HorizontalAlignment','left','FontSize',FontSizeAxes);
+#     ax.xaxis.grid(True)
+#     ax.yaxis.grid(False)
+#     plt.xlabel('Interspike interval (ms)')
+#     ax.set_yticks(plt.ylim())
+#     extraplots.set_ticks_fontsize(ax,fontsize)
+#     return (hp,ISIhistogram,ISIbins)
 
-def multisession_events_in_time(timeStamps,nBins=50,fontsize=8):
-    '''
-    Plot the spike timestamps throughout the recording session.
+# def multisession_events_in_time(timeStamps,nBins=50,fontsize=8):
+#     '''
+#     Plot the spike timestamps throughout the recording session.
 
-    IF the acquisition system is restarted at a site, then the timestamps will
-    also reset and cause a failure in the traditional implementation of this method
-    (spikesorting.plot_events_in_time). This method finds any negative ISIs (which mark
-    the spot where the timestamps were reset), adds the value of the ts immediatly before
-    the reset to all remaining timestamps, and plots a red line at this time point to indicate
-    that there is an uncertain amount of time between the spikes before and after this point. 
+#     IF the acquisition system is restarted at a site, then the timestamps will
+#     also reset and cause a failure in the traditional implementation of this method
+#     (spikesorting.plot_events_in_time). This method finds any negative ISIs (which mark
+#     the spot where the timestamps were reset), adds the value of the ts immediatly before
+#     the reset to all remaining timestamps, and plots a red line at this time point to indicate
+#     that there is an uncertain amount of time between the spikes before and after this point. 
 
-    TODO: Still need to implement the fix I described above and then use the method in the
-    multisession report
+#     TODO: Still need to implement the fix I described above and then use the method in the
+#     multisession report
 
-    Parameters
-    ----------
-    timeStamps : array (float in sec)
-    '''
-    # ISI = np.diff(timeStamps)
-    # if np.any(ISI<0):
+#     Parameters
+#     ----------
+#     timeStamps : array (float in sec)
+#     '''
+#     # ISI = np.diff(timeStamps)
+#     # if np.any(ISI<0):
 
-    ax = plt.gca()
-    timeBinEdges = np.linspace(timeStamps[0],timeStamps[-1],nBins) # in microsec
-    # FIXME: Limits depend on the time of the first spike (not of recording)
-    (nEvents,binEdges) = np.histogram(timeStamps,bins=timeBinEdges)
-    hp, = plt.plot((binEdges-timeStamps[0])/60.0, np.r_[nEvents,0], drawstyle='steps-post')
-    plt.setp(hp,lw=1,color='k')
-    plt.xlabel('Time (min)')
-    plt.axis('tight')
-    ax.set_yticks(plt.ylim())
-    extraplots.boxoff(ax)
-    extraplots.set_ticks_fontsize(ax,fontsize)
-    return hp
+#     ax = plt.gca()
+#     timeBinEdges = np.linspace(timeStamps[0],timeStamps[-1],nBins) # in microsec
+#     # FIXME: Limits depend on the time of the first spike (not of recording)
+#     (nEvents,binEdges) = np.histogram(timeStamps,bins=timeBinEdges)
+#     hp, = plt.plot((binEdges-timeStamps[0])/60.0, np.r_[nEvents,0], drawstyle='steps-post')
+#     plt.setp(hp,lw=1,color='k')
+#     plt.xlabel('Time (min)')
+#     plt.axis('tight')
+#     ax.set_yticks(plt.ylim())
+#     extraplots.boxoff(ax)
+#     extraplots.set_ticks_fontsize(ax,fontsize)
+#     return hp
 
-class MultiSessionClusterReport(object):
-    '''
+# class MultiSessionClusterReport(ClusterReportFromData):
+#     '''
+#     Redefines plot_report fxn to use isi_loghist and plot_events_in_time functions optimized for multiple session data
+#     TODO: This is a still a pretty wet solution, as the layout and everything is defined twice in this file
+#     Need to finish reports when more than nrows<clusters.
 
-    The class ClusterReportFromData needs a 'dataTT' object, which the multisession clustering does not use.
+#     '''
 
-    TODO: This is a very wet solution (most of the multiple session clustering is). We should rework the parent
-    classes perhaps to make subclassing them easier if you can't have a single oneTT object that holds all the
-    data
-
-    Need to finish reports when more than nrows<clusters.
-    '''
-    def __init__(self,samples, timestamps, clusters ,outputDir=None,filename=None,showfig=True,figtitle='',nrows=12):
-        self.timestamps = timestamps
-        self.samples = samples
-        self.nSpikes = len(self.timestamps)
-        self.clusters = clusters
-        self.clustersList = np.unique(self.clusters)
-        self.nClusters = len(self.clustersList)
-        self.nRows = nrows
-        self.nPages = self.nClusters//(self.nRows+1)+1
-        self.spikesEachCluster = [] # Bool
-        self.find_spikes_each_cluster()
-        #self.fig = plt.figure(fignum)
-        self.fig = None
-        self.nPages = 0
-        self.figTitle = figtitle
-
-        self.plot_report(showfig=showfig)
-        if outputDir is not None:
-            self.save_report(outputDir,filename)
-    def __str__(self):
-        return '%d clusters'%(self.nClusters)
-    def find_spikes_each_cluster(self):
-        self.spikesEachCluster = np.empty((self.nClusters,self.nSpikes),dtype=bool)
-        for indc,clusterID in enumerate(self.clustersList):
-            self.spikesEachCluster[indc,:] = (self.clusters==clusterID)
-    def plot_report(self,showfig=False):
-        print 'Plotting report...'
-        #plt.figure(self.fig)
-        self.fig = plt.gcf()
-        self.fig.clf()
-        self.fig.set_facecolor('w')
-        nCols = 3
-        nRows = self.nRows
-        #for indc,clusterID in enumerate(self.clustersList[:3]):
-        for indc,clusterID in enumerate(self.clustersList):
-            #print('Preparing cluster %d'%clusterID)
-            if (indc+1)>self.nRows:
-                print 'WARNING! This cluster was ignored (more clusters than rows)'
-                continue
-            tsThisCluster = self.timestamps[self.spikesEachCluster[indc,:]]
-            wavesThisCluster = self.samples[self.spikesEachCluster[indc,:],:,:]
-            # -- Plot ISI histogram --
-            plt.subplot(self.nRows,nCols,indc*nCols+1)
-            multisession_isi_loghist(tsThisCluster)
-            if indc<(self.nClusters-1): #indc<2:#
-                plt.xlabel('')
-                plt.gca().set_xticklabels('')
-            plt.ylabel('c%d'%clusterID,rotation=0,va='center',ha='center')
-            # -- Plot events in time --
-            plt.subplot(2*self.nRows,nCols,2*(indc*nCols)+6)
-            spikesorting.plot_events_in_time(tsThisCluster)
-            if indc<(self.nClusters-1): #indc<2:#
-                plt.xlabel('')
-                plt.gca().set_xticklabels('')
-            # -- Plot projections --
-            plt.subplot(2*self.nRows,nCols,2*(indc*nCols)+3)
-            spikesorting.plot_projections(wavesThisCluster)
-            # -- Plot waveforms --
-            plt.subplot(self.nRows,nCols,indc*nCols+2)
-            spikesorting.plot_waveforms(wavesThisCluster)
-        #figTitle = self.get_title()
-        plt.figtext(0.5,0.92, self.figTitle,ha='center',fontweight='bold',fontsize=10)
-        if showfig:
-            #plt.draw()
-            plt.show()
-    def get_title(self):
-        return ''
-    def get_default_filename(self,figformat):
-        return 'clusterReport.%s'%(figformat)
-    def save_report(self,outputdir,filename=None,figformat=None):
-        # -- Create output directory --
-        if not os.path.exists(outputdir):
-            print 'Creating clusters directory: %s'%(outputdir)
-            os.makedirs(outputdir)
-        self.fig.set_size_inches((8.5,11))
-        if figformat is None:
-            figformat = 'png' #'png' #'pdf' #'svg'
-        if filename is None:
-            filename = self.get_default_filename(figformat)
-        fullFileName = os.path.join(outputdir,filename)
-        print 'Saving figure to %s'%fullFileName
-        self.fig.savefig(fullFileName,format=figformat)
-        #plt.close(self.fig)
-        ###def closefig(self):
-
+#     def plot_report(self,showfig=False):
+#         print 'Plotting report...'
+#         #plt.figure(self.fig)
+#         self.fig = plt.gcf()
+#         self.fig.clf()
+#         self.fig.set_facecolor('w')
+#         nCols = 3
+#         nRows = self.nRows
+#         #for indc,clusterID in enumerate(self.clustersList[:3]):
+#         for indc,clusterID in enumerate(self.clustersList):
+#             #print('Preparing cluster %d'%clusterID)
+#             if (indc+1)>self.nRows:
+#                 print 'WARNING! This cluster was ignored (more clusters than rows)'
+#                 continue
+#             tsThisCluster = self.timestamps[self.spikesEachCluster[indc,:]]
+#             wavesThisCluster = self.samples[self.spikesEachCluster[indc,:],:,:]
+#             # -- Plot ISI histogram --
+#             plt.subplot(self.nRows,nCols,indc*nCols+1)
+#             multisession_isi_loghist(tsThisCluster)
+#             if indc<(self.nClusters-1): #indc<2:#
+#                 plt.xlabel('')
+#                 plt.gca().set_xticklabels('')
+#             plt.ylabel('c%d'%clusterID,rotation=0,va='center',ha='center')
+#             # -- Plot events in time --
+#             plt.subplot(2*self.nRows,nCols,2*(indc*nCols)+6)
+#             spikesorting.plot_events_in_time(tsThisCluster)
+#             if indc<(self.nClusters-1): #indc<2:#
+#                 plt.xlabel('')
+#                 plt.gca().set_xticklabels('')
+#             # -- Plot projections --
+#             plt.subplot(2*self.nRows,nCols,2*(indc*nCols)+3)
+#             spikesorting.plot_projections(wavesThisCluster)
+#             # -- Plot waveforms --
+#             plt.subplot(self.nRows,nCols,indc*nCols+2)
+#             spikesorting.plot_waveforms(wavesThisCluster)
+#         #figTitle = self.get_title()
+#         plt.figtext(0.5,0.92, self.figTitle,ha='center',fontweight='bold',fontsize=10)
+#         if showfig:
+#             #plt.draw()
+#             plt.show()
 
 if __name__ == "__main__":
     CASE = 4
