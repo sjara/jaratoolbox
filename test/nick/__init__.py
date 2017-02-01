@@ -1,3 +1,0 @@
-'''
-Author: Nick Ponvert
-'''
