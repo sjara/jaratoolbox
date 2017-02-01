@@ -74,7 +74,7 @@ class SessionToCluster(object):
         remotePath = '%s@%s:%s'%(self.serverUser,self.serverName,destPath)
         remotePathResults = os.path.join(remotePath,self.ephysSession+'_kk')
         remotePathReports = os.path.join(remotePath,self.ephysSession+'_report')
-        transferCommandResults = ['rsync','-a', '--progress', '--exclude', "'*.fet.*'",
+        transferCommandResults = ['rsync','-a', '--progress', '--ewayxclude', "'*.fet.*'",
                                   remotePathResults, self.localAnimalPath]
         transferCommandReports = ['rsync','-a', '--progress', remotePathReports, self.localAnimalPath]
         print ' '.join(transferCommandResults)
@@ -98,9 +98,9 @@ class SessionToCluster(object):
 
         
 class TetrodeToCluster(object):
-    def __init__(self,subject,session,tetrode,features=None):
+    def __init__(self,subject,ephysSession,tetrode,features=None):
         self.subject = subject
-        self.session = session
+        self.ephysSession = ephysSession
         self.tetrode = tetrode
         # self.dataTT = None
         self.timestamps = None
@@ -109,21 +109,21 @@ class TetrodeToCluster(object):
         self.nSpikes = None
 
         '''
-        self.dataDir = os.path.join(settings.EPHYS_PATH,'%s/%s/'%(self.subject,self.session))
-        self.clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.subject,self.session))
-        #self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.subject,self.session))
-        self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.subject,self.session))
+        self.dataDir = os.path.join(settings.EPHYS_PATH,'%s/%s/'%(self.subject,self.ephysSession))
+        self.clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.subject,self.ephysSession))
+        #self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.subject,self.ephysSession))
+        self.reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_report/'%(self.subject,self.ephysSession))
         self.tetrodeFile = os.path.join(self.dataDir,'Tetrode%d.spikes'%tetrode)
         self.fetFilename = os.path.join(self.clustersDir,'Tetrode%d.fet.1'%self.tetrode)
         '''
 
-        self.dataDir = os.path.join(settings.EPHYS_PATH,self.subject,self.session)
-        self.clustersDir = os.path.join(settings.EPHYS_PATH,self.subject,self.session+'_kk')
+        self.dataDir = os.path.join(settings.EPHYS_PATH,self.subject,self.ephysSession)
+        self.clustersDir = os.path.join(settings.EPHYS_PATH,self.subject,self.ephysSession+'_kk')
         self.tetrodeFile = os.path.join(self.dataDir,'Tetrode{0}.spikes'.format(tetrode))
         self.fetFilename = os.path.join(self.clustersDir,'Tetrode{0}.fet.1'.format(tetrode))
         #self.reportDir = os.path.join(settings.EPHYS_PATH,self.subject,'reports_clusters')
 
-        self.reportFileName = '{0}_{1}_T{2}.png'.format(self.subject,session,tetrode)
+        self.reportFileName = '{0}_{1}_T{2}.png'.format(self.subject,ephysSession,tetrode)
         self.report = None
         
         if features is None:
@@ -600,28 +600,28 @@ def estimate_spike_peaks(waveforms, srate, align=True, ninterp=200):
     return (peakTimes, peakAmplitudes, spikeShape)
 
 
-class MultipleSessionsToCluster(TetrodeToCluster):
+class MultipleEphysSessionsToCluster(TetrodeToCluster):
 
     '''
-    Cluster many ephys sessions at the same time
+    Cluster many ephys ephysSessions at the same time
 
-    This class will compile the spikes from multiple sessions into a single data structure,
+    This class will compile the spikes from multiple ephysSessions into a single data structure,
     cluster the entire set of spikes at once, and then save the appropriate cluster files
     as if one had simply clustered a session on its own.
     '''
 
-    def __init__(self, subject, sessions, tetrode, idString, features=None):
+    def __init__(self, subject, ephysSessions, tetrode, idString, features=None):
         '''
         Args:
             subject (str): Name of the animal
-            sessions (list): List of ephys session directories to cluster together (format 'YYYY-MM-DD_HH-MM-SS')
+            ephysSessions (list): List of ephys session directories to cluster together (format 'YYYY-MM-DD_HH-MM-SS')
             tetrode (int): The tetrode to cluster
             idString (str): An identifier used to name the directory that contains the clustering results.
                             Use something like 'exp0site1' or '{date}_{depth}'
         '''
         #To init the super I just use the first session. Will this mess me up?
-        super(MultipleSessionsToCluster, self).__init__(subject, sessions[0], tetrode, features)
-        self.sessions = sessions
+        super(MultipleEphysSessionsToCluster, self).__init__(subject, ephysSessions[0], tetrode, features)
+        self.ephysSessions = ephysSessions
         self.idString = idString
         self.recordingNumber = np.array([])
         self.clustersDir = os.path.join(settings.EPHYS_PATH,self.subject,'multisession_{}'.format(self.idString))
@@ -630,8 +630,8 @@ class MultipleSessionsToCluster(TetrodeToCluster):
         self.reportFileName = 'multisession_{}{}{}.png'.format(self.subject, self.tetrode, self.idString)
 
     def load_waveforms(self):
-        for ind, session in enumerate(self.sessions):
-            if session: #This is a fix for when some sessions are 'None'
+        for ind, session in enumerate(self.ephysSessions):
+            if session: #This is a fix for when some ephysSessions are 'None'
                 ephysDir = os.path.join(settings.EPHYS_PATH, self.subject, session)
                 spikeFile = os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(self.tetrode))
                 dataSpkObj = loadopenephys.DataSpikes(spikeFile)
@@ -646,7 +646,7 @@ class MultipleSessionsToCluster(TetrodeToCluster):
                     numSpikes = 0
                     samplesThisSession = None
                     timestampsThisSession = None
-                #Set the values when working with the first non-empty session, then append for the other sessions.
+                #Set the values when working with the first non-empty session, then append for the other ephysSessions.
                 if numSpikes != 0:
                     if self.samples is None:
                         self.samples = samplesThisSession
@@ -667,9 +667,9 @@ class MultipleSessionsToCluster(TetrodeToCluster):
         '''
         clusters = self.clusters
         recordingNumber = self.recordingNumber
-        sessions = self.sessions
+        ephysSessions = self.ephysSessions
         nClusters = len(np.unique(clusters))
-        for indSession, session in enumerate(self.sessions):
+        for indSession, session in enumerate(self.ephysSessions):
             #Make the cluster file directory for this session if it does not already exist
             sessionClusterDir = os.path.join(settings.EPHYS_PATH,self.subject,session+'_kk')
             if not os.path.exists(sessionClusterDir):
