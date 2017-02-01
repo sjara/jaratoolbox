@@ -75,7 +75,7 @@ class SessionToCluster(object):
         remotePath = '%s@%s:%s'%(self.serverUser,self.serverName,destPath)
         remotePathResults = os.path.join(remotePath,self.ephysSession+'_kk')
         remotePathReports = os.path.join(remotePath,self.ephysSession+'_report')
-        transferCommandResults = ['rsync','-a', '--progress', '--ewayxclude', "'*.fet.*'",
+        transferCommandResults = ['rsync','-a', '--progress', '--exclude', "'*.fet.*'",
                                   remotePathResults, self.localAnimalPath]
         transferCommandReports = ['rsync','-a', '--progress', remotePathReports, self.localAnimalPath]
         print ' '.join(transferCommandResults)
