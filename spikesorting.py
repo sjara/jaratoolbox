@@ -24,6 +24,7 @@ N_CHANNELS = 4
 #REMOTE_SERVER = 'zelk'
 #REMOTE_EPHYS_PATH = '/home/sjara/data'
 
+# FIXME: This object needs re-writing (for JaraLab).
 class SessionToCluster(object):
     '''Define session, send data to remote server, cluster remotely and get results back '''
     def __init__(self,animalName,ephysSession,tetrodes,serverUser=None,serverName=None,serverPath=None):
