@@ -601,7 +601,7 @@ def estimate_spike_peaks(waveforms, srate, align=True, ninterp=200):
     return (peakTimes, peakAmplitudes, spikeShape)
 
 
-class MultipleEphysSessionsToCluster(TetrodeToCluster):
+class MultipleSessionsToCluster(TetrodeToCluster):
 
     '''
     Cluster many ephys ephysSessions at the same time
@@ -621,7 +621,7 @@ class MultipleEphysSessionsToCluster(TetrodeToCluster):
                             Use something like 'exp0site1' or '{date}_{depth}'
         '''
         #To init the super I just use the first session. Will this mess me up?
-        super(MultipleEphysSessionsToCluster, self).__init__(subject, ephysSessions[0], tetrode, features)
+        super(MultipleSessionsToCluster, self).__init__(subject, ephysSessions[0], tetrode, features)
         self.ephysSessions = ephysSessions
         self.idString = idString
         self.recordingNumber = np.array([])
