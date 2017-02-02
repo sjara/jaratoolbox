@@ -21,8 +21,9 @@ class TestLoadOpenEphys(unittest.TestCase):
 
     def test_clustering_multiple_sessions(self):
         oneTT = spikesorting.MultipleSessionsToCluster('test', ['testdata', 'testdata2'], 2, 'test')
-        oneTT.load_all_waveforms()
-        oneTT.create_multisession_fet_files()
+        oneTT.load_waveforms()
+        oneTT.create_fet_files()
         oneTT.run_clustering()
-        oneTT.save_multisession_report()
+        oneTT.save_single_session_clu_files()
+        oneTT.save_report()
 

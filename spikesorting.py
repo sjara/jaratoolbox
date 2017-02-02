@@ -24,7 +24,7 @@ N_CHANNELS = 4
 #REMOTE_SERVER = 'zelk'
 #REMOTE_EPHYS_PATH = '/home/sjara/data'
 
-# FIXME: This object needs re-writing (for JaraLab).
+# NOTE: This object is not longer used (in JaraLab).
 class SessionToCluster(object):
     '''Define session, send data to remote server, cluster remotely and get results back '''
     def __init__(self,animalName,ephysSession,tetrodes,serverUser=None,serverName=None,serverPath=None):
@@ -97,7 +97,6 @@ class SessionToCluster(object):
         subprocess.call(commandStr,shell=True)
         print 'DONE!'
 
-        
 class TetrodeToCluster(object):
     def __init__(self,subject,ephysSession,tetrode,features=None):
         self.subject = subject
@@ -126,7 +125,7 @@ class TetrodeToCluster(object):
 
         self.reportFileName = '{0}_{1}_T{2}.png'.format(self.subject,ephysSession,tetrode)
         self.report = None
-        
+
         if features is None:
             self.featureNames = ['peak','valley','energy']
         else:
@@ -177,7 +176,7 @@ class TetrodeToCluster(object):
         if returnCode:
             print 'WARNING! clustering gave an error'
         '''
-        
+
         #KKparamsFormat = '-Subset %d -MinClusters %d -MaxClusters %d -MaxPossibleClusters %d -UseFeatures %s';
         #KKparams = KKparamsFormat%(Subset,MinClusters,MaxClusters,MaxPossibleClusters,UseFeatures)
         #commandToRun = '%s %s %s %s'%(KKpath,KKtetrode,KKsuffix,KKparams)
@@ -196,7 +195,10 @@ class TetrodeToCluster(object):
         # self.dataTT.set_clusters(os.path.join(self.clustersDir,'Tetrode%d.clu.1'%self.tetrode))
         self.set_clusters_from_file()
         figTitle = self.dataDir+' (T%d)'%self.tetrode
-        self.report = ClusterReportFromData(self.dataTT,outputDir=reportDir,
+        self.report = ClusterReportFromData(self.timestamps,
+                                            self.samples,
+                                            self.clusters,
+                                            outputDir=reportDir,
                                             filename=self.reportFileName,figtitle=figTitle,
                                             showfig=False)
     def set_clusters_from_file(self):
@@ -269,8 +271,8 @@ def pp_features(featureValues,nvals=4):
     for oneval in featureValues[-1,:]:
         print '%0.2f '%oneval,
     print ''
-    
- 
+
+
 
 def plot_isi_loghist(timeStamps,nBins=350,fontsize=8):
     '''
@@ -293,7 +295,7 @@ def plot_isi_loghist(timeStamps,nBins=350,fontsize=8):
     ISIbins = 1000*(10**ISIbinsLog[:-1]) # Conversion to msec
     fractionViolation = np.mean(ISI<1e-3) # Assumes ISI in usec
     fractionViolation2 = np.mean(ISI<2e-3) # Assumes ISI in usec
-    
+
     hp, = plt.semilogx(ISIbins,ISIhistogram,color='k')
     plt.setp(hp,lw=0.5,color='k')
     yLims = plt.ylim()
@@ -336,7 +338,7 @@ def plot_waveforms(waveforms,ntraces=40,fontsize=8):
     '''
     Plot waveforms given array of shape (nChannels,nSamplesPerSpike,nSpikes)
 
-    The average waveform is over the randomly-selected spikes, and not all of the spikes. 
+    The average waveform is over the randomly-selected spikes, and not all of the spikes.
     '''
     (nSpikes,nChannels,nSamplesPerSpike) = waveforms.shape
     spikesToPlot = np.random.randint(nSpikes,size=ntraces)
@@ -344,7 +346,7 @@ def plot_waveforms(waveforms,ntraces=40,fontsize=8):
 
     meanWaveforms = np.mean(alignedWaveforms,axis=0)
     scalebarSize = abs(meanWaveforms.min())
-    
+
     xRange = np.arange(nSamplesPerSpike)
     for indc in range(nChannels):
         newXrange = xRange+indc*(nSamplesPerSpike+2)
@@ -384,8 +386,8 @@ def plot_projections(waveforms,npoints=200):
     plt.plot(0,0,'+',color='0.5')
     plt.hold(False)
     plt.axis('off')
-    
-   
+
+
 class ClusterReportFromData(object):
     '''
     Need to finish reports when more than nrows<clusters.
@@ -404,7 +406,7 @@ class ClusterReportFromData(object):
         self.set_parameters() # From dataTT
         self.nPages = 0
         self.figTitle = figtitle
-        
+
         self.plot_report(showfig=showfig)
         if outputDir is not None:
             self.save_report(outputDir,filename)
@@ -451,7 +453,7 @@ class ClusterReportFromData(object):
                 plt.gca().set_xticklabels('')
             # -- Plot projections --
             plt.subplot(2*self.nRows,nCols,2*(indc*nCols)+3)
-            plot_projections(wavesThisCluster)  
+            plot_projections(wavesThisCluster)
             # -- Plot waveforms --
             plt.subplot(self.nRows,nCols,indc*nCols+2)
             plot_waveforms(wavesThisCluster)
@@ -481,6 +483,7 @@ class ClusterReportFromData(object):
         ###def closefig(self):
 
 
+#NOTE: We never use this in jaralab
 class ClusterReportTetrode(ClusterReportFromData):
     def __init__(self,animalName,ephysSession,tetrode,outputDir=None,showfig=False,
                  figtitle=None,nrows=12):
@@ -642,7 +645,7 @@ class MultipleSessionsToCluster(TetrodeToCluster):
                     sessionVector = np.zeros(numSpikes)+ind
                     samplesThisSession = dataSpkObj.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
                     samplesThisSession = (1000.0/dataSpkObj.gain[0,0]) * samplesThisSession
-                    timestampsThisSession = dataSpkObj.timestamps/self.SAMPLING_RATE
+                    timestampsThisSession = dataSpkObj.timestamps/dataSpkObj.samplingRate
                 except AttributeError:
                     numSpikes = 0
                     samplesThisSession = None
@@ -666,6 +669,8 @@ class MultipleSessionsToCluster(TetrodeToCluster):
         to copy over the multisession cluster report to each directory that was included in the clustering.
         This might be overkill.
         '''
+        if not self.clusters:
+            self.set_clusters_from_file()
         clusters = self.clusters
         recordingNumber = self.recordingNumber
         ephysSessions = self.ephysSessions
@@ -678,7 +683,7 @@ class MultipleSessionsToCluster(TetrodeToCluster):
                 os.makedirs(sessionClusterDir)
             sessionClusterFile = os.path.join(sessionClusterDir,'Tetrode{}.clu.1'.format(self.tetrode))
             fid = open(sessionClusterFile,'w')
-            fid.write('{0}\n'.format(nClusters)) 
+            fid.write('{0}\n'.format(nClusters))
             clusterNumsThisSession = self.clusters[self.recordingNumber == indSession]
             print "Writing .clu.1 file for session {}".format(session)
             for cn in clusterNumsThisSession:
@@ -705,7 +710,7 @@ class MultipleSessionsToCluster(TetrodeToCluster):
 #     because if the acquisition system is ever stopped and restarted between sessions,
 #     then the timestamps will not be sequential. The easiest fix is to ignore any ISIs
 #     that are less than 0. The more complicated way would be to ignore the ISIs at the
-#     boundaries of the sessions. 
+#     boundaries of the sessions.
 
 #     FIXME: I am doing the easy fix for now (2016-10-19)
 
@@ -752,7 +757,7 @@ class MultipleSessionsToCluster(TetrodeToCluster):
 #     (spikesorting.plot_events_in_time). This method finds any negative ISIs (which mark
 #     the spot where the timestamps were reset), adds the value of the ts immediatly before
 #     the reset to all remaining timestamps, and plots a red line at this time point to indicate
-#     that there is an uncertain amount of time between the spikes before and after this point. 
+#     that there is an uncertain amount of time between the spikes before and after this point.
 
 #     TODO: Still need to implement the fix I described above and then use the method in the
 #     multisession report
@@ -868,7 +873,7 @@ if __name__ == "__main__":
         #thisSession.run_clustering_remotely()
         #thisSession.create_fet_files()
         thisSession.delete_fet_files()
-        
+
 '''
 animalName   = 'saja125'
 ephysSession = '2012-02-07_14-18-20'
