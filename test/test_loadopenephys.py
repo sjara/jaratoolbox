@@ -2,15 +2,20 @@ import os
 import unittest
 from jaratoolbox import loadopenephys
 from jaratoolbox import spikesanalysis
+from jaratoolbox import settings
 from matplotlib import pyplot as plt
-testDir = os.path.dirname(os.path.abspath(__file__))
-dataDir = 'testdata/testephysdata'
+import subprocess
+testDataDir = settings.TEST_EPHYS_DATA_PATH
 
 class TestLoadOpenEphys(unittest.TestCase):
 
+    def test_data(self):
+        transferCommand = ['rsync', '-av', settings.TEST_DATA_REMOTE, settings.TEST_DATA_LOCAL_ROOT]
+        subprocess.call(transferCommand)
+
     def test_spike_loading(self):
         spikesFn = 'Tetrode2.spikes'
-        spikesFile = os.path.join(testDir,dataDir,spikesFn)
+        spikesFile = os.path.join(testDataDir,spikesFn)
         dataSpikes = loadopenephys.DataSpikes(spikesFile)
         plt.plot(dataSpikes.samples[2,:,:].ravel(),'.-')
         # 1/0
@@ -18,14 +23,14 @@ class TestLoadOpenEphys(unittest.TestCase):
 
     def test_event_loading(self):
         eventFn = 'all_channels.events'
-        eventFile = os.path.join(testDir,dataDir,eventFn)
+        eventFile = os.path.join(testDataDir, eventFn)
         eventData = loadopenephys.Events(eventFile)
         plt.plot(eventData.timestamps, '.')
         # plt.show()
 
     def test_cont_loading(self):
         contFn = '100_CH11.continuous'
-        contFile = os.path.join(testDir,dataDir,contFn)
+        contFile = os.path.join(testDataDir,contFn)
         contData = loadopenephys.DataCont(contFile)
         plt.plot(contData.samples[:10000],'.-')
         # plt.show()
@@ -33,8 +38,8 @@ class TestLoadOpenEphys(unittest.TestCase):
     def test_event_onsets(self):
         eventFn = 'all_channels.events'
         spikesFn = 'Tetrode2.spikes'
-        eventFile = os.path.join(testDir,dataDir,eventFn)
-        spikesFile = os.path.join(testDir,dataDir,spikesFn)
+        eventFile = os.path.join(testDataDir,eventFn)
+        spikesFile = os.path.join(testDataDir,spikesFn)
         eventData = loadopenephys.Events(eventFile)
         dataSpikes = loadopenephys.DataSpikes(spikesFile)
         spikeTimestamps = dataSpikes.timestamps
