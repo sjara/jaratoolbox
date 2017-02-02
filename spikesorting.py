@@ -851,16 +851,16 @@ class MultiSessionClusterReport(object):
             plt.ylabel('c%d'%clusterID,rotation=0,va='center',ha='center')
             # -- Plot events in time --
             plt.subplot(2*self.nRows,nCols,2*(indc*nCols)+6)
-            spikesorting.plot_events_in_time(tsThisCluster)
+            plot_events_in_time(tsThisCluster)
             if indc<(self.nClusters-1): #indc<2:#
                 plt.xlabel('')
                 plt.gca().set_xticklabels('')
             # -- Plot projections --
             plt.subplot(2*self.nRows,nCols,2*(indc*nCols)+3)
-            spikesorting.plot_projections(wavesThisCluster)
+            plot_projections(wavesThisCluster)
             # -- Plot waveforms --
             plt.subplot(self.nRows,nCols,indc*nCols+2)
-            spikesorting.plot_waveforms(wavesThisCluster)
+            plot_waveforms(wavesThisCluster)
         #figTitle = self.get_title()
         plt.figtext(0.5,0.92, self.figTitle,ha='center',fontweight='bold',fontsize=10)
         if showfig:
