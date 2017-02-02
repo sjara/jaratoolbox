@@ -97,6 +97,7 @@ class SessionToCluster(object):
         subprocess.call(commandStr,shell=True)
         print 'DONE!'
 
+        
 class TetrodeToCluster(object):
     def __init__(self,subject,ephysSession,tetrode,features=None):
         self.subject = subject
@@ -622,14 +623,25 @@ class MultipleSessionsToCluster(TetrodeToCluster):
             tetrode (int): The tetrode to cluster
             idString (str): An identifier used to name the directory that contains the clustering results.
                             Use something like 'exp0site1' or '{date}_{depth}'
+
         '''
         #To init the super I just use the first session. Will this mess me up?
         super(MultipleSessionsToCluster, self).__init__(subject, ephysSessions[0], tetrode, features)
         self.ephysSessions = ephysSessions
         self.idString = idString
         self.recordingNumber = np.array([])
+        self.samples = None
+        self.timestamps = None
+        self.clusters = None
+        self.nSpikes = None
+        self.idString = idString
         self.clustersDir = os.path.join(settings.EPHYS_PATH,self.subject,'multisession_{}'.format(self.idString))
+        self.fetFilename = os.path.join(self.clustersDir,'Tetrode%d.fet.1'%self.tetrode)
         self.report = None
+        self.reportFileName = '{0}.png'.format(self.tetrode)
+        # self.featureNames = ['peak','valley','energy']
+        self.featureNames = ['peak','valleyFirstHalf']
+        self.nFeatures = len(self.featureNames)
         self.featureValues = None
         self.reportFileName = 'multisession_{}{}{}.png'.format(self.subject, self.tetrode, self.idString)
 
@@ -661,6 +673,19 @@ class MultipleSessionsToCluster(TetrodeToCluster):
                         self.timestamps = np.concatenate([self.timestamps, timestampsThisSession])
                         self.recordingNumber = np.concatenate([self.recordingNumber, sessionVector])
         self.nSpikes = len(self.timestamps)
+
+    def create_multisession_fet_files(self):
+        if not os.path.exists(self.clustersDir):
+            print 'Creating clusters directory: %s'%(self.clustersDir)
+            os.makedirs(self.clustersDir)
+        if self.samples is None:
+            self.load_all_waveforms()
+        self.featureValues = calculate_features(self.samples,self.featureNames)
+        write_fet_file(self.fetFilename, self.featureValues)
+
+    def set_clusters_from_file(self):
+        clusterFile = os.path.join(self.clustersDir,'Tetrode%d.clu.1'%self.tetrode)
+        self.clusters = np.fromfile(clusterFile,dtype='int32',sep=' ')[1:]
 
     def save_single_session_clu_files(self):
         '''
