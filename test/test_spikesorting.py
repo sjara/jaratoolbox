@@ -4,13 +4,8 @@ from jaratoolbox import spikesorting
 from jaratoolbox import settings
 from matplotlib import pyplot as plt
 import subprocess
-testDataDir = settings.TEST_EPHYS_DATA_PATH
 
-class TestLoadOpenEphys(unittest.TestCase):
-
-    def test_data(self):
-        transferCommand = ['rsync', '-av', settings.TEST_DATA_REMOTE, settings.TEST_DATA_LOCAL_ROOT]
-        subprocess.call(transferCommand)
+class TestSpikesorting(unittest.TestCase):
 
     def test_clustering_single_session(self):
         oneTT = spikesorting.TetrodeToCluster('test', 'testdata', 2)
