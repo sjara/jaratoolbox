@@ -17,11 +17,34 @@ class Video(object):
     def __init__(self,filename):
         self.filename = filename
         self.cap = cv2.VideoCapture(self.filename)
+        # For some reason, nFrames is not always accurate.
         self.nFrames = int(self.cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
         self.frameSize = [int(self.cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)),
                           int(self.cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))]
         self.fps = self.cap.get(cv2.cv.CV_CAP_PROP_FPS) # Sometimes it is NaN
         self.frame = None
+    def read(self):
+        self.ret, self.frame = self.cap.read()
+        currentFrame = int(self.cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
+        if not self.ret:
+            # If it returns False, it has reached the end of the file.
+            # and nFrames needs to be fixed.
+            self.nFrames = currentFrame
+            print 'WARNING: reached end of video file.'
+        '''
+        if not self.ret:
+            currentFrame = int(self.cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
+            print 'WARNING: Could not read frame {0}. I will rewind and retry.'.format(currentFrame)
+            self.cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, currentFrame)
+            self.ret, self.frame = self.cap.read() # Read previous frame
+            #self.ret, self.frame = self.cap.read() # Read failed frame
+            if not self.ret:
+                #raise IOError('Could not read frame.')
+                print 'Could not read frame. Will replace with blank frame'
+                blankFrame = np.zeros([self.frameSize[1],self.frameSize[0],3],dtype=np.uint8)
+                self.frame = blankFrame  # If it cannot read frame, make it blank
+        '''
+        return (self.ret, self.frame)
     def get_current_frame(self):
             return int(self.cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
     def show_frame(self, frameIndex):
@@ -147,7 +170,9 @@ class ColorTracker(Video):
     '''
     def process(self, minArea=25, lastFrame=None, verboseInterval=100, showImage=False):
         colorMask = np.empty((self.nColors,self.frameSize[1],self.frameSize[0]),dtype=np.uint8)
-        colorCenter = np.empty((self.nColors,2,self.nFrames))
+        # I need to initalize with zeros, because nFrames is not always accurate and we
+        # may attempt to read inexistent frames.
+        colorCenter = np.zeros((self.nColors,2,self.nFrames))
         zeroFrame = np.zeros([self.frameSize[1],self.frameSize[0]],dtype=np.uint8)
         if lastFrame is None:
             lastFrame = self.nFrames
@@ -156,8 +181,12 @@ class ColorTracker(Video):
                 print 'Processing frame {0}/{1}'.format(self.get_current_frame(),self.nFrames)
             self.ret, self.frame = self.cap.read()
             if not self.ret:
+                break
+            '''
+            if not self.ret:
                 blankFrame = np.zeros([self.frameSize[1],self.frameSize[0],3],dtype=np.uint8)
                 self.frame = blankFrame  # If it cannot read frame, make it blank
+            '''
             hsvImg = cv2.cvtColor(self.frame,cv2.COLOR_BGR2HSV)
             for indColor,oneColRange in enumerate(self.colorRanges):
                 colorMask[indColor,:,:] = cv2.inRange(hsvImg, oneColRange.lower, oneColRange.upper)
@@ -249,7 +278,8 @@ class StimDetector(Video):
         self.nRegions = len(self.coords)
         self.regions = []
         self.set_coords(self.coords) # This will set self.regions
-        self.intensity = np.empty((self.nRegions,self.nFrames))
+        #self.intensity = np.empty((self.nRegions,self.nFrames))
+        self.intensity = np.zeros((self.nRegions,self.nFrames))
     def set_coords(self,coords):
         for theseCoords in coords:
             self.regions.append(ImageRegion(theseCoords))
@@ -261,10 +291,15 @@ class StimDetector(Video):
         for indf in range(self.nFrames):
             if indf%verboseInterval==0:
                 print 'Processing frame {0}/{1}'.format(self.get_current_frame(),self.nFrames)
+            self.ret, self.frame = self.read()
+            if not self.ret:
+                break
+            '''
             self.ret, self.frame = self.cap.read()
             if not self.ret:
                 blankFrame = np.zeros([self.frameSize[1],self.frameSize[0],3],dtype=np.uint8)
                 self.frame = blankFrame  # If it cannot read frame, make it blank
+            '''
             gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
             for indregion,oneregion in enumerate(self.regions):
                 chunk = gray[slice(*oneregion.vrange), slice(*oneregion.hrange)]
