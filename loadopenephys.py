@@ -141,7 +141,22 @@ class Events(object):
         self.eventID = data['eventID'].copy()
         self.eventChannel = data['eventChannel'].copy()
         self.recordingNumber = data['recordingNumber'].copy()
+    def get_event_onset_times(self, eventID=1, eventChannel=0):
+        '''
+        Get the onset times for specific events.
 
+        Args:
+            eventID (int): 1 for onset, 0 for offset
+            eventChannel (int): The openEphys DIO channel that recieves the event.
+                                0 picks up both sound and laser-driven events from our paradigms
+        Returns:
+            eventOnsetTimes (array): An array of the timestamps of the event onsets.
+        '''
+        if self.eventID is not None:
+            eventOnsetTimes=self.timestamps[(self.eventID==eventID)&(self.eventChannel==eventChannel)]
+        else:
+            eventOnsetTimes=self.timestamps[self.eventChannel==eventChannel]
+        return eventOnsetTimes
 
 class DataSpikes(object):
     '''
@@ -160,6 +175,16 @@ class DataSpikes(object):
         self.filesize = os.path.getsize(filename)
         if self.filesize==HEADER_SIZE:
             print 'File is empty'
+            self.eventType = None
+            self.timestamps = None
+            self.electrodeID = None
+            self.nChannels = None
+            self.nSamplesPerSpike = None
+            self.samples = None
+            self.gain = None
+            self.threshold = None
+            self.recordingNumber = None
+            self.clusters = None
             return
 
         # -- Find record size --
@@ -210,7 +235,7 @@ class DataSpikes(object):
 
 if __name__=='__main__':
     from pylab import *
-    CASE = 3
+    CASE = 7
     if CASE==1:
         dataDir = '/var/tmp/2014-04-25_12-19-27/'
         filenameOnly = '100_CH1.continuous'
@@ -274,8 +299,34 @@ if __name__=='__main__':
         plot(events.samplePosition,'.')
         draw(); show()
 
+    elif CASE==7:
+        from jaratoolbox import spikesanalysis
+        dataDir = '/home/nick/data/ephys/pinp015/2017-01-26_13-39-55'
+        eventFn = 'all_channels.events'
+        spikesFn = 'Tetrode2.spikes'
+        eventFile = os.path.join(dataDir,eventFn)
+        spikesFile = os.path.join(dataDir,spikesFn)
+        eventOnsetTimes = Events(eventFile).get_event_onset_times()
+        dataSpikes = DataSpikes(spikesFile)
+        spikeTimestamps = dataSpikes.timestamps
 
+        #convert to seconds
+        spikeTimestamps = spikeTimestamps/30000.0
+        eventOnsetTimes = eventOnsetTimes/30000.0
 
+        timeRange = [-0.5, 1.0]
+
+        #Remove events except from frist pulse in laser train
+        eventOnsetTimes = spikesanalysis.minimum_event_onset_diff(eventOnsetTimes, 0.5)
+
+        (spikeTimesFromEventOnset,
+        trialIndexForEachSpike,
+        indexLimitsEachTrial) = spikesanalysis.eventlocked_spiketimes(spikeTimestamps,
+                                                                     eventOnsetTimes,
+                                                                     timeRange)
+
+        plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.')
+        show()
 '''
     One int64 timestamp (actually a sample number; this can be converted to seconds using the sampleRate variable in the header)
     One uint16 number (N) indicating the samples per record (always 1024, at least for now)

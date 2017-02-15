@@ -53,7 +53,22 @@ def eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange,spikeindex=False
     else:
         return (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial)
 
+def minimum_event_onset_diff(eventOnsetTimes, minEventOnsetDiff):
+    '''
+    Exclude events that happen too soon after a preceeding event. Useful for plotting
+    responses to trains of stimuli (Only consider the first pulse of the train as an event onset)
 
+    Args:
+        eventOnsetTimes (array): Array of event onset timestamps
+        minEventOnsetDiff (float): Minimum inter-event time for events to be considered
+                                   independent.
+    Returns:
+        eventOnsetTimes (array): Array of event timestamps
+    '''
+
+    evdiff = np.r_[1.0, np.diff(eventOnsetTimes)]
+    eventOnsetTimes = eventOnsetTimes[evdiff>minEventOnsetDiff]
+    return eventOnsetTimes
 
 def spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,binEdges):
     '''
