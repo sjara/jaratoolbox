@@ -175,6 +175,16 @@ class DataSpikes(object):
         self.filesize = os.path.getsize(filename)
         if self.filesize==HEADER_SIZE:
             print 'File is empty'
+            self.eventType = None
+            self.timestamps = None
+            self.electrodeID = None
+            self.nChannels = None
+            self.nSamplesPerSpike = None
+            self.samples = None
+            self.gain = None
+            self.threshold = None
+            self.recordingNumber = None
+            self.clusters = None
             return
 
         # -- Find record size --
