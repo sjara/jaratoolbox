@@ -750,17 +750,17 @@ class ClusterInforec(object):
             recluster (bool): Whether to recluster the site if clustering has been done already
         '''
 
-            siteObj = self.inforec.experiments[experiment].sites[site]
-            idString = 'exp{}site{}'.format(experiment, site)
-            oneTT = cluster_many_sessions(siteObj.subject,
-                                          siteObj.session_ephys_dirs(),
-                                          tetrode,
-                                          idString,
-                                          saveSingleSessionCluFiles=saveSingleSessionCluFiles,
-                                          minClusters=minClusters,
-                                          maxClusters=maxClusters,
-                                          maxPossibleClusters=maxPossibleClusters,
-                                          recluster=recluster)
+        siteObj = self.inforec.experiments[experiment].sites[site]
+        idString = 'exp{}site{}'.format(experiment, site)
+        oneTT = cluster_many_sessions(siteObj.subject,
+                                        siteObj.session_ephys_dirs(),
+                                        tetrode,
+                                        idString,
+                                        saveSingleSessionCluFiles=saveSingleSessionCluFiles,
+                                        minClusters=minClusters,
+                                        maxClusters=maxClusters,
+                                        maxPossibleClusters=maxPossibleClusters,
+                                        recluster=recluster)
 
     def cluster_site(self, experiment, site, **kwargs):
         '''
