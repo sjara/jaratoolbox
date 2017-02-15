@@ -778,6 +778,13 @@ class ClusterInforec(object):
         for indSite, site in enumerate(experiment.sites):
             self.cluster_site(indExperiment, indSite, **kwargs)
 
+    def cluster_all_experiments(self, **kwargs):
+        '''
+        For available kwargs, see help(cluster_tetrode)
+        '''
+        for indExperiment, _ in enumerate(self.inforec.experiments):
+            self.cluster_all_sites(indExperiment, **kwargs)
+
 def cluster_many_sessions(subject, sessions,
                           tetrode, idString,
                           saveSingleSessionCluFiles=True,
