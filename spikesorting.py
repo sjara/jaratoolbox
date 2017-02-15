@@ -785,19 +785,19 @@ def cluster_many_sessions(subject, sessions,
                           maxClusters=12,
                           maxPossibleClusters=12,
                           recluster=False):
-        '''
-        Run clustering for many ephys sessions
-        Args:
-            subject (str): Name of subject
-            sessions (list): List of session directories (e.g. ['2016-01-01_12-12-12', etc.])
-            tetrode (int): Tetrode number to cluster (starts from 1)
-            idString (str): A unique identifier for the multisession clustering (usually 'expXsiteY')
-            saveSingleSessionCluFiles (bool): Whether to save clu files for individual sessions
-            minClusters (int): Minimum number of clusters for KK to find
-            maxClusters (int): Max clusters for KK to find
-            maxPossibleClusters (int): Max clusters for KK to find
-            recluster (bool): Whether to recluster the site if clustering has been done already
-        '''
+    '''
+    Run clustering for many ephys sessions
+    Args:
+        subject (str): Name of subject
+        sessions (list): List of session directories (e.g. ['2016-01-01_12-12-12', etc.])
+        tetrode (int): Tetrode number to cluster (starts from 1)
+        idString (str): A unique identifier for the multisession clustering (usually 'expXsiteY')
+        saveSingleSessionCluFiles (bool): Whether to save clu files for individual sessions
+        minClusters (int): Minimum number of clusters for KK to find
+        maxClusters (int): Max clusters for KK to find
+        maxPossibleClusters (int): Max clusters for KK to find
+        recluster (bool): Whether to recluster the site if clustering has been done already
+    '''
 
     oneTT = MultipleSessionsToCluster(subject,
                                       sessions,
