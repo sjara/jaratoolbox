@@ -675,6 +675,15 @@ class MultipleSessionsToCluster(TetrodeToCluster):
                         self.recordingNumber = np.concatenate([self.recordingNumber, sessionVector])
         self.nSpikes = len(self.timestamps)
 
+    #TODO: Finish this
+    def sanitize_timestamps(self):
+        '''
+        If timestamps are not sequential, there will be problems plotting time hists and isi hists.
+        This function forces timestamps to be sequential. It does this by detecting negative isi vals
+        and shifting all timestamps after this up by the value of the last timestamp. 
+        '''
+        pass
+
     def create_multisession_fet_files(self):
         if not os.path.exists(self.clustersDir):
             print 'Creating clusters directory: %s'%(self.clustersDir)
@@ -761,6 +770,7 @@ class ClusterInforec(object):
                                         maxClusters=maxClusters,
                                         maxPossibleClusters=maxPossibleClusters,
                                         recluster=recluster)
+        return oneTT
 
     def cluster_site(self, experiment, site, **kwargs):
         '''
@@ -823,7 +833,59 @@ def cluster_many_sessions(subject, sessions,
         oneTT.save_report()
     if saveSingleSessionCluFiles:
         oneTT.save_single_session_clu_files()
+
+    #Save cluster stats
+    statsFn = 'Tetrode{}_stats.npz'.format(tetrode)
+    outputFullPath = os.path.join(oneTT.clustersDir, statsFn)
+    uniqueClusters = np.unique(oneTT.clusters)
+    isiViolations = np.empty(len(uniqueClusters))
+    clusters = np.empty(len(uniqueClusters))
+    nSpikes = np.empty(len(uniqueClusters))
+    nSamples=40
+    nChannels=4
+    averageWaves = np.empty((len(uniqueClusters), nChannels, nSamples))
+    for indc, cluster in enumerate(uniqueClusters):
+        clusters[indc] = cluster
+        clusterTimestamps = oneTT.timestamps[oneTT.clusters==cluster]
+        # clusterTimestamps = cluste
+        clusterWaves = oneTT.samples[oneTT.clusters==cluster]
+        clusterISIviolations = calculate_ISI_violations(clusterTimestamps)
+        clusterNspikes = len(clusterTimestamps)
+        clusterWavesToSave = clusterWaves[np.random.randint(clusterNspikes, size=40)]
+        isiViolations[indc] = clusterISIviolations
+        nSpikes[indc] = clusterNspikes
+        print "Calculating cluster {} average waveform".format(cluster)
+        alignedClusterWaves = align_waveforms(clusterWaves)
+        clusterAverageWaveform = np.mean(alignedClusterWaves, axis=0)
+        averageWaves[indc, :, :] = clusterAverageWaveform
+    print "Saving cluster stats to {}".format(outputFullPath)
+    np.savez(outputFullPath,
+             clusters=clusters,
+             subject=oneTT.subject,
+             isiViolations=isiViolations,
+             nSpikes=nSpikes,
+             averageWaves=averageWaves,
+             featureNames=oneTT.featureNames,
+             minClusters=minClusters,
+             maxClusters=maxClusters,
+             maxPossibleClusters=maxPossibleClusters)
     return oneTT
+
+def calculate_ISI_violations(timestamps, threshold=2e-3):
+    '''
+    Calculate the percentage of ISIs that are smaller than some threshold
+    Args:
+        timestamps (array): spike timestamps (in SECONDS if you want to use default threshold)
+        threshold (float): threshold for calling an ISI a violation
+    Returns:
+        isiViolations (float): fraction of ISIs that were smaller than the threshold
+    '''
+    ISI = np.diff(timestamps)
+    if len(ISI)==0:  # Hack in case there is only one spike
+        ISI = np.array(10)
+    isiViolations = np.mean(ISI<threshold) # Assumes ISI in usec
+    return isiViolations
+
 
 if __name__ == "__main__":
     CASE = 4
