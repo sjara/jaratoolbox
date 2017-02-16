@@ -6,8 +6,7 @@ This module will provide a frontend for plotting data during an ephys experiment
 The job of the module will be to take session names, get the data, and then pass the data to the correct plotting function
 '''
 
-# import os
-
+import os
 import imp
 from jaratest.nick.database import dataloader_v2 as dataloader
 from jaratest.nick.database import dataplotter
@@ -15,6 +14,11 @@ reload(dataplotter)
 reload(dataloader)
 import numpy as np
 from matplotlib import pyplot as plt
+import functools
+from jaratoolbox import extraplots
+from jaratoolbox import spikesanalysis
+from jaratoolbox import spikesorting
+from jaratoolbox import behavioranalysis
 
 class EphysInterface(object):
 
@@ -371,10 +375,15 @@ class EphysInterface(object):
                                               sessionObj.ephys_dir(),
                                               tetrode)
 
+        clusterFile = os.path.join(oneTT.clustersDir,
+                                   'Tetrode{}.clu.1'.format(int(oneTT.tetrode)))
         oneTT.load_waveforms()
-        oneTT.create_fet_files()
-        oneTT.run_clustering()
-        oneTT.save_report()
+        if os.path.isfile(clusterFile):
+            oneTT.set_clusters_from_file()
+        else:
+            oneTT.create_fet_files()
+            oneTT.run_clustering(MinClusters=6, MaxClusters=6, MaxPossibleClusters=6)
+            oneTT.save_report()
 
     def cluster_array(self, session, site=-1, experiment=-1):
 
@@ -595,3 +604,187 @@ class EphysInterface(object):
         plt.figtext(0.525, 0.025, "Frequency (kHz)", ha = 'center')
         plt.figtext(0.025, 0.5, "Intensity (dB SPL)", va = 'center', rotation = 'vertical')
         plt.show()
+
+    def calculate_cluster_response_significance(self, session):
+        pass
+
+    def cluster_color_raster(self, session, site=-1, experiment=-1):
+        '''
+        Display cluster waveforms and a colormap-style psth. Could also just do lines for each cluster.
+        could also just plot spikes in color for each cluster.
+        '''
+        #Cluster the site, all tetrodes
+        #TODO: Make sure this function is using nice new cms with numclusters=6
+        self.cluster_array(session, site=site, experiment=experiment)
+
+        sessionObj = self.get_session_obj(session, experiment, site)
+        sessionDir = sessionObj.ephys_dir()
+        eventData = self.loader.get_session_events(sessionDir)
+        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+        tetrodes=sessionObj.tetrodes
+
+        from matplotlib import gridspec
+        gs = gridspec.GridSpec(2*len(tetrodes), 12)
+
+        nClusters=6 #FIXME hardcoded number of clusters to plot
+
+        # colors = plt.cm.Paired(np.linspace(0, 1, nClusters))
+        from jaratoolbox import colorpalette
+        cp = colorpalette.TangoPalette
+        colors = [cp['SkyBlue3'], cp['Chameleon3'], cp['Orange3'],
+                  cp['Plum3'], cp['ScarletRed2'], cp['Butter3']]
+
+        for indt, tetrode in enumerate(tetrodes):
+            raster_ax = plt.subplot(gs[indt*2:(indt*2)+2, 6:12])
+            for indc, cluster in enumerate(range(1, nClusters+1)):
+                clusterColor = colors[indc]
+                spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
+                spikeTimestamps = spikeData.timestamps
+                timeRange = [-0.2, 0.3]
+                spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
+                    spikeTimestamps, eventOnsetTimes, timeRange)
+                raster_ax.plot(spikeTimesFromEventOnset, trialIndexForEachSpike, '.', color=colors[indc])
+                raster_ax.axvline(x=0, color='k')
+                raster_ax.set_xlim(timeRange)
+
+
+                crow = indc/3 + (indt*2)
+                ccolStart = (indc%3)*2
+                ccolEnd = ccolStart+2
+                cluster_ax = plt.subplot(gs[crow, ccolStart:ccolEnd])
+                print 'r{}c{} : Cluster {}, {} spikes'.format(crow, ccolStart, cluster, len(spikeData.timestamps))
+                self.plot_colored_waveforms(spikeData.samples, clusterColor, ax=cluster_ax)
+
+
+    def cluster_color_psth(self, session, site=-1, experiment=-1):
+        '''
+        Display cluster waveforms and a colormap-style psth. Could also just do lines for each cluster.
+        could also just plot spikes in color for each cluster.
+        '''
+        #Cluster the site, all tetrodes
+        #TODO: Make sure this function is using nice new cms with numclusters=6
+        self.cluster_array(session, site=site, experiment=experiment)
+
+        sessionObj = self.get_session_obj(session, experiment, site)
+        sessionDir = sessionObj.ephys_dir()
+        eventData = self.loader.get_session_events(sessionDir)
+        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+        tetrodes=sessionObj.tetrodes
+
+        self.fig = plt.gcf()
+        self.fig.clf()
+        self.fig.set_facecolor('w')
+
+        from matplotlib import gridspec
+        gs = gridspec.GridSpec(2*len(tetrodes), 12)
+        gs.update(wspace=0.5, hspace=0.5)
+
+        nClusters=6 #FIXME hardcoded number of clusters to plot
+
+        # colors = plt.cm.Paired(np.linspace(0, 1, nClusters))
+        from jaratoolbox import colorpalette
+        cp = colorpalette.TangoPalette
+        colors = [cp['SkyBlue1'], cp['Chameleon1'], cp['Orange1'],
+                  cp['Plum1'], cp['ScarletRed1'], cp['Aluminium4']]
+
+        # colors = ["#cc9d4a",
+        #           "#779ae3",
+        #           "#7cb851",
+        #           "#d27bcd",
+        #           "#54bc9f",
+        #           "#e76f6f"]
+
+        #This one
+        # colors = ["#858bdd",
+        #           "#78b34e",
+        #           "#d66eb7",
+        #           "#52b8a0",
+        #           "#dd695a",
+        #           "#c59c47"]
+
+        # colors = plt.cm.gist_rainbow(np.linspace(0, 1, nClusters))
+        # colors = ['k', 'b', 'g', 'r', 'c', 'm']
+
+        for indt, tetrode in enumerate(tetrodes):
+            psth_ax = plt.subplot(gs[indt*2:(indt*2)+2, 6:12])
+            for indc, cluster in enumerate(range(1, nClusters+1)):
+                clusterColor = colors[indc]
+                spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
+                spikeTimestamps = spikeData.timestamps
+                timeRange = [-0.2, 1]
+                spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
+                    spikeTimestamps, eventOnsetTimes, timeRange)
+
+
+                binEdges = np.linspace(-0.2, 1, 100)
+                spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,
+                                                                         indexLimitsEachTrial,
+                                                                         binEdges)
+                # import ipdb; ipdb.set_trace()
+                smoothWinSize = 3
+                winShape = np.concatenate((np.zeros(smoothWinSize),np.ones(smoothWinSize))) # Square (causal)
+                winShape = winShape/np.sum(winShape)
+
+                binsStartTime=binEdges[:-1]
+
+                #TODO: This does not suppport diff trial types (for good reason? already complicated enough?)
+                binSize = binEdges[1]-binEdges[0]
+                thisPSTH = np.mean(spikeCountMat/binSize,axis=0)
+                smoothPSTH = np.convolve(thisPSTH,winShape,mode='same')
+                downsamplefactor=1
+                sSlice = slice(0,len(smoothPSTH),downsamplefactor)
+                psth_ax.plot(binsStartTime[sSlice],smoothPSTH[sSlice], color = clusterColor, lw=2)
+                psth_ax.hold(1)
+                psth_ax.axvline(x=0, color='k')
+                psth_ax.set_xlim(timeRange)
+
+
+                crow = indc/3 + (indt*2)
+                ccolStart = (indc%3)*2
+                ccolEnd = ccolStart+2
+                cluster_ax = plt.subplot(gs[crow, ccolStart:ccolEnd])
+                # print 'r{}c{} : Cluster {}, {} spikes'.format(crow, ccolStart, cluster, len(spikeData.timestamps))
+                self.plot_colored_waveforms(spikeData.samples, clusterColor, ax=cluster_ax)
+
+
+    def plot_colored_waveforms(self, waveforms, color='k', ntraces=40, ax=None):
+        if ax is None:
+            ax = plt.gca()
+        (nSpikes,nChannels,nSamplesPerSpike) = waveforms.shape
+        if nSpikes>0:
+            spikesToPlot = np.random.randint(nSpikes,size=ntraces)
+            alignedWaveforms = spikesorting.align_waveforms(waveforms[spikesToPlot,:,:])
+
+            #New stuff for plotting means
+            meanWaveforms = np.mean(alignedWaveforms, axis=0)
+            waveVariance = np.std(alignedWaveforms, axis=0)
+            varUpper = meanWaveforms + waveVariance
+            varLower = meanWaveforms - waveVariance
+
+            scalebarSize = abs(meanWaveforms.min())
+            # xRange = np.arange(nSamplesPerSpike)
+            # for indc in range(nChannels):
+            #     newXrange = xRange+indc*(nSamplesPerSpike+2)
+            #     wavesToPlot = alignedWaveforms[:,indc,:].T
+            #     ax.plot(newXrange,wavesToPlot,color=color,lw=0.4,clip_on=False)
+            #     plt.hold(True)
+
+            xRange = np.arange(nSamplesPerSpike)
+            for indc in range(nChannels):
+                newXrange = xRange+indc*(nSamplesPerSpike+2)
+                waveToPlot = meanWaveforms[indc,:].T
+                ax.plot(newXrange,waveToPlot,color='w',lw=1,clip_on=False, zorder=1)
+                ax.fill_between(newXrange, varLower[indc,:].T, varUpper[indc,:].T, color=color, zorder=0)
+                plt.hold(True)
+
+            fontsize=8
+            ax.plot(2*[-7],[0,-scalebarSize],color='0.5',lw=2)
+            ax.text(-10,-scalebarSize/2,'{0:0.0f}uV'.format(np.round(scalebarSize)),
+                    ha='right',va='center',ma='center',fontsize=fontsize)
+
+        plt.axis('off')
+
+
+
+
+
