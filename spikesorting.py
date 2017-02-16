@@ -860,6 +860,7 @@ def cluster_many_sessions(subject, sessions,
         averageWaves[indc, :, :] = clusterAverageWaveform
     print "Saving cluster stats to {}".format(outputFullPath)
     np.savez(outputFullPath,
+             ephysSessions=oneTT.ephysSessions
              clusters=clusters,
              subject=oneTT.subject,
              isiViolations=isiViolations,
