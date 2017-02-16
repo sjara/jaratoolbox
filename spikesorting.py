@@ -795,6 +795,12 @@ class ClusterInforec(object):
         for indExperiment, _ in enumerate(self.inforec.experiments):
             self.cluster_all_sites(indExperiment, **kwargs)
 
+    def pretty_print_inforec(self, sites=True, sessions=False):
+        message = []
+        for indExperiment, experiment in enumerate(self.inforec.experiments):
+            message.append('[{}]: {}'.format(indExperiment, experiment.pretty_print(sites=sites, sessions=sessions)))
+        print ''.join(message)
+
 def cluster_many_sessions(subject, sessions,
                           tetrode, idString,
                           saveSingleSessionCluFiles=True,

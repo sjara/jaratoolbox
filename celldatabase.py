@@ -289,6 +289,13 @@ class Experiment(object):
                                            paradigm,
                                            date)
           return session
+     def pretty_print(self, sites=True, sessions=False):
+          message = []
+          message.append('Experiment on {} in {}\n'.format(self.date, self.brainarea))
+          if sites:
+               for indSite, site in enumerate(self.sites):
+                    message.append('    [{}]: {}'.format(indSite, site.pretty_print(sessions=sessions)))
+          return ''.join(message)
 
 class Site(object):
      '''
@@ -350,6 +357,14 @@ class Site(object):
           }
           return infoDict
 
+     def pretty_print(self, sessions=False):
+          message=[]
+          message.append('Site at {}um with {} sessions\n'.format(self.depth, len(self.sessions)))
+          if sessions:
+               for session in self.sessions:
+                    message.append('        {}\n'.format(session.pretty_print()))
+          return ''.join(message)
+
 class Session(object):
      '''
      Session is a single recorded ephys file and the associated behavior file.
@@ -384,27 +399,8 @@ class Session(object):
                                         date,
                                         self.behavsuffix)
           return fn
-
-     # DEPRECATED: All clusters will get their info from the site, not the session
-     # If needed this could point to the parent site's method
-     #
-     # def cluster_info(self):
-     #      '''
-     #      Returns a dict
-     #      '''
-     #      #TODO: rename to info
-     #      infoDict = {
-     #           'subject':self.subject,
-     #           'date':self.date,
-     #           'brainarea': self.brainarea,
-     #           'info': self.info,
-     #           'depth':self.depth,
-     #           'tetrodes':self.tetrodes,
-     #           'ephys':self.ephys_dir(),
-     #           'behavior':self.behav_filename(),
-     #           'sessiontype':self.sessiontype()
-     #      }
-     #      return infoDict
+     def pretty_print(self):
+          return "{}: {}".format(self.timestamp, self.sessiontype)
 
 def save_dataframe_as_HDF5(path, dataframe):
     '''
