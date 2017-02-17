@@ -296,6 +296,13 @@ class Experiment(object):
                for indSite, site in enumerate(self.sites):
                     message.append('    [{}]: {}'.format(indSite, site.pretty_print(sessions=sessions)))
           return ''.join(message)
+     def site_comment(self, message):
+          activeSite = self.sites[-1] #Use the most recent site for this experiment
+          activeSite.comment(message)
+     def session_comment(self, message):
+          activeSite = self.sites[-1] #Use the most recent site for this experiment
+          activeSession = activeSite.sessions[-1]
+          activeSession.comment(message)
 
 class Site(object):
      '''
@@ -320,6 +327,7 @@ class Site(object):
           self.depth=depth
           self.tetrodes = tetrodes
           self.sessions=[]
+          self.comments=[]
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
           if not date:
                date=self.date
@@ -364,6 +372,8 @@ class Site(object):
                for session in self.sessions:
                     message.append('        {}\n'.format(session.pretty_print()))
           return ''.join(message)
+     def comment(self, message):
+          self.comments.append(message)
 
 class Session(object):
      '''
@@ -386,6 +396,7 @@ class Session(object):
           self.behavsuffix=behavsuffix
           self.sessiontype=sessiontype
           self.paradigm=paradigm
+          self.comments=[]
      def ephys_dir(self):
           path = os.path.join('{}_{}'.format(self.date, self.timestamp))
           return path
@@ -401,6 +412,8 @@ class Session(object):
           return fn
      def pretty_print(self):
           return "{}: {}".format(self.timestamp, self.sessiontype)
+     def comment(self, message):
+          self.comments.append(message)
 
 def save_dataframe_as_HDF5(path, dataframe):
     '''
