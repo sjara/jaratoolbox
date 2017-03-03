@@ -242,6 +242,7 @@ def set_log_ticks(ax,tickValues,axis='x'):
         ax.set_yticks(tickLogValues)
         ax.set_yticklabels(tickLabels)
 
+        
 def scalebar(xpos,ypos,width,height,xstring,ystring,fontsize=10):
     '''Show scale bars with labels'''
     pbar = plt.plot([xpos,xpos,xpos+width],[ypos+height,ypos,ypos],'k',lw=2, clip_on=False)
@@ -250,6 +251,32 @@ def scalebar(xpos,ypos,width,height,xstring,ystring,fontsize=10):
     ystring = plt.text(xpos-0.15*width, ypos+0.5*height, ystring, rotation=90,
                        va='center', ha='right', fontsize=fontsize, clip_on=False)
     return(pbar,xstring,ystring)
+
+
+def significance_stars(xRange, yPos, yLength, starColor='k', starMarker='*', starSize=8, gapFactor=0.1):
+    '''
+    xRange: 2-element list or array with x values for horizontal extent of line.
+    yPos: scalar indicating vertical position of line.
+    yLength: scalar indicating length of vertical ticks
+    '''
+    nStars=1  # I haven't implemented plotting more than one star.
+    plt.hold(True) # FIXME: Use holdState
+    xGap = gapFactor*nStars
+    xVals = [xRange[0],xRange[0], 
+             np.mean(xRange)-xGap*np.diff(xRange), np.nan, 
+             np.mean(xRange)+xGap*np.diff(xRange),
+             xRange[1],xRange[1]]
+    yVals = [yPos-yLength, yPos, yPos, np.nan, yPos, yPos, yPos-yLength]
+    hlines, = plt.plot(xVals,yVals,color=starColor)
+    hlines.set_clip_on(False)
+    xPosStar = [] # FINISH THIS! IT DOES NOT WORK WITH nStars>1
+    starsXvals = np.mean(xRange)
+    hs, = plt.plot(starsXvals,np.tile(yPos,nStars),
+                   starMarker,color=starColor,mec=starColor)
+    hs.set_markersize(starSize)
+    hs.set_clip_on(False)
+    plt.hold(False)
+
 
 def save_figure(filename, fileformat, figsize, outputDir='./'):
     plt.gcf().set_size_inches(figsize)
