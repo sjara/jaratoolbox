@@ -28,6 +28,23 @@ def boxoff(ax,keep='left',yaxis=True):
         for t in ytlines:
             t.set_visible(False)
 
+            
+def adjust_pos(ax, modifier):
+    '''
+    THIS METHOD IS NOT FINISHED.
+
+    Adjust the position of axes.
+    modifier is a list of 4 elements (left, bottom, width, height) to add to the original position
+    '''
+    axPos = ax.get_position()
+    xVals = np.array([axPos.xmin+modifier[0],
+                      axPos.xmax+modifier[0]])
+    yVals = np.array([axPos.ymin+modifier[1],
+                      axPos.ymax+modifier[3]])
+    axPos.update_from_data(xVals,yVals)
+    ax.set_position(axPos)
+
+    
 def set_axes_color(ax,axColor):
     '''
     Change the color of axes, ticks and labels.
