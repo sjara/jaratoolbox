@@ -578,6 +578,7 @@ def estimate_spike_peaks(waveforms, srate, align=True, ninterp=200):
     energyEachChannel = np.sum(np.abs(avWaveforms),1)
     maxChannel = np.argmax(energyEachChannel)
     spikeShape = avWaveforms[maxChannel,:]
+    spikeShapeSD = np.std(waveforms[:,maxChannel,:],0)
     sampVals = np.arange(0,len(spikeShape)/srate,1/srate)
 
     interpFun = interp1d(sampVals, spikeShape, kind='cubic')
@@ -603,7 +604,7 @@ def estimate_spike_peaks(waveforms, srate, align=True, ninterp=200):
 
     peakTimes = [peakCapTime, peakNaTime, peakKTime]
     peakAmplitudes = [peakCapAmp, peakNaAmp, peakKAmp]
-    return (peakTimes, peakAmplitudes, spikeShape)
+    return (peakTimes, peakAmplitudes, spikeShape, spikeShapeSD)
 
 
 class MultipleSessionsToCluster(TetrodeToCluster):
