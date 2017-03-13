@@ -270,7 +270,7 @@ def scalebar(xpos,ypos,width,height,xstring,ystring,fontsize=10):
     return(pbar,xstring,ystring)
 
 
-def significance_stars(xRange, yPos, yLength, starColor='k', starMarker='*', starSize=8, gapFactor=0.1):
+def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSize=8, gapFactor=0.1):
     '''
     xRange: 2-element list or array with x values for horizontal extent of line.
     yPos: scalar indicating vertical position of line.
@@ -284,12 +284,12 @@ def significance_stars(xRange, yPos, yLength, starColor='k', starMarker='*', sta
              np.mean(xRange)+xGap*np.diff(xRange),
              xRange[1],xRange[1]]
     yVals = [yPos-yLength, yPos, yPos, np.nan, yPos, yPos, yPos-yLength]
-    hlines, = plt.plot(xVals,yVals,color=starColor)
+    hlines, = plt.plot(xVals,yVals,color=color)
     hlines.set_clip_on(False)
     xPosStar = [] # FINISH THIS! IT DOES NOT WORK WITH nStars>1
     starsXvals = np.mean(xRange)
     hs, = plt.plot(starsXvals,np.tile(yPos,nStars),
-                   starMarker,color=starColor,mec=starColor)
+                   starMarker,mfc=color, mec='None')
     hs.set_markersize(starSize)
     hs.set_clip_on(False)
     plt.hold(False)
