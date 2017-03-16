@@ -415,24 +415,25 @@ class Session(object):
      def comment(self, message):
           self.comments.append(message)
 
-def save_dataframe_as_HDF5(path, dataframe):
-    '''
-    Saves a dataframe to HDF5 format.
+#Use the pandas dataframe functions directly
+# def save_dataframe_as_HDF5(path, dataframe):
+#     '''
+#     Saves a dataframe to HDF5 format.
 
-    Args:
-        path (str): /path/to/file.h5
-        dataframe (pandas.DataFrame): dataframe object
-    '''
-    dataframe.to_hdf(path, 'dataframe')
+#     Args:
+#         path (str): /path/to/file.h5
+#         dataframe (pandas.DataFrame): dataframe object
+#     '''
+#     dataframe.to_hdf(path, 'dataframe')
 
-def load_dataframe_from_HDF5(path, **kwargs):
-    '''
-    See pandas.read_hdf docs for useful kwargs (loading only certain rows, cols, etc)
-    Args:
-        path (str): /path/to/file.h5
-    '''
-    dataframe = pd.read_hdf(path, key='dataframe', **kwargs)
-    return dataframe
+# def load_dataframe_from_HDF5(path, **kwargs):
+#     '''
+#     See pandas.read_hdf docs for useful kwargs (loading only certain rows, cols, etc)
+#     Args:
+#         path (str): /path/to/file.h5
+#     '''
+#     dataframe = pd.read_hdf(path, key='dataframe', **kwargs)
+#     return dataframe
 
 def generate_cell_database(inforecPath):
     '''
@@ -443,13 +444,15 @@ def generate_cell_database(inforecPath):
         db (pandas.DataFrame): the cell database
     '''
 
+    clusterDirFormat = 'multisession_exp{}site{}'
+    tetrodeStatsFormat = 'Tetrode{}_stats.npz'
     inforec = imp.load_source('module.name', inforecPath)
     db = pd.DataFrame()
     for indExperiment, experiment in enumerate(inforec.experiments):
         for indSite, site in enumerate(experiment.sites):
-            clusterDir = 'multisession_exp{}site{}'.format(indExperiment, indSite)
+            clusterDir = clusterDirFormat.format(indExperiment, indSite)
             for tetrode in site.tetrodes:
-                clusterStatsFn = 'Tetrode{}_stats.npz'.format(tetrode)
+                clusterStatsFn = tetrodeStatsFormat.format(tetrode)
                 clusterStatsFullPath = os.path.join(settings.EPHYS_PATH,
                                                     inforec.subject,
                                                     clusterDir,
@@ -482,59 +485,3 @@ if __name__=="__main__":
         df2 = load_dataframe_from_HDF5('/tmp/df_test.h5')
         print type(df2['b'][0])
 
-# '''
-
-# class InfoRecording(object):
-#      '''
-#      DEPRECATED: Use Experiment objects instead
-#      InfoRecordings is a container of experiments. One per subject.
-#      '''
-#      def __init__(self, subject):
-#           '''
-#           Args:
-#               subject (str): subject's name
-#           '''
-#           self.subject = subject
-#           self.experiments = []
-#      def add_experiment(self, date):
-#           '''
-#           Adds an Experiment object to the list.
-#           Args:
-#               date (str): date in format YYYY-MM-DD
-#           '''
-#           experiment=Experiment(self.subject,
-#                                 date)
-#           self.experiments.append(experiment)
-# 	  return experiment
-#      def add_site(self, depth, tetrodes = [1,2,3,4,5,6,7,8]):
-#           '''
-#           Add a site to the last experiment
-#           '''
-#           activeExperiment = self.experiments[-1]
-#           site = activeExperiment.add_site(depth, tetrodes)
-#           return site
-#      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm):
-#           activeExperiment = self.experiments[-1] #Use the most recent experiment
-#           session = activeExperiment.add_session(timestamp,
-#                                  behavsuffix,
-#                                  sessiontype,
-#                                  paradigm)
-#           return session
-#      def __str__(self):
-#           message = []
-#           message.append('Subject: {}'.format(self.subject))
-#           message.append('{} Experiments:'.format(len(self.experiments)))
-#           for indExp, experiment in enumerate(self.experiments):
-#                date = experiment.date
-#                numSites = len(experiment.sites)
-#                numSessions = 0
-#                #count total number of sessions
-#                for site in experiment.sites:
-#                     for session in site.sessions:
-#                          numSessions += 1
-#                message.append('Experiment {} on {}: {} Sites, {} Total sessions'.format(indExp,
-#                                                                                         date,
-#                                                                                         numSites,
-#                                                                                         numSessions))
-#           return '\n'.join(message)
-# '''
