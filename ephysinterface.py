@@ -178,6 +178,18 @@ class EphysInterface(object):
             pass
         sessionObj = sessions[sessionIndex] #Get the right session object
         return sessionObj
+    
+    def get_site_obj(self, experiment, site):
+
+        self.inforec = self.load_inforec()
+        #List of session objects and session ephys names for the specified experiment and site
+        
+        sites = self.inforec.experiments[experiment].sites
+        
+        if isinstance(site, int):
+            siteIndex = site #Use site as an index directly
+        siteObj = sites[siteIndex] #Get the right session object
+        return siteObj
 
     def plot_session_raster(self, session, tetrode, experiment=-1, site=-1, cluster = None, sortArray = 'currentFreq', timeRange=[-0.5, 1], replace=0, ms=4, colorEachCond=None):
         ##  ---  ###
@@ -494,27 +506,53 @@ class EphysInterface(object):
         for tetrode in tetrodes:
             self.cluster_session(session, tetrode, experiment, site)
 
-    def cluster_color_psth(self, session, site=-1, experiment=-1):
+    def cluster_array_multisession(self, sessionList, site=-1, experiment=-1):
+        '''sessionList has to be a list of inds'''
+
+        from jaratoolbox import spikesorting
+
+        siteObj = self.get_site_obj(site=site, experiment=experiment)
+        sessionsToCluster = [siteObj.session_ephys_dirs()[ind] for ind in sessionList]
+        subject = self.inforec.subject
+        idString = 'online_multisession_{}'.format('-'.join(sessionsToCluster))
+        
+        for tetrode in siteObj.tetrodes:
+            spikesorting.cluster_many_sessions(subject, 
+                    sessionsToCluster, 
+                    tetrode, 
+                    idString,
+                    minClusters=3,
+                    maxClusters=6,
+                    maxPossibleClusters=6)
+
+    def cluster_color_psth(self, sessionList, site=-1, experiment=-1):
         '''
         Display cluster waveforms and a colormap-style psth. Could also just do lines for each cluster.
         could also just plot spikes in color for each cluster.
         '''
+
+        if not isinstance(sessionList, list):
+            sessionList = list(sessionList)
+
         #Cluster the site, all tetrodes
         #TODO: Make sure this function is using nice new cms with numclusters=6
-        self.cluster_array(session, site=site, experiment=experiment)
+        self.cluster_array_multisession(sessionList, site=site, experiment=experiment)
 
-        sessionObj = self.get_session_obj(session, experiment, site)
-        sessionDir = sessionObj.ephys_dir()
-        eventData = self.loader.get_session_events(sessionDir)
-        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
-        tetrodes=sessionObj.tetrodes
+        allSessionObj = [self.get_session_obj(session, experiment, site) for session in sessionList]
+        allSessionDir = [so.ephys_dir() for so in allSessionObj]
+        allEventData = [self.loader.get_session_events(sd) for sd in allSessionDir]
+        allEventOnsetTimes = [self.loader.get_event_onset_times(ed) for ed in allEventData]
+        allTetrodes=[so.tetrodes for so in allSessionObj]
+
+        siteObj = self.get_site_obj(site=site, experiment=experiment)
+        allSessionType = [siteObj.session_types()[ind] for ind in sessionList]
 
         self.fig = plt.gcf()
         self.fig.clf()
         self.fig.set_facecolor('w')
 
         from matplotlib import gridspec
-        gs = gridspec.GridSpec(2*len(tetrodes), 12)
+        gs = gridspec.GridSpec(2*len(allTetrodes[0]), 6+6*len(sessionList))
         gs.update(wspace=0.5, hspace=0.5)
 
         nClusters=6 #FIXME hardcoded number of clusters to plot
@@ -524,43 +562,58 @@ class EphysInterface(object):
         colors = [cp['SkyBlue1'], cp['Chameleon1'], cp['Orange1'],
                   cp['Plum1'], cp['ScarletRed1'], cp['Aluminium4']]
 
-        for indt, tetrode in enumerate(tetrodes):
-            psth_ax = plt.subplot(gs[indt*2:(indt*2)+2, 6:12])
-            for indc, cluster in enumerate(range(1, nClusters+1)):
-                clusterColor = colors[indc]
-                spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
-                spikeTimestamps = spikeData.timestamps
-                timeRange = [-0.2, 1]
-                spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
-                    spikeTimestamps, eventOnsetTimes, timeRange)
+        for indSession, _ in enumerate(allSessionObj):
+
+            sessionObj = allSessionObj[indSession]
+            sessionDir = allSessionDir[indSession]
+            eventData = allEventData[indSession]
+            eventOnsetTimes = allEventOnsetTimes[indSession]
+            tetrodes = allTetrodes[indSession]
+
+            for indt, tetrode in enumerate(tetrodes):
+
+                colStart = 6+(6*indSession)
+                colEnd = colStart+6
+                psth_ax = plt.subplot(gs[indt*2:(indt*2)+2, colStart:colEnd])
+
+                for indc, cluster in enumerate(range(1, nClusters+1)):
+
+                    clusterColor = colors[indc]
+                    spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
+                    spikeTimestamps = spikeData.timestamps
+                    timeRange = [-0.2, 1]
+                    spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
+                        spikeTimestamps, eventOnsetTimes, timeRange)
 
 
-                binEdges = np.linspace(-0.2, 1, 100)
-                spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,
-                                                                         indexLimitsEachTrial,
-                                                                         binEdges)
-                # import ipdb; ipdb.set_trace()
-                smoothWinSize = 3
-                winShape = np.concatenate((np.zeros(smoothWinSize),np.ones(smoothWinSize))) # Square (causal)
-                winShape = winShape/np.sum(winShape)
+                    binEdges = np.linspace(-0.2, 1, 100)
+                    spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,
+                                                                             indexLimitsEachTrial,
+                                                                             binEdges)
+                    # import ipdb; ipdb.set_trace()
+                    smoothWinSize = 3
+                    winShape = np.concatenate((np.zeros(smoothWinSize),np.ones(smoothWinSize))) # Square (causal)
+                    winShape = winShape/np.sum(winShape)
 
-                binsStartTime=binEdges[:-1]
+                    binsStartTime=binEdges[:-1]
 
-                #TODO: This does not suppport diff trial types (for good reason? already complicated enough?)
-                binSize = binEdges[1]-binEdges[0]
-                thisPSTH = np.mean(spikeCountMat/binSize,axis=0)
-                smoothPSTH = np.convolve(thisPSTH,winShape,mode='same')
-                downsamplefactor=1
-                sSlice = slice(0,len(smoothPSTH),downsamplefactor)
-                psth_ax.plot(binsStartTime[sSlice],smoothPSTH[sSlice], color = clusterColor, lw=2)
-                psth_ax.hold(1)
-                psth_ax.axvline(x=0, color='k')
-                psth_ax.set_xlim(timeRange)
+                    binSize = binEdges[1]-binEdges[0]
+                    thisPSTH = np.mean(spikeCountMat/binSize,axis=0)
+                    smoothPSTH = np.convolve(thisPSTH,winShape,mode='same')
+                    downsamplefactor=1
+                    sSlice = slice(0,len(smoothPSTH),downsamplefactor)
+                    psth_ax.plot(binsStartTime[sSlice],smoothPSTH[sSlice], color = clusterColor, lw=2)
+                    psth_ax.hold(1)
+                    psth_ax.axvline(x=0, color='k')
+                    psth_ax.set_xlim(timeRange)
+                    if indt==0:
+                        psth_ax.set_title(allSessionType[indSession])
 
+                    crow = indc/3 + (indt*2)
+                    ccolStart = (indc%3)*2
+                    ccolEnd = ccolStart+2
 
-                crow = indc/3 + (indt*2)
-                ccolStart = (indc%3)*2
-                ccolEnd = ccolStart+2
-                cluster_ax = plt.subplot(gs[crow, ccolStart:ccolEnd])
-                # print 'r{}c{} : Cluster {}, {} spikes'.format(crow, ccolStart, cluster, len(spikeData.timestamps))
-                plot_colored_waveforms(spikeData.samples, clusterColor, ax=cluster_ax)
+                    if indSession==0:
+                        cluster_ax = plt.subplot(gs[crow, ccolStart:ccolEnd])
+                        # print 'r{}c{} : Cluster {}, {} spikes'.format(crow, ccolStart, cluster, len(spikeData.timestamps))
+                        plot_colored_waveforms(spikeData.samples, clusterColor, ax=cluster_ax)

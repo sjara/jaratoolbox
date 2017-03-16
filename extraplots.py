@@ -28,6 +28,23 @@ def boxoff(ax,keep='left',yaxis=True):
         for t in ytlines:
             t.set_visible(False)
 
+            
+def adjust_pos(ax, modifier):
+    '''
+    THIS METHOD IS NOT FINISHED.
+
+    Adjust the position of axes.
+    modifier is a list of 4 elements (left, bottom, width, height) to add to the original position
+    '''
+    axPos = ax.get_position()
+    xVals = np.array([axPos.xmin+modifier[0],
+                      axPos.xmax+modifier[0]])
+    yVals = np.array([axPos.ymin+modifier[1],
+                      axPos.ymax+modifier[3]])
+    axPos.update_from_data(xVals,yVals)
+    ax.set_position(axPos)
+
+    
 def set_axes_color(ax,axColor):
     '''
     Change the color of axes, ticks and labels.
@@ -73,7 +90,7 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
                 colorEachCond=None,fillWidth=None,labels=None):
     '''
     Plot spikes raster plot grouped by condition
-    Returns (pRaster,hcond)
+    Returns (pRaster,hcond,zline)
     First trial is plotted at y=0
 
     trialsEachCond can be a list of lists of indexes, or a boolean array of shape [nTrials,nConditions]
@@ -242,6 +259,7 @@ def set_log_ticks(ax,tickValues,axis='x'):
         ax.set_yticks(tickLogValues)
         ax.set_yticklabels(tickLabels)
 
+        
 def scalebar(xpos,ypos,width,height,xstring,ystring,fontsize=10):
     '''Show scale bars with labels'''
     pbar = plt.plot([xpos,xpos,xpos+width],[ypos+height,ypos,ypos],'k',lw=2, clip_on=False)
@@ -250,6 +268,32 @@ def scalebar(xpos,ypos,width,height,xstring,ystring,fontsize=10):
     ystring = plt.text(xpos-0.15*width, ypos+0.5*height, ystring, rotation=90,
                        va='center', ha='right', fontsize=fontsize, clip_on=False)
     return(pbar,xstring,ystring)
+
+
+def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSize=8, gapFactor=0.1):
+    '''
+    xRange: 2-element list or array with x values for horizontal extent of line.
+    yPos: scalar indicating vertical position of line.
+    yLength: scalar indicating length of vertical ticks
+    '''
+    nStars=1  # I haven't implemented plotting more than one star.
+    plt.hold(True) # FIXME: Use holdState
+    xGap = gapFactor*nStars
+    xVals = [xRange[0],xRange[0], 
+             np.mean(xRange)-xGap*np.diff(xRange), np.nan, 
+             np.mean(xRange)+xGap*np.diff(xRange),
+             xRange[1],xRange[1]]
+    yVals = [yPos-yLength, yPos, yPos, np.nan, yPos, yPos, yPos-yLength]
+    hlines, = plt.plot(xVals,yVals,color=color)
+    hlines.set_clip_on(False)
+    xPosStar = [] # FINISH THIS! IT DOES NOT WORK WITH nStars>1
+    starsXvals = np.mean(xRange)
+    hs, = plt.plot(starsXvals,np.tile(yPos,nStars),
+                   starMarker,mfc=color, mec='None')
+    hs.set_markersize(starSize)
+    hs.set_clip_on(False)
+    plt.hold(False)
+
 
 def save_figure(filename, fileformat, figsize, outputDir='./'):
     plt.gcf().set_size_inches(figsize)
