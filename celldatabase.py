@@ -278,7 +278,7 @@ class Experiment(object):
           site=Site(self.subject, self.date, self.brainarea, self.info, depth, tetrodes)
           self.sites.append(site)
           return site
-     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
+     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None, comments=[]):
           '''
           Add a session to the most recent site
           '''
@@ -352,6 +352,12 @@ class Site(object):
      def session_types(self):
           types=[session.sessiontype for session in self.sessions]
           return types
+     def find_session(self, sessiontype):
+          '''
+          Return indexes of sessions of type sessiontype.
+          '''
+          # TODO: implement this.
+          pass
      def cluster_info(self):
           infoDict = {
                'subject':self.subject,
@@ -387,16 +393,16 @@ class Session(object):
          sessiontype (str): A string describing what kind of session this is.
          paradigm (str): The name of the paradigm used to collect the session
      '''
-     def __init__(self, subject, date, brainarea, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm):
-          self.subject=subject
-          self.date=date
-          self.depth=depth
-          self.tetrodes=tetrodes
-          self.timestamp=timestamp
-          self.behavsuffix=behavsuffix
-          self.sessiontype=sessiontype
-          self.paradigm=paradigm
-          self.comments=[]
+     def __init__(self, subject, date, brainarea, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
+          self.subject = subject
+          self.date = date
+          self.depth = depth
+          self.tetrodes = tetrodes
+          self.timestamp = timestamp
+          self.behavsuffix = behavsuffix
+          self.sessiontype = sessiontype
+          self.paradigm = paradigm
+          self.comments = comments
      def ephys_dir(self):
           path = os.path.join('{}_{}'.format(self.date, self.timestamp))
           return path
@@ -412,6 +418,8 @@ class Session(object):
           return fn
      def pretty_print(self):
           return "{}: {}".format(self.timestamp, self.sessiontype)
+     def __str__(self):
+          return self.pretty_print()
      def comment(self, message):
           self.comments.append(message)
 

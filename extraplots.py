@@ -90,7 +90,7 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
                 colorEachCond=None,fillWidth=None,labels=None):
     '''
     Plot spikes raster plot grouped by condition
-    Returns (pRaster,hcond)
+    Returns (pRaster,hcond,zline)
     First trial is plotted at y=0
 
     trialsEachCond can be a list of lists of indexes, or a boolean array of shape [nTrials,nConditions]
