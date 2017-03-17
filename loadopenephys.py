@@ -168,23 +168,33 @@ class DataSpikes(object):
     '''
     def __init__(self,filename):
 
-        fid = open(filename,'rb')
+        # -- Attrs --
+        self.filename = filename
+        self.header = None
+        self.eventType = None
+        self.timestamps = None
+        self.electrodeID = None
+        self.nChannels = None
+        self.nSamplesPerSpike = None
+        self.samples = None
+        self.gain = None
+        self.threshold = None
+        self.recordingNumber = None
+        self.clusters = None
+        self.nRecords = None
+
+        # -- Load the data --
+        self.load_data()
+
+    def load_data(self):
+        fid = open(self.filename,'rb')
         headerfull = fid.read(HEADER_SIZE)
         self.header = parse_header(headerfull)
 
-        self.filesize = os.path.getsize(filename)
+        # -- Return without setting attributes if the .spikes file is empty --
+        self.filesize = os.path.getsize(self.filename)
         if self.filesize==HEADER_SIZE:
             print 'File is empty'
-            self.eventType = None
-            self.timestamps = None
-            self.electrodeID = None
-            self.nChannels = None
-            self.nSamplesPerSpike = None
-            self.samples = None
-            self.gain = None
-            self.threshold = None
-            self.recordingNumber = None
-            self.clusters = None
             return
 
         # -- Find record size --
@@ -208,9 +218,9 @@ class DataSpikes(object):
         self.samplingRate = float(self.header['sampleRate'])
 
         dt = np.dtype([('eventType','<u1'), ('timestamps','<i8'), ('electrodeID','<u2'), ('nChannels','<u2'),
-                       ('nSamplesPerSpike','<u2'),('samples','{0}<u2'.format(nSamplesPerRecord)),
-                       ('gain','{0}<u2'.format(nChannels)),('threshold','{0}<u2'.format(nChannels)),
-                       ('recordingNumber','<u2')])
+                    ('nSamplesPerSpike','<u2'),('samples','{0}<u2'.format(nSamplesPerRecord)),
+                    ('gain','{0}<u2'.format(nChannels)),('threshold','{0}<u2'.format(nChannels)),
+                    ('recordingNumber','<u2')])
         data=np.fromfile(fid, dtype=dt, count=-1)
         fid.close()
         # -- We make copies of all fields, to garbage-collect 'data' after init. --
@@ -223,7 +233,6 @@ class DataSpikes(object):
         self.gain = data['gain'].copy()  # This value is actually 1000*gain
         self.threshold = data['threshold'].copy()
         self.recordingNumber = data['recordingNumber'].copy()
-        self.clusters = None # To store the cluster assignment for each spike
 
     def set_clusters(self,clusterFileOrArray):
         '''Access to KlustaKwik CLU files containing cluster data.'''
