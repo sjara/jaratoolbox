@@ -98,7 +98,7 @@ class SessionToCluster(object):
         subprocess.call(commandStr,shell=True)
         print 'DONE!'
 
-        
+
 class TetrodeToCluster(object):
     def __init__(self,subject,ephysSession,tetrode,features=None):
         self.subject = subject
@@ -648,11 +648,13 @@ class MultipleSessionsToCluster(TetrodeToCluster):
         self.reportFileName = 'multisession_{}_{}_Tetrode{}.png'.format(self.subject, self.idString, self.tetrode)
 
     def load_waveforms(self):
+        self.nSpikes = 0
         for ind, session in enumerate(self.ephysSessions):
             if session: #This is a fix for when some ephysSessions are 'None'
                 ephysDir = os.path.join(settings.EPHYS_PATH, self.subject, session)
                 spikeFile = os.path.join(ephysDir, 'Tetrode{0}.spikes'.format(self.tetrode))
                 dataSpkObj = loadopenephys.DataSpikes(spikeFile)
+                self.nSpikes += dataSpkObj.nRecords
                 try:
                     numSpikes = dataSpkObj.nRecords
                     #Add the ind to a vector of zeros, indicates which recording this is from.
@@ -674,14 +676,13 @@ class MultipleSessionsToCluster(TetrodeToCluster):
                         self.samples = np.concatenate([self.samples, samplesThisSession])
                         self.timestamps = np.concatenate([self.timestamps, timestampsThisSession])
                         self.recordingNumber = np.concatenate([self.recordingNumber, sessionVector])
-        self.nSpikes = len(self.timestamps)
 
     #TODO: Finish this
     def sanitize_timestamps(self):
         '''
         If timestamps are not sequential, there will be problems plotting time hists and isi hists.
         This function forces timestamps to be sequential. It does this by detecting negative isi vals
-        and shifting all timestamps after this up by the value of the last timestamp. 
+        and shifting all timestamps after this up by the value of the last timestamp.
         '''
         pass
 
@@ -802,6 +803,23 @@ class ClusterInforec(object):
             message.append('[{}]: {}'.format(indExperiment, experiment.pretty_print(sites=sites, sessions=sessions)))
         print ''.join(message)
 
+    def find_tetrodes_with_no_spikes(self):
+        message = []
+        for indExperiment, experiment in enumerate(self.inforec.experiments):
+            for indSite, _ in enumerate(experiment.sites):
+                siteObj = self.inforec.experiments[indExperiment].sites[indSite]
+                idString = 'exp{}site{}'.format(indExperiment, indSite)
+                for tetrode in siteObj.tetrodes:
+                    oneTT = MultipleSessionsToCluster(siteObj.subject,
+                                                    siteObj.session_ephys_dirs(),
+                                                    tetrode,
+                                                    idString)
+                    oneTT.load_waveforms()
+                    if oneTT.timestamps is None:
+                        message.append('{}_tetrode{}'.format(idString, tetrode))
+
+        print '\n'.join(message)
+
 def cluster_many_sessions(subject, sessions,
                           tetrode, idString,
                           saveSingleSessionCluFiles=True,
@@ -841,42 +859,54 @@ def cluster_many_sessions(subject, sessions,
     if saveSingleSessionCluFiles:
         oneTT.save_single_session_clu_files()
 
-    #Save cluster stats
+    # -- Save cluster stats --
+
+    #Init empty arrays
     statsFn = 'Tetrode{}_stats.npz'.format(tetrode)
     outputFullPath = os.path.join(oneTT.clustersDir, statsFn)
     uniqueClusters = np.unique(oneTT.clusters)
     isiViolations = np.empty(len(uniqueClusters))
     clusters = np.empty(len(uniqueClusters))
     nSpikes = np.empty(len(uniqueClusters))
+    clusterQuality = np.empty(len(uniqueClusters))
     nSamples=40
     nChannels=4
-    averageWaves = np.empty((len(uniqueClusters), nChannels, nSamples))
+    clusterSpikeShape = np.empty((len(uniqueClusters), nSamples))
+    clusterSpikeSD = np.empty((len(uniqueClusters), nSamples))
+    clusterPeakTimes = np.empty((len(uniqueClusters), 3))
+    clusterPeakAmplitudes = np.empty((len(uniqueClusters), 3))
+
+    #Fill in measurements for each cluster
     for indc, cluster in enumerate(uniqueClusters):
         clusters[indc] = cluster
         clusterTimestamps = oneTT.timestamps[oneTT.clusters==cluster]
-        # clusterTimestamps = cluste
         clusterWaves = oneTT.samples[oneTT.clusters==cluster]
         clusterISIviolations = calculate_ISI_violations(clusterTimestamps)
         clusterNspikes = len(clusterTimestamps)
-        clusterWavesToSave = clusterWaves[np.random.randint(clusterNspikes, size=40)]
         isiViolations[indc] = clusterISIviolations
         nSpikes[indc] = clusterNspikes
-        print "Calculating cluster {} average waveform".format(cluster)
-        alignedClusterWaves = align_waveforms(clusterWaves)
-        clusterAverageWaveform = np.mean(alignedClusterWaves, axis=0)
-        averageWaves[indc, :, :] = clusterAverageWaveform
-    print "Saving cluster stats to {}".format(outputFullPath)
+        srate=30000.0
+        (peakTimes, peakAmplitudes, spikeShape, spikeShapeSD) = estimate_spike_peaks(clusterWaves,srate)
+        clusterSpikeShape[indc, :] = spikeShape
+        clusterSpikeSD[indc, :] = spikeShapeSD
+        clusterPeakTimes[indc, :] = peakTimes
+        clusterPeakAmplitudes[indc, :] = peakAmplitudes
+
+    print "Saving tetrode stats to {}".format(outputFullPath)
     np.savez(outputFullPath,
              ephysSessions=oneTT.ephysSessions,
              clusters=clusters,
              subject=oneTT.subject,
              isiViolations=isiViolations,
              nSpikes=nSpikes,
-             averageWaves=averageWaves,
              featureNames=oneTT.featureNames,
              minClusters=minClusters,
              maxClusters=maxClusters,
-             maxPossibleClusters=maxPossibleClusters)
+             maxPossibleClusters=maxPossibleClusters,
+             clusterPeakAmplitudes=clusterPeakAmplitudes,
+             clusterPeakTimes=clusterPeakTimes,
+             clusterSpikeShape=clusterSpikeShape,
+             clusterSpikeSD=clusterSpikeSD)
     return oneTT
 
 def calculate_ISI_violations(timestamps, threshold=2e-3):

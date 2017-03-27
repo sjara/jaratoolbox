@@ -181,7 +181,7 @@ class DataSpikes(object):
         self.threshold = None
         self.recordingNumber = None
         self.clusters = None
-        self.nRecords = None
+        self.nRecords = 0
 
         # -- Load the data --
         self.load_data()
