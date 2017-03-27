@@ -232,6 +232,8 @@ class EphysInterface(object):
         spikeTimestamps=spikeData.timestamps
         if replace:
             plt.cla()
+        elif replace==2:
+            plt.sca(ax)
         else:
             plt.figure()
         plot_psth(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, lw=lw, colorEachCond=colorEachCond, plotLegend=1)
@@ -525,7 +527,7 @@ class EphysInterface(object):
                     maxClusters=6,
                     maxPossibleClusters=6)
 
-    def cluster_color_psth(self, sessionList, site=-1, experiment=-1):
+    def cluster_color_psth(self, sessionList, plotType=None, site=-1, experiment=-1):
         '''
         Display cluster waveforms and a colormap-style psth. Could also just do lines for each cluster.
         could also just plot spikes in color for each cluster.
@@ -533,6 +535,8 @@ class EphysInterface(object):
 
         if not isinstance(sessionList, list):
             sessionList = list(sessionList)
+        if plotType is None:
+            plotType = ['psth']*len(sessionList)
 
         #Cluster the site, all tetrodes
         #TODO: Make sure this function is using nice new cms with numclusters=6
@@ -569,6 +573,11 @@ class EphysInterface(object):
             eventData = allEventData[indSession]
             eventOnsetTimes = allEventOnsetTimes[indSession]
             tetrodes = allTetrodes[indSession]
+            if plotType[indSession] == 'tuning':
+                behavFile = sessionObj.behav_filename()
+                bdata=self.loader.get_session_behavior(behavFile)
+                freqEachTrial = bdata['currentFreq']
+                freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]
 
             for indt, tetrode in enumerate(tetrodes):
 
@@ -586,26 +595,33 @@ class EphysInterface(object):
                         spikeTimestamps, eventOnsetTimes, timeRange)
 
 
-                    binEdges = np.linspace(-0.2, 1, 100)
-                    spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,
-                                                                             indexLimitsEachTrial,
-                                                                             binEdges)
-                    # import ipdb; ipdb.set_trace()
-                    smoothWinSize = 3
-                    winShape = np.concatenate((np.zeros(smoothWinSize),np.ones(smoothWinSize))) # Square (causal)
-                    winShape = winShape/np.sum(winShape)
-
-                    binsStartTime=binEdges[:-1]
-
-                    binSize = binEdges[1]-binEdges[0]
-                    thisPSTH = np.mean(spikeCountMat/binSize,axis=0)
-                    smoothPSTH = np.convolve(thisPSTH,winShape,mode='same')
-                    downsamplefactor=1
-                    sSlice = slice(0,len(smoothPSTH),downsamplefactor)
-                    psth_ax.plot(binsStartTime[sSlice],smoothPSTH[sSlice], color = clusterColor, lw=2)
+                    if plotType[indSession] == 'psth':
+                        binEdges = np.linspace(-0.2, 1, 100)
+                        spikeCountMat = spikesanalysis.spiketimes_to_spikecounts(spikeTimesFromEventOnset,
+                                                                                 indexLimitsEachTrial,
+                                                                                 binEdges)
+                        # import ipdb; ipdb.set_trace()
+                        smoothWinSize = 3
+                        winShape = np.concatenate((np.zeros(smoothWinSize),np.ones(smoothWinSize))) # Square (causal)
+                        winShape = winShape/np.sum(winShape)
+    
+                        binsStartTime=binEdges[:-1]
+    
+                        binSize = binEdges[1]-binEdges[0]
+                        thisPSTH = np.mean(spikeCountMat/binSize,axis=0)
+                        smoothPSTH = np.convolve(thisPSTH,winShape,mode='same')
+                        downsamplefactor=1
+                        sSlice = slice(0,len(smoothPSTH),downsamplefactor)
+                        psth_ax.plot(binsStartTime[sSlice],smoothPSTH[sSlice], color = clusterColor, lw=2)
+                        psth_ax.set_xlim(timeRange)
+                    elif plotType[indSession] == 'tuning':
+                        trialsEachCond = behavioranalysis.find_trials_each_type(freqEachTrial, np.unique(freqEachTrial))
+                        spikeArray = dataplotter.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange=[0,0.1])
+                        psth_ax.plot(spikeArray, ls='-', lw=2, color = clusterColor)
+                        psth_ax.set_xticks(range(len(np.unique(freqEachTrial))))
+                        psth_ax.set_xticklabels(freqLabels,fontsize=8)
                     psth_ax.hold(1)
                     psth_ax.axvline(x=0, color='k')
-                    psth_ax.set_xlim(timeRange)
                     if indt==0:
                         psth_ax.set_title(allSessionType[indSession])
 
