@@ -198,7 +198,8 @@ Design decisions:
             - The numbers rarely change and can be determined from the data (the names of the .spikes files)
             - Sometimes we use single electrodes (very rarely) and might possibly use stereotrodes or
             silicon probes with a linear array of recording sites - neither would be added to openEphys GUI as
-            a 'Tetrode' and the .spikes file would show up as something like 'SingleElectrode1.spikes' or
+            a '
+Tetrode' and the .spikes file would show up as something like 'SingleElectrode1.spikes' or
             'Stereotrode1.spikes'. Having an argument for 'tetrode' may not always be applicable to all experiments
 
       * Do not specify it at all
@@ -252,17 +253,17 @@ class InfoRecording(object):
 
 class Experiment(object):
      '''
-     #TODO: default tetrodes, sites and sessions can redefine them though
      Experiment is a container of sites.
      One per day.
      Attributes:
          subject(str): Name of the subject
          date (str): The date the experiment was conducted
+         brainarea (str): The area of the brain where the recording was conducted
          sites (list): A list of all recording sites for this experiment
-     Methods:
-         new_site(depth): Add a new site when you move the electrodes to a new depth
-         add_session(timestamp, behavsuffix, sessiontype, paradigm): Add a recording session to the current site
+         info (str): Extra info about the experiment
+         tetrodes (list): Default tetrodes for this experiment
      TODO: Fail gracefully if the experimenter tries to add sessions without adding a site first
+     TODO: Should the info attr be a dictionary?
      '''
      def __init__(self, subject, date, brainarea, info=''):
           self.subject=subject
@@ -272,15 +273,31 @@ class Experiment(object):
           self.sites=[]
           self.tetrodes = [1,2,3,4,5,6,7,8]
      def add_site(self, depth, tetrodes = None):
-          #TODO: default tetrode are self.tetrodes, can redefine per site if needed
-          if not tetrodes:
+          '''
+          Append a new Site object to the list of sites.
+          Args:
+               depth (int): The depth of the tip of the electrode array for this site
+               tetrodes (list): Tetrodes to analyze for this site
+          Returns:
+               site (celldatabase.Site object): Handle to site object
+          '''
+          if tetrodes is None:
               tetrodes = self.tetrodes
           site=Site(self.subject, self.date, self.brainarea, self.info, depth, tetrodes)
           self.sites.append(site)
           return site
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None, comments=[]):
           '''
-          Add a session to the most recent site
+          Add a new Session object to the list of sessions belonging to the most recent Site
+          Args:
+               timestamp (str): The timestamp used by openEphys GUI to name the session
+               behavsuffix (str): The suffix of the behavior file
+               sessiontype (str): A string describing what kind of session this is.
+               paradigm (str): The name of the paradigm used to collect the session
+               date (str): The recording date. Only needed if the date of the session is different
+                           from the date of the Experiment/Site (if you record past midnight)
+               comments (list of str): Some comments about the session if needed
+          TODO: Implement comments
           '''
           activeSite = self.sites[-1] #Use the most recent site for this experiment
           session = activeSite.add_session(timestamp,
@@ -290,18 +307,40 @@ class Experiment(object):
                                            date)
           return session
      def pretty_print(self, sites=True, sessions=False):
+          '''
+          Print a string with date, brainarea, and optional list of sites/sessions by index
+          Args:
+              sites (bool): Whether to list all sites in the experiment by index
+              sessions (bool): Whether to list all sessions in each site by index
+          Returns:
+              message (str): A formatted string with the message to print
+          '''
           message = []
           message.append('Experiment on {} in {}\n'.format(self.date, self.brainarea))
           if sites:
                for indSite, site in enumerate(self.sites):
-                    message.append('    [{}]: {}'.format(indSite, site.pretty_print(sessions=sessions)))
+                    #Append the ouput of the pretty_print() func for each site
+                    message.append('    [{}]: {}'.format(indSite,
+                                                         site.pretty_print(sessions=sessions)))
           return ''.join(message)
      def site_comment(self, message):
+          '''
+          Add a comment string to the list of comments for the most recent Site.
+          This method allows commenting on Site objects without returning handles to them.
+          Args:
+              message (str): The message string to append to the list of comments for the Site
+          '''
           activeSite = self.sites[-1] #Use the most recent site for this experiment
           activeSite.comment(message)
      def session_comment(self, message):
-          activeSite = self.sites[-1] #Use the most recent site for this experiment
-          activeSession = activeSite.sessions[-1]
+          '''
+          Add a comment string to the list of comments for the most recent Session.
+          This method allows commenting on Session objects without returning handles to them.
+          Args:
+              message (str): The message string to append to the list of comments for the Session
+          '''
+          activeSite = self.sites[-1] #Use the most recent Site for this Experiment
+          activeSession = activeSite.sessions[-1] #Use the most recent Session for this Site
           activeSession.comment(message)
 
 class Site(object):
