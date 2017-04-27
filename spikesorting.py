@@ -617,27 +617,27 @@ class MultipleSessionsToCluster(TetrodeToCluster):
     as if one had simply clustered a session on its own.
     '''
 
-    def __init__(self, subject, ephysSessions, tetrode, idString, features=None):
+    def __init__(self, subject, ephysSessions, tetrode, clusterFolder, features=None):
         '''
         Args:
             subject (str): Name of the animal
             ephysSessions (list): List of ephys session directories to cluster together (format 'YYYY-MM-DD_HH-MM-SS')
             tetrode (int): The tetrode to cluster
-            idString (str): An identifier used to name the directory that contains the clustering results.
+            clusterFolder (str): An identifier used to name the directory that contains the clustering results.
                             Use something like 'exp0site1' or '{date}_{depth}'
 
         '''
         #To init the super I just use the first session. Will this mess me up?
         super(MultipleSessionsToCluster, self).__init__(subject, ephysSessions[0], tetrode, features)
         self.ephysSessions = ephysSessions
-        self.idString = idString
+        self.clusterFolder = clusterFolder
         self.recordingNumber = np.array([])
         self.samples = None
         self.timestamps = None
         self.clusters = None
         self.nSpikes = None
-        self.idString = idString
-        self.clustersDir = os.path.join(settings.EPHYS_PATH,self.subject,'multisession_{}'.format(self.idString))
+        self.clusterFolder = clusterFolder
+        self.clustersDir = os.path.join(settings.EPHYS_PATH,self.subject,self.clusterFolder)
         self.fetFilename = os.path.join(self.clustersDir,'Tetrode%d.fet.1'%self.tetrode)
         self.report = None
         self.reportFileName = '{0}.png'.format(self.tetrode)
@@ -645,7 +645,7 @@ class MultipleSessionsToCluster(TetrodeToCluster):
             self.featureNames = ['peak','valleyFirstHalf']
         self.nFeatures = len(self.featureNames)
         self.featureValues = None
-        self.reportFileName = 'multisession_{}_{}_Tetrode{}.png'.format(self.subject, self.idString, self.tetrode)
+        self.reportFileName = '{}_{}_Tetrode{}.png'.format(self.subject, self.clusterFolder, self.tetrode)
 
     def load_waveforms(self):
         self.nSpikes = 0
@@ -762,11 +762,12 @@ class ClusterInforec(object):
         '''
 
         siteObj = self.inforec.experiments[experiment].sites[site]
-        idString = 'exp{}site{}'.format(experiment, site)
+        #clusterFolder = 'exp{}site{}'.format(experiment, site)
+        clusterFolder = siteObj.clusterFolder
         oneTT = cluster_many_sessions(siteObj.subject,
                                         siteObj.session_ephys_dirs(),
                                         tetrode,
-                                        idString,
+                                        clusterFolder,
                                         saveSingleSessionCluFiles=saveSingleSessionCluFiles,
                                         minClusters=minClusters,
                                         maxClusters=maxClusters,
@@ -808,20 +809,21 @@ class ClusterInforec(object):
         for indExperiment, experiment in enumerate(self.inforec.experiments):
             for indSite, _ in enumerate(experiment.sites):
                 siteObj = self.inforec.experiments[indExperiment].sites[indSite]
-                idString = 'exp{}site{}'.format(indExperiment, indSite)
+                #clusterFolder = 'exp{}site{}'.format(indExperiment, indSite)
+                clusterFolder = siteObj.clusterFolder
                 for tetrode in siteObj.tetrodes:
                     oneTT = MultipleSessionsToCluster(siteObj.subject,
                                                     siteObj.session_ephys_dirs(),
                                                     tetrode,
-                                                    idString)
+                                                    clusterFolder)
                     oneTT.load_waveforms()
                     if oneTT.timestamps is None:
-                        message.append('{}_tetrode{}'.format(idString, tetrode))
+                        message.append('{}_tetrode{}'.format(clusterFolder, tetrode))
 
         print '\n'.join(message)
 
 def cluster_many_sessions(subject, sessions,
-                          tetrode, idString,
+                          tetrode, clusterFolder,
                           saveSingleSessionCluFiles=True,
                           minClusters=10,
                           maxClusters=12,
@@ -833,7 +835,7 @@ def cluster_many_sessions(subject, sessions,
         subject (str): Name of subject
         sessions (list): List of session directories (e.g. ['2016-01-01_12-12-12', etc.])
         tetrode (int): Tetrode number to cluster (starts from 1)
-        idString (str): A unique identifier for the multisession clustering (usually 'expXsiteY')
+        clusterFolder (str): A unique identifier for the multisession clustering (usually 'multisession_date_depth')
         saveSingleSessionCluFiles (bool): Whether to save clu files for individual sessions
         minClusters (int): Minimum number of clusters for KK to find
         maxClusters (int): Max clusters for KK to find
@@ -844,7 +846,7 @@ def cluster_many_sessions(subject, sessions,
     oneTT = MultipleSessionsToCluster(subject,
                                       sessions,
                                       tetrode,
-                                      idString)
+                                      clusterFolder)
     oneTT.load_waveforms()
 
     clusterFile = os.path.join(oneTT.clustersDir,

@@ -367,6 +367,7 @@ class Site(object):
           self.tetrodes = tetrodes
           self.sessions=[]
           self.comments=[]
+          self.clusterFolder = 'multisession_{}_{}um'.format(self.date, self.depth)
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
           if not date:
                date=self.date
@@ -491,18 +492,19 @@ def generate_cell_database(inforecPath):
         db (pandas.DataFrame): the cell database
     '''
 
-    clusterDirFormat = 'multisession_exp{}site{}'
+    #clusterDirFormat = 'multisession_exp{}site{}'
     tetrodeStatsFormat = 'Tetrode{}_stats.npz'
     inforec = imp.load_source('module.name', inforecPath)
     db = pd.DataFrame()
     for indExperiment, experiment in enumerate(inforec.experiments):
         for indSite, site in enumerate(experiment.sites):
-            clusterDir = clusterDirFormat.format(indExperiment, indSite)
-            for tetrode in site.tetrodes:
+            #clusterDir = clusterDirFormat.format(indExperiment, indSite)
+             clusterFolder = site.clusterFolder
+             for tetrode in site.tetrodes:
                 clusterStatsFn = tetrodeStatsFormat.format(tetrode)
                 clusterStatsFullPath = os.path.join(settings.EPHYS_PATH,
                                                     inforec.subject,
-                                                    clusterDir,
+                                                    clusterFolder,
                                                     clusterStatsFn)
                 if not os.path.isfile(clusterStatsFullPath):
                     raise NotClusteredYetError("Experiment {} Site {} Tetrode {} is not clustered".format(indExperiment, indSite, tetrode))
