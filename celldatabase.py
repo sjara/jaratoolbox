@@ -286,7 +286,7 @@ class Experiment(object):
           site=Site(self.subject, self.date, self.brainarea, self.info, depth, tetrodes)
           self.sites.append(site)
           return site
-     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None, comments=[]):
+     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
           '''
           Add a new Session object to the list of sessions belonging to the most recent Site
           Args:
@@ -296,10 +296,11 @@ class Experiment(object):
                paradigm (str): The name of the paradigm used to collect the session
                date (str): The recording date. Only needed if the date of the session is different
                            from the date of the Experiment/Site (if you record past midnight)
-               comments (list of str): Some comments about the session if needed
-          TODO: Implement comments
           '''
-          activeSite = self.sites[-1] #Use the most recent site for this experiment
+          try:
+               activeSite = self.sites[-1] #Use the most recent site for this experiment
+          except IndexError:
+               raise IndexError('There are no sites to add sessions to')
           session = activeSite.add_session(timestamp,
                                            behavsuffix,
                                            sessiontype,
@@ -345,18 +346,18 @@ class Experiment(object):
 
 class Site(object):
      '''
-     #TODO: Attribute for reference (does not inherit from top)
-     #TODO: reference (example 'T1ch1' or 'GND')
-     #NOTE: Channels from 1 (not 0) because this is the way it is in openephys GUI
-     #TODO: Explicitly define ref if it is ground
-     #TODO: Force ref definition when creating a new site
      Site is a container of sessions.
      One per group of sessions which contain the same neurons and should be clustered together
      Attributes:
          subject(str): Name of the subject
          date (str): The date the experiment was conducted
+         brainarea (str): The area of the brain where the recording was conducted
+         info (str): Extra info about the experiment
          depth (int): The depth in microns at which the sessions were recorded
+         tetrodes (list): Tetrodes for this site
          sessions (list): A list of all the sessions recorded at this site
+         comments (list of str): Comments for this site
+         clusterFolder (str): The folder where clustering info will be saved for this site
      '''
      def __init__(self, subject, date, brainarea, info, depth, tetrodes):
           self.subject=subject
@@ -369,7 +370,17 @@ class Site(object):
           self.comments=[]
           self.clusterFolder = 'multisession_{}_{}um'.format(self.date, self.depth)
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
-          if not date:
+          '''
+          Add a session to the list of sessions. 
+          Args:
+               timestamp (str): The timestamp used by openEphys GUI to name the session
+               behavsuffix (str): The suffix of the behavior file
+               sessiontype (str): A string describing what kind of session this is.
+               paradigm (str): The name of the paradigm used to collect the session
+               date (str): The recording date. Only needed if the date of the session is different
+                           from the date of the Experiment/Site (if you record past midnight)
+          '''
+          if date is None:
                date=self.date
           session = Session(self.subject,
                             date,
@@ -384,21 +395,45 @@ class Site(object):
           self.sessions.append(session)
           return session
      def session_ephys_dirs(self):
+          '''
+          Returns a list of the ephys directories for all sessions recorded at this site.
+          Returns:
+              dirs (list): List of ephys directories for each session in self.sessions
+          '''
           dirs = [session.ephys_dir() for session in self.sessions]
           return dirs
      def session_behav_filenames(self):
+          '''
+          Returns a list of the behavior filenames for all sessions recorded at this site.
+          Returns:
+              fns (list): list of behavior filenames for each session in self.sessions
+          '''
           fns = [session.behav_filename() for session in self.sessions]
           return fns
      def session_types(self):
+          '''
+          Returns a list of the session type strings for all sessions recorded at this site.
+          Returns:
+              types (list): List of the sessiontype strings for each session in self.sessions
+          '''
           types=[session.sessiontype for session in self.sessions]
           return types
      def find_session(self, sessiontype):
           '''
           Return indexes of sessions of type sessiontype.
+          Args:
+              sessiontype (str): The sessiontype string to search for.
+          Returns:
+              inds (list): List of indices of sessions of type sessiontype.
           '''
-          # TODO: implement this.
-          pass
+          inds = [i for i, st in enumerate(self.session_types()) if st==sessiontype]
+          return inds
      def cluster_info(self):
+          '''
+          Returns a dictionary with the information needed to identify clusters that come from this site.
+          Returns:
+              infoDict (dict): dictionary containing info defining clusters that come from this site
+          '''
           infoDict = {
                'subject':self.subject,
                'date':self.date,
@@ -412,6 +447,13 @@ class Site(object):
           return infoDict
 
      def pretty_print(self, sessions=False):
+          '''
+          Print a string with depth, number of sessions, and optional list of sessions by index
+          Args:
+              sessions (bool): Whether to list all sessions by index
+          Returns:
+              message (str): A formatted string with the message to print
+          '''
           message=[]
           message.append('Site at {}um with {} sessions\n'.format(self.depth, len(self.sessions)))
           if sessions:
@@ -419,6 +461,11 @@ class Site(object):
                     message.append('        {}\n'.format(session.pretty_print()))
           return ''.join(message)
      def comment(self, message):
+          '''
+          Add a comment to self.comments
+          Args:
+              message (str): The message string to append to self.comments
+          '''
           self.comments.append(message)
 
 class Session(object):
@@ -432,6 +479,7 @@ class Session(object):
          behavsuffix (str): The suffix of the behavior file
          sessiontype (str): A string describing what kind of session this is.
          paradigm (str): The name of the paradigm used to collect the session
+         comments (list): list of strings, comments about the session
      '''
      def __init__(self, subject, date, brainarea, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
           self.subject = subject
@@ -444,23 +492,43 @@ class Session(object):
           self.paradigm = paradigm
           self.comments = comments
      def ephys_dir(self):
+          '''
+          Join the date and the session timestamp to generate the actual directory used store the ephys data
+          Returns:
+              path (str): The full folder name used by OpenEphys to save the ephys data
+          '''
           path = os.path.join('{}_{}'.format(self.date, self.timestamp))
           return path
      def behav_filename(self):
+          '''
+          Generate the behavior filename from session attributes and the beahvior suffix.
+          Returns:
+              fn (str): The full behavior filename
+          '''
           fn=None
           if self.behavsuffix:
-               #TODO: check if date is a module, don't use that var name
-               date = ''.join(self.date.split('-'))
+               bdate = ''.join(self.date.split('-'))
                fn = '{}_{}_{}{}.h5'.format(self.subject,
                                         self.paradigm,
-                                        date,
+                                        bdate,
                                         self.behavsuffix)
           return fn
      def pretty_print(self):
+          '''
+          Print a string containing the timestamp and sessiontype string
+          '''
           return "{}: {}".format(self.timestamp, self.sessiontype)
      def __str__(self):
+          '''
+          Use self.pretty_print() if someone tries to print a session
+          '''
           return self.pretty_print()
      def comment(self, message):
+          '''
+          Add a message to the list of comments
+          Args:
+              message (str): The message string to append
+          '''
           self.comments.append(message)
 
 #Use the pandas dataframe functions directly
