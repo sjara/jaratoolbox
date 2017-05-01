@@ -120,6 +120,7 @@ def find_missing_trials(ephysEventTimes,behavEventTimes,threshold=0.5):
 def load_many_sessions(animalNames,sessions,paradigm='2afc',datesRange=None):
     '''
     Based on behavioranalysis.save_many_sessions_reversal()
+    paradigm can be 'flexcateg'
 
     TO DO:
     - Add params='all', (it depends on loadbehavior.FlexCateg being able to load a subset of vars)
@@ -135,10 +136,11 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',datesRange=None):
     else:
         allSessions = sessions
     nAnimals = len(animalNames)
-    if paradigm=='2afc':
+    if paradigm=='flexcateg':
         loadingClass = loadbehavior.FlexCategBehaviorData
     else:
-        raise TypeError('Loading many sessions for that paradigm has not been implemented')
+        loadingClass = loadbehavior.BehaviorData
+        #raise TypeError('Loading many sessions for that paradigm has not been implemented')
     
     #if params=='all':
     #    readmode = 'full'

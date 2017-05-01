@@ -145,7 +145,7 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
     plt.xlim(timeRange)
     plt.ylim(-0.5,lastTrialEachCond[-1]-0.5)
 
-    if labels:
+    if labels is not None:
         labelsPos = (lastTrialEachCond+firstTrialEachCond)/2.0 -0.5
         ax.set_yticks(labelsPos)
         ax.set_yticklabels(labels)
