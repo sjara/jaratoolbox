@@ -138,6 +138,8 @@ class BehaviorData(dict):
             else:
                 objStrings.append('%s : %s\n'%(key,str(type(value))))
         return ''.join(objStrings)
+    def __deepcopy__(self, memo):
+        return self
 
 
 class FlexCategBehaviorData(BehaviorData):
