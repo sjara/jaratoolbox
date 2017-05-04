@@ -674,6 +674,10 @@ class MultipleSessionsToCluster(TetrodeToCluster):
                         self.recordingNumber = sessionVector
                     else:
                         self.samples = np.concatenate([self.samples, samplesThisSession])
+                        # Check to see if next session ts[0] is lower than self.timestamps[-1]
+                        # If so, add self.timestamps[-1] to all new timestamps before concat
+                        if timestampsThisSession[0]<self.timestamps[-1]:
+                            timestampsThisSession = timestampsThisSession + self.timestamps[-1]
                         self.timestamps = np.concatenate([self.timestamps, timestampsThisSession])
                         self.recordingNumber = np.concatenate([self.recordingNumber, sessionVector])
 
