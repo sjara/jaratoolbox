@@ -138,6 +138,38 @@ def evaluate_modulation(spikeTimesFromEventOnset,indexLimitsEachTrial,responseRa
     [zStat,pValue] = stats.ranksums(nspkResp[0],nspkResp[1])
     return (meanSpikes,pValue)
 
+def avg_num_spikes_each_condition(trialsEachCondition, indexLimitsEachTrial):
+    '''
+    Returns the average number of spikes (after an event) for each condition.
+    Relies on indexLimitsEachTrial from eventlocked_spiketimes() above, so the average
+    number of spikes returned is over the time range used in that function.
+
+    This function works with two types of 'trialsEachCondition' arrays. You can either
+    use the output of behavioranalysis.find_trials_each_type(), which uses a single
+    sorting variable, or you can use the output of behavioranalysis.find_trials_each_combination(),
+    which uses a combination of two sorting variables.
+
+    Args:
+        trialsEachCondition (array): Array of shape (nTrials, nValues1) OR (nTrials, nValues1, nValues2)
+        indexLimitsEachTrial (array): Array of shape (2, nTrials): Range of spike indices for each trial
+    Returns:
+       avgSpikesArray (array): Array of shape (nValues1,) or (nValues1, nValues2) depending on the shape
+           of the trialsEachCondition argument. Contains the average number of spikes in each condition
+           (defined by either one of nValues1 or a combination of a value in nValues1 and a value in nValues2).
+    '''
+
+    numSpikesInTimeRangeEachTrial = np.squeeze(np.diff(indexLimitsEachTrial, axis=0))
+    conditionMatShape = np.shape(trialsEachCondition)
+    # -- We repeat and reshape the number of spikes each trial so it matches the shape of trialsEachCondition
+    numRepeats = np.product(conditionMatShape[1:])
+    nSpikesMat = np.reshape(numSpikesInTimeRangeEachTrial.repeat(numRepeats), conditionMatShape)
+    # -- Then we filter the repeated array by the boolean trialsEachCondition matrix
+    spikesFilteredByTrialType = nSpikesMat * trialsEachCondition
+    # -- We can sum the filtered array to get total spikes in each condition, the divide by
+    # -- the sum of the numeric representation (1/0) of the boolean array, which is number of trials
+    # -- for each condition.
+    avgSpikesArray = np.sum(spikesFilteredByTrialType, axis=0) / np.sum(trialsEachCondition, axis=0).astype('float')
+    return avgSpikesArray
 
 """
 def calculate_psth(spikeRasterMat,timeVec,windowSize):
