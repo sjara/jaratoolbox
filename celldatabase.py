@@ -369,6 +369,14 @@ class Site(object):
           self.sessions=[]
           self.comments=[]
           self.clusterFolder = 'multisession_{}_{}um'.format(self.date, self.depth)
+     def remove_tetrodes(self, tetrodesToRemove):
+          '''
+          Remove tetrodes from a site's list of tetrodes
+          '''
+          if not isinstance(tetrodesToRemove, list):
+               tetrodesToRemove = [tetrodesToRemove]
+          for tetrode in tetrodesToRemove:
+               self.tetrodes.remove(tetrode)
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
           '''
           Add a session to the list of sessions. 
