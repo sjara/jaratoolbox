@@ -241,6 +241,20 @@ class DataSpikes(object):
         else:
             self.clusters = np.array(clusterFileOrArray)
 
+def convert_openephys(dataObj):
+    '''
+    Converts samples to millivolts and timestamps to seconds.
+    Args:
+        dataObj (jaratoolbox.loadopenephys data object): Can be a DataSpikes, DataCont, or Events object.
+    Returns:
+        dataObj: Returns the same dataObj with samples and timestamps converted.
+    '''
+    if hasattr(dataObj, 'samples'):
+        dataObj.samples = dataObj.samples.astype(float)-2**15
+        dataObj.samples = (1000.0/dataObj.gain[0,0]) * dataObj.samples
+    if hasattr(dataObj, 'timestamps'):
+        dataObj.timestamps = dataObj.timestamps/dataObj.samplingRate
+    return dataObj
 
 if __name__=='__main__':
     from pylab import *
