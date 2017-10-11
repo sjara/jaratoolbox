@@ -10,6 +10,8 @@ Tools for analyzing anatomical/histological data.
 
 '''
 
+import pandas
+import nrrd
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
@@ -369,6 +371,124 @@ class BrainGrid(OverlayGrid):
             pass
         self.load_corners(cornersFile)
 
+class AllenAnnotation(object):
+    def __init__(self):
+        self.structureGraphFn =  os.path.join(settings.ALLEN_ATLAS_DIR, 'structure_graph.json')
+        jsonData = open(self.structureGraphFn).read()
+        data = json.loads(jsonData)
+        self.structureGraph = data['msg']
+        structureList = []
+        self.structureDF = self.process_structure_graph(self.structureGraph)
+        self.annotationFn =  os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_annotation_25.nrrd')
+        annotationData = nrrd.read(self.annotationFn)
+        self.annotationVol = annotationData[0]
+    def process_structure_graph(self, structureGraph):
+        structureList = []
+        def process_structure_graph_internal(structureGraph):
+            for structure in structureGraph:
+                #Pop the children out to deal with them recursively
+                children = structure.pop('children', None)
+                # Add the structure info to the dataframe
+                structureList.append(pandas.Series(structure))
+                #Deal with the children
+                process_structure_graph_internal(children)
+        process_structure_graph_internal(structureGraph)
+        df = pandas.DataFrame(structureList)
+        return df
+    def get_structure(self, coords):
+        #coords needs to be a 3-TUPLE (x, y, z)
+        structID = int(self.annotationVol[coords])
+        name = self.structureDF.query('id == @structID')['name'].values[0]
+        return structID, name
+    def get_name(self, structID):
+            name = self.structureDF.query('id==@structID')['name'].item()
+            return structID, name
+    def trace_parents(self, structID):
+        #TODO: I don't know if the nested function approach will work in an obj
+        '''Trace the lineage of a region back to the root of the structure graph'''
+        parentTrace = []
+        parentNames = []
+        def trace_internal(structID):
+            parentID = self.structureDF.query('id==@structID')['parent_structure_id']
+            if not pandas.isnull(parentID.values[0]):
+                parentID = int(parentID)
+                parentTrace.append(parentID)
+                parentNames.append(self.structureDF.query('id==@parentID')['name'].item())
+                trace_internal(parentID)
+        trace_internal(structID)
+        return parentTrace, parentNames
+
+class AllenAtlas(object):
+    def __init__(self):
+        atlasPath = os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_average_template_25.nrrd')
+        atlasData = nrrd.read(atlasPath)
+        self.atlas = atlasData[0]
+        self.maxSlice = np.shape(self.atlas)[2]-1
+        self.sliceNum=0
+        self.fig=plt.figure()
+        self.ax = self.fig.add_subplot(111)
+        self.ax.hold(True)
+        self.show_slice(self.sliceNum)
+        self.mpid=self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+        self.mouseClickData=[]
+        #Start the key press handler
+        self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+        #show the plot
+        self.fig.show()
+    def on_click(self, event):
+        '''
+        Method to record mouse clicks in the mouseClickData attribute
+        and plot the points on the current axes
+        '''
+        self.mouseClickData.append([event.xdata, event.ydata])
+        ymin, ymax = self.ax.get_ylim()
+        xmin, xmax = self.ax.get_xlim()
+        self.ax.plot(event.xdata, event.ydata, 'r+')
+        print "[{}, {}, {}]".format(int(event.xdata), int(event.ydata), int(self.sliceNum))
+        self.ax.set_ylim([ymin, ymax])
+        self.ax.set_xlim([xmin, xmax])
+        self.fig.canvas.draw()
+    def on_key_press(self, event):
+        '''
+        Method to listen for keypresses and take action
+        '''
+        #Functions to cycle through the slices
+        if event.key==",":
+            if self.sliceNum>0:
+                self.sliceNum-=1
+            else:
+                self.sliceNum=self.maxSlice
+            self.show_slice(self.sliceNum)
+        if event.key=="<":
+            if self.sliceNum>10:
+                self.sliceNum-=10
+            else:
+                self.sliceNum=self.maxSlice
+            self.show_slice(self.sliceNum)
+        elif event.key=='.':
+            if self.sliceNum<self.maxSlice:
+                self.sliceNum+=1
+            else:
+                self.sliceNum=0
+            self.show_slice(self.sliceNum)
+        elif event.key=='>':
+            if self.sliceNum<self.maxSlice-10:
+                self.sliceNum+=10
+            else:
+                self.sliceNum=0
+            self.show_slice(self.sliceNum)
+    def show_slice(self, sliceNum):
+        '''
+        Method to draw one slice from the atlas
+        '''
+        #Clear the plot and any saved mouse click data for the old dimension
+        self.ax.cla()
+        self.mouseClickData=[]
+        #Draw the image
+        self.ax.imshow(np.rot90(self.atlas[:,:,sliceNum], -1), 'gray')
+        #Label the axes and draw
+        plt.title('< or > to move through the stack\nSlice: {}'.format(sliceNum))
+        self.fig.canvas.draw()
 
 #if __name__=='__main__':
    # imgfile = '/mnt/jarahubdata/histology/anat002_MGB_jpg/b4-C1-01tdT_mirror_correct.jpg'

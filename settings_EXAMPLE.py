@@ -20,3 +20,5 @@ FIGURES_DATA_PATH = '/mnt/jarahubdata/figuresdata' # Intermediate data for subfi
 
 # -- Old --
 # DEFAULT_EXPERIMENTER = 'santiago'  # Not used anymore
+
+ALLEN_ATLAS_DIR = '/mnt/jarahubdata/atlas/AllenCCF_25/'
