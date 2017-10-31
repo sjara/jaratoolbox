@@ -1,5 +1,8 @@
 '''
 Methods and classes for spike sorting and creating reports.
+
+Things to fix:
+#FIXME: This produces a RuntimeWarning (parent module 'module' not found...)
 '''
 
 import matplotlib.pyplot as plt
@@ -744,6 +747,7 @@ class ClusterInforec(object):
 
     def load_inforec(self):
         inforec = imp.load_source('module.name', self.filepath)
+        #FIXME: This produces a RuntimeWarning (parent module 'module' not found...)
         return inforec
 
     def cluster_tetrode(self, experiment, site, tetrode,
@@ -872,11 +876,11 @@ def cluster_many_sessions(subject, sessions,
     outputFullPath = os.path.join(oneTT.clustersDir, statsFn)
     uniqueClusters = np.unique(oneTT.clusters)
     isiViolations = np.empty(len(uniqueClusters))
-    clusters = np.empty(len(uniqueClusters))
-    nSpikes = np.empty(len(uniqueClusters))
+    clusters = np.empty(len(uniqueClusters), dtype=int) #INT
+    nSpikes = np.empty(len(uniqueClusters), dtype=int) #INT
     clusterQuality = np.empty(len(uniqueClusters))
-    nSamples=40
-    nChannels=4
+    nSamples = 40
+    nChannels = 4
     clusterSpikeShape = np.empty((len(uniqueClusters), nSamples))
     clusterSpikeSD = np.empty((len(uniqueClusters), nSamples))
     clusterPeakTimes = np.empty((len(uniqueClusters), 3))
