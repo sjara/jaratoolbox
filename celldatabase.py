@@ -597,14 +597,19 @@ def generate_cell_database(inforecPath):
                 clusterStats = np.load(clusterStatsFullPath)
 
                 for indc, cluster in enumerate(clusterStats['clusters']):
+                    #Calculate cluster shape quality
+                    clusterPeakAmps = clusterStats['clusterPeakAmplitudes'][indc]
+                    clusterSpikeSD = clusterStats['clusterSpikeSD'][indc]
+                    clusterShapeQuality = abs(clusterPeakAmps[1]/clusterSpikeSD.mean())
                     clusterDict = {'tetrode':tetrode,
                                    'cluster':cluster,
                                    'nSpikes':clusterStats['nSpikes'][indc],
                                    'isiViolations':clusterStats['isiViolations'][indc],
-                                   'clusterSpikeShape':clusterStats['clusterSpikeShape'][indc],
-                                   'clusterSpikeSD':clusterStats['clusterSpikeSD'][indc],
-                                   'clusterPeakAmplitudes':clusterStats['clusterPeakAmplitudes'][indc],
-                                   'clusterPeakTimes':clusterStats['clusterPeakTimes'][indc]}
+                                   'spikeShape':clusterStats['clusterSpikeShape'][indc],
+                                   'spikeShapeSD':clusterSpikeSD,
+                                   'spikePeakAmplitudes':clusterPeakAmps,
+                                   'spikePeakTimes':clusterStats['clusterPeakTimes'][indc],
+                                   'spikeShapeQuality':clusterShapeQuality}
                     clusterDict.update(site.cluster_info())
                     db = db.append(clusterDict, ignore_index=True)
     #NOTE: This is an ugly way to force these columns to be int. Will fix in future if possible

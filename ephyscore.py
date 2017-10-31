@@ -93,17 +93,19 @@ class Cell(object):
             spikeData.samples = spikeData.samples[spikeData.clusters==self.cluster]
             spikeData.timestamps = spikeData.timestamps[spikeData.clusters==self.cluster]
             spikeData = loadopenephys.convert_openephys(spikeData)
+        else:
+            raise ValueError('File {} contains no spikes.'.format(spikesFilename))
         eventData = loadopenephys.convert_openephys(eventData)
         #Choose channel map based on paradigm
         paradigm = self.dbRow['paradigm'][sessionInd]
         channelMap = CHANNELMAPS[paradigm]
         eventDict = {}
         for channelType, channelID in channelMap.iteritems():
-            thisChannelUp = eventData.get_event_onset_times(eventID=1, eventChannel=channelID)
-            thisChannelDown = eventData.get_event_onset_times(eventID=0, eventChannel=channelID)
-            eventDict.update({'{}Up'.format(channelType):thisChannelUp,
-                              '{}Down'.format(channelType):thisChannelDown})
-        ephysData = {'spiketimes':spikeData.timestamps,
+            thisChannelOn = eventData.get_event_onset_times(eventID=1, eventChannel=channelID)
+            thisChannelOff = eventData.get_event_onset_times(eventID=0, eventChannel=channelID)
+            eventDict.update({'{}On'.format(channelType):thisChannelOn,
+                              '{}Off'.format(channelType):thisChannelOff})
+        ephysData = {'spikeTimes':spikeData.timestamps,
                      'samples':spikeData.samples,
                      'events':eventDict}
         return ephysData
@@ -125,21 +127,6 @@ class Cell(object):
                                       'Tetrode{}.spikes'.format(self.tetrode))
         return spikesFilename, eventsFilename
 
-    def get_behavior_filename(self, sessionInd):
-        '''
-        Return the full path for the behavior data for a session.
-        Args:
-            sessionInd (int): The index of the session in the list of sessions recorded for the cell.
-        Returns:
-            behavDataFilePath (str): Full path to the behavior .h5 file
-        '''
-        dateStr = ''.join(self.dbRow['date'].split('-'))
-        fullSessionStr = '{}{}'.format(dateStr, self.dbRow['behavSuffix'][sessionInd])
-        behavDataFilePath = loadbehavior.path_to_behavior_data(self.subject,
-                                                               self.dbRow['paradigm'][sessionInd],
-                                                               fullSessionStr)
-        return behavDataFilePath
-
     def load_behavior_by_index(self, sessionInd):
         '''
         Load the behavior data for a session using the absolute index in the list of sessions for the cell.
@@ -153,6 +140,13 @@ class Cell(object):
         * Allow use of different loading class for paradigms like FlexCategBehaviorData
         '''
         #Load the behavior data
-        behavDataFilePath = self.get_behavior_filename(sessionInd)
-        bdata = loadbehavior.BehaviorData(behavDataFilePath,readmode='full')
+        if self.dbRow['behavSuffix'][sessionInd] is not None:
+            dateStr = ''.join(self.dbRow['date'].split('-'))
+            fullSessionStr = '{}{}'.format(dateStr, self.dbRow['behavSuffix'][sessionInd])
+            behavDataFilePath = loadbehavior.path_to_behavior_data(self.subject,
+                                                                self.dbRow['paradigm'][sessionInd],
+                                                                fullSessionStr)
+            bdata = loadbehavior.BehaviorData(behavDataFilePath,readmode='full')
+        else:
+            bdata = None
         return bdata
