@@ -406,14 +406,14 @@ class Site(object):
                             paradigm)
           self.sessions.append(session)
           return session
-     # def session_ephys_dirs(self):
-     #      '''
-     #      Returns a list of the ephys directories for all sessions recorded at this site.
-     #      Returns:
-     #          dirs (list): List of ephys directories for each session in self.sessions
-     #      '''
-     #      dirs = [session.ephys_dir() for session in self.sessions]
-     #      return dirs
+     def session_ephys_dirs(self):
+          '''
+          Returns a list of the ephys directories for all sessions recorded at this site.
+          Returns:
+              dirs (list): List of ephys directories for each session in self.sessions
+          '''
+          dirs = [session.ephys_dir() for session in self.sessions]
+          return dirs
      # def session_behav_filenames(self):
      #      '''
      #      Returns a list of the behavior filenames for all sessions recorded at this site.
@@ -507,15 +507,15 @@ class Session(object):
           self.sessiontype = sessiontype
           self.paradigm = paradigm
           self.comments = comments
-     # def ephys_dir(self):
-     #      '''
-     #      Join the date and the session timestamp to generate the actual directory used store the ephys data
-     #      Returns:
-     #          path (str): The full folder name used by OpenEphys to save the ephys data
-     #      DEPRECATED (2017-10-30): We are going to return just the timestamp, not with the date attached
-     #      '''
-     #      path = os.path.join('{}_{}'.format(self.date, self.timestamp))
-     #      return path
+     def ephys_dir(self):
+          '''
+          Join the date and the session timestamp to generate the actual directory used store the ephys data
+          Returns:
+              path (str): The full folder name used by OpenEphys to save the ephys data
+          DEPRECATED (2017-10-30): We are going to return just the timestamp, not with the date attached
+          '''
+          path = os.path.join('{}_{}'.format(self.date, self.timestamp))
+          return path
      # def behav_filename(self):
      #      '''
      #      Generate the behavior filename from session attributes and the beahvior suffix.
