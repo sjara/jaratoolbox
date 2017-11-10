@@ -238,7 +238,7 @@ class EphysInterface(object):
             plt.figure()
         plot_psth(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, lw=lw, colorEachCond=colorEachCond, plotLegend=1)
 
-    def plot_am_freq_tuning(self, freqsession, amsession, tetrode, experiment=-1, site=-1, freqTimeRange = [-0.1, 0.3], amTimeRange = [-0.2, 0.8], colorEachCond=None, replace=1, ms=1, lw=3):
+    def plot_am_freq_tuning(self, freqsession, amsession, tetrode, cluster = None,experiment=-1, site=-1, freqTimeRange = [-0.1, 0.3], amTimeRange = [-0.2, 0.8], colorEachCond=None, replace=1, ms=1, lw=3):
         if replace:
             plt.cla()
         else:
@@ -247,19 +247,19 @@ class EphysInterface(object):
         if colorEachCond is None:
             colorEachCond = self.get_colours(5)
         plt.subplot(221)
-        self.plot_session_raster(amsession, tetrode, experiment, site, replace=1, timeRange=amTimeRange, ms=ms, colorEachCond=colorEachCond)
+        self.plot_session_raster(amsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=amTimeRange, ms=ms, colorEachCond=colorEachCond)
         plt.xlabel('Time from event onset (sec)')
         plt.ylabel('Modulation rate (Hz)')
         plt.subplot(223)
-        self.plot_session_PSTH(amsession, tetrode, experiment, site, replace=1, timeRange=amTimeRange, lw=lw, colorEachCond=colorEachCond)
+        self.plot_session_PSTH(amsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=amTimeRange, lw=lw, colorEachCond=colorEachCond)
         plt.xlabel('Time from event onset (sec)')
         plt.ylabel('Firing rate (Hz)')
         plt.subplot(222)
-        self.plot_session_raster(freqsession, tetrode, experiment, site, replace=1, timeRange=freqTimeRange, ms=ms)
+        self.plot_session_raster(freqsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=freqTimeRange, ms=ms)
         plt.xlabel('Time from event onset (sec)')
         plt.ylabel('Frequency (Hz)')
         plt.subplot(224)
-        self.plot_session_freq_tuning(freqsession, tetrode, experiment, site, replace=1, timeRange=[0, 0.1])
+        self.plot_session_freq_tuning(freqsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=[0, 0.1])
         plt.xlabel('Frequency (kHz)')
         plt.ylabel('Average number of spikes in range [0, 0.1]')
         plt.suptitle('TT{}'.format(tetrode))
@@ -527,7 +527,7 @@ class EphysInterface(object):
                     maxClusters=6,
                     maxPossibleClusters=6)
 
-    def cluster_color_psth(self, sessionList, plotType=None, site=-1, experiment=-1):
+    def cluster_color_psth(self, sessionList, plotType=None, site=-1, experiment=-1, tuningTimeRange = [0.0,0.1]):
         '''
         Display cluster waveforms and a colormap-style psth. Could also just do lines for each cluster.
         could also just plot spikes in color for each cluster.
@@ -616,7 +616,7 @@ class EphysInterface(object):
                         psth_ax.set_xlim(timeRange)
                     elif plotType[indSession] == 'tuning':
                         trialsEachCond = behavioranalysis.find_trials_each_type(freqEachTrial, np.unique(freqEachTrial))
-                        spikeArray = dataplotter.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange=[0,0.1])
+                        spikeArray = dataplotter.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange=tuningTimeRange)
                         psth_ax.plot(spikeArray, ls='-', lw=2, color = clusterColor)
                         psth_ax.set_xticks(range(len(np.unique(freqEachTrial))))
                         psth_ax.set_xticklabels(freqLabels,fontsize=8)
