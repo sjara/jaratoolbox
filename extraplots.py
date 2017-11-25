@@ -294,6 +294,16 @@ def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSiz
     hs.set_clip_on(False)
     plt.hold(False)
 
+    
+def breakaxis(xpos, ypos, width, height, gap=0.25):
+    plt.hold(1)
+    xvals = np.array([xpos-width/2.0,xpos+width/2.0])
+    yvals = np.array([ypos-height/2.0, ypos+height/2.0])
+    #plt.plot([xpos-0.25*width, xpos+0.25*width], [ypos,ypos], color='r', lw=4, clip_on=False, zorder=0)
+    plt.plot(xvals-gap*width, yvals, color='k', clip_on=False)
+    plt.plot(xvals+gap*width, yvals, color='k', clip_on=False)
+
+
 
 def save_figure(filename, fileformat, figsize, outputDir='./'):
     plt.gcf().set_size_inches(figsize)
