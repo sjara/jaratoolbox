@@ -10,15 +10,22 @@ Tools for analyzing anatomical/histological data.
 
 '''
 
+import os
 import pandas
-import nrrd
+import json
+import xml
+import re
+import PIL
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-import json
 from jaratoolbox import settings
+try:
+    import nrrd
+except:
+    print('Warning! Some methods require the module "nrrd", but it is not installed.')
 
+    
 GRIDCOLOR = [0,0.5,0.5]
 
 def define_grid(corners, nRows=3, nCols=2):
@@ -490,6 +497,119 @@ class AllenAtlas(object):
         plt.title('< or > to move through the stack\nSlice: {}'.format(sliceNum))
         self.fig.canvas.draw()
 
+
+# ----- Coordinate transformations from Inkscape-assisted manual registration -----
+
+def get_svg_transform(filename, sliceSize=[1388,1040]):
+    '''
+    Get the transform of the second image from an SVG file with two images.
+
+    filename: SVG file containing two images.
+    sliceSize: original size [width,height] of the second image.
+
+    Attribute 'transform' has format 'matrix(0.9,-0.1,0.3,0.9,0,0)'
+    https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/transform
+    '''
+    tree = xml.etree.ElementTree.parse(filename)
+    root=tree.getroot()
+    images = root.findall('{http://www.w3.org/2000/svg}image')
+    if len(images)!=2:
+        raise ValueError('The SVG file must contain exactly 2 images')
+    if (images[0].attrib['x']!='0') or (images[0].attrib['y']!='0'):
+        raise ValueError('The first image (CCF) must be located at (0,0).')
+    if images[1].attrib.has_key('transform'):
+        transformString = images[1].attrib['transform']
+        if transformString.startswith('matrix'):
+            transformValueStrings = re.findall(r'-?\d+\.*\d*', transformString)
+            transformValues = [float(x) for x in transformValueStrings]
+        elif transformString.startswith('rotate'):
+            transformValueString = re.findall(r'-?\d+\.*\d*', transformString)[0]
+            theta = -np.pi*float(transformValueString)/180 # In radians (and negative)
+            # -- Note that this is different from the SVG documentation (b & c swapped) --
+            transformValues = [np.cos(theta), -np.sin(theta), np.sin(theta), np.cos(theta)]
+    else:
+        transformValues = [1,0,0,1,0,0]
+    scaleWidth = float(images[1].attrib['width'])/float(sliceSize[0])
+    scaleHeight = float(images[1].attrib['height'])/float(sliceSize[1])
+    xPos = float(images[1].attrib['x'])
+    yPos = float(images[1].attrib['y'])
+    scale = np.array([[scaleWidth],[scaleHeight]])
+    translate = np.array([[xPos],[yPos]])
+    affine = np.reshape(transformValues[:4],(2,2), order='F')
+    return (scale, translate, affine)
+
+def apply_svg_transform(scale, translate, affine, coords):
+    '''Apply transformation in the appropriate order.'''
+    newCoords = scale*coords + translate
+    newCoords = np.dot(affine, newCoords)
+    return newCoords
+
+def get_coords_from_fiji_csv(filename):
+    '''
+    Read the location of cells from a CSV file created with Fiji.
+    Returns coordinates as float in an array of shape (2,nCells)
+    Note that values are in Image coordinates (inverted Y), not Cartesian.
+
+    First row of CSV file is " ,Area,Mean,Min,Max,X,Y"
+    '''
+    allData = np.loadtxt(filename, delimiter=',', skiprows=1)
+    coords = allData[:,5:]
+    return coords.T
+
+SVG_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   version="1.1"
+   id="svg2"
+   width="{atlasWidth}"
+   height="{atlasHeight}"
+   viewBox="0 0 {atlasWidth} {atlasHeight}">
+  <image
+     xlink:href="{atlasImage}"
+     y="0"
+     x="0"
+     id="image0"
+     style="image-rendering:optimizeQuality"
+     preserveAspectRatio="none"
+     width="456"
+     height="320" />
+  <image
+     xlink:href="{sliceImage}"
+     width="{sliceWidth}"
+     height="{sliceHeight}"
+     preserveAspectRatio="none"
+     style="opacity:0.5;image-rendering:optimizeQuality"
+     id="image1"
+     x="0"
+     y="0" />
+</svg>
+'''
+
+def save_svg_for_registration(filenameSVG, filenameAtlas, filenameSlice, verbose=True):
+    '''Save SVG for manual registration'''
+    atlasIm = PIL.Image.open(filenameAtlas)
+    (atlasWidth,atlasHeight) = atlasIm.size
+    sliceIm = PIL.Image.open(filenameSlice)
+    (sliceWidth,sliceHeight) = sliceIm.size
+    svgString = SVG_TEMPLATE.format(atlasImage=filenameAtlas, sliceImage=filenameSlice,
+                                    atlasWidth=atlasWidth, atlasHeight=atlasHeight,
+                                    sliceWidth=sliceWidth, sliceHeight=sliceHeight)
+    fileSVG = open(filenameSVG, 'w')
+    fileSVG.write(svgString)
+    fileSVG.close()
+    if verbose:
+        print('Saved {}'.format(filenameSVG))
+    return (atlasIm.size, sliceIm.size)
+
+
+
+
+
+
+
+        
 #if __name__=='__main__':
    # imgfile = '/mnt/jarahubdata/histology/anat002_MGB_jpg/b4-C1-01tdT_mirror_correct.jpg'
    # ogrid = OverlayGrid(nRows=3,nCols=2)
