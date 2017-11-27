@@ -13,9 +13,9 @@ Tools for analyzing anatomical/histological data.
 import os
 import pandas
 import json
-import xml
 import re
 import PIL
+import xml.etree.ElementTree as ETree
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
@@ -500,7 +500,7 @@ class AllenAtlas(object):
 
 # ----- Coordinate transformations from Inkscape-assisted manual registration -----
 
-def get_svg_transform(filename, sliceSize=[1388,1040]):
+def get_svg_transform(filename, sliceSize=[1388, 1040]):
     '''
     Get the transform of the second image from an SVG file with two images.
 
@@ -510,7 +510,7 @@ def get_svg_transform(filename, sliceSize=[1388,1040]):
     Attribute 'transform' has format 'matrix(0.9,-0.1,0.3,0.9,0,0)'
     https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/transform
     '''
-    tree = xml.etree.ElementTree.parse(filename)
+    tree = ETree.parse(filename)
     root=tree.getroot()
     images = root.findall('{http://www.w3.org/2000/svg}image')
     if len(images)!=2:
@@ -544,7 +544,7 @@ def apply_svg_transform(scale, translate, affine, coords):
     newCoords = np.dot(affine, newCoords)
     return newCoords
 
-def get_coords_from_fiji_csv(filename):
+def get_coords_from_fiji_csv(filename, pixelSize=1):
     '''
     Read the location of cells from a CSV file created with Fiji.
     Returns coordinates as float in an array of shape (2,nCells)
@@ -553,7 +553,7 @@ def get_coords_from_fiji_csv(filename):
     First row of CSV file is " ,Area,Mean,Min,Max,X,Y"
     '''
     allData = np.loadtxt(filename, delimiter=',', skiprows=1)
-    coords = allData[:,5:]
+    coords = allData[:,5:7]/pixelSize
     return coords.T
 
 SVG_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
