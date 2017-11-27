@@ -581,8 +581,10 @@ def generate_cell_database(inforecPath):
     #clusterDirFormat = 'multisession_exp{}site{}'
     tetrodeStatsFormat = 'Tetrode{}_stats.npz'
     inforec = imp.load_source('module.name', inforecPath)
+    print '\n# -- Generating database for new inforec file -- #\n'
     db = pd.DataFrame(dtype=object)
     for indExperiment, experiment in enumerate(inforec.experiments):
+        print 'Adding experiment from {} on {}'.format(experiment.subject, experiment.date)
         for indSite, site in enumerate(experiment.sites):
             #clusterDir = clusterDirFormat.format(indExperiment, indSite)
              clusterFolder = site.clusterFolder
