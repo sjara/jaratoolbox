@@ -431,7 +431,7 @@ class AllenAnnotation(object):
         names = []
         structIDs = []
         for indCell in range(xyArr.shape[1]):
-            coords = (xyArr[0, indCell], xyArr[1, indCell], zSlice)
+            coords = (xyArr[0, indCell].astype(int), xyArr[1, indCell].astype(int), zSlice.astype(int))
             structID, name = self.get_structure(coords)
             names.append(name)
             structIDs.append(structID)
