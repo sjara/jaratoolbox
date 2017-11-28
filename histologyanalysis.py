@@ -405,7 +405,10 @@ class AllenAnnotation(object):
     def get_structure(self, coords):
         #coords needs to be a 3-TUPLE (x, y, z)
         structID = int(self.annotationVol[coords])
-        name = self.structureDF.query('id == @structID')['name'].values[0]
+        if structID!=0:
+            name = self.structureDF.query('id == @structID')['name'].values[0]
+        else:
+            name = 'Outside the brain'
         return structID, name
     def get_name(self, structID):
             name = self.structureDF.query('id==@structID')['name'].item()
@@ -424,6 +427,15 @@ class AllenAnnotation(object):
                 trace_internal(parentID)
         trace_internal(structID)
         return parentTrace, parentNames
+    def get_structure_many_xy(self, xyArr, zSlice):
+        names = []
+        structIDs = []
+        for indCell in range(xyArr.shape[1]):
+            coords = (xyArr[0, indCell], xyArr[1, indCell], zSlice)
+            structID, name = self.get_structure(coords)
+            names.append(name)
+            structIDs.append(structID)
+        return structIDs, names
 
 class AllenAtlas(object):
     def __init__(self):
