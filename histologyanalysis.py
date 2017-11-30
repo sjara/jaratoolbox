@@ -431,6 +431,7 @@ class AllenAnnotation(object):
     def get_structure_id_many_xy(self, xyArr, zSlice):
         names = []
         structIDs = []
+	xyArr = xyArr.astype(int)
         for indCell in range(xyArr.shape[1]):
             coords = (xyArr[0, indCell], xyArr[1, indCell], zSlice)
             # structID, name = self.get_structure(coords)
