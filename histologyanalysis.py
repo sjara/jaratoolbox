@@ -19,6 +19,7 @@ import xml.etree.ElementTree as ETree
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
+import collections
 from jaratoolbox import settings
 try:
     import nrrd
@@ -413,7 +414,7 @@ class AllenAnnotation(object):
         return structID
     def get_name(self, structID):
             name = self.structureDF.query('id==@structID')['name'].item()
-            return structID, name
+            return name
     def trace_parents(self, structID):
         #TODO: I don't know if the nested function approach will work in an obj
         '''Trace the lineage of a region back to the root of the structure graph'''
@@ -440,6 +441,22 @@ class AllenAnnotation(object):
             structIDs.append(structID)
         # return structIDs, names
         return structIDs
+    def get_structure_count_from_ids(self, idCounts):
+        resultDict = {}
+        # if not isinstance(idCounts, collections.Counter):
+        #     idCounts = collections.Counter(idCounts)
+        for structID, count in idCounts.iteritems():
+            try:
+                name = self.get_name(structID)
+            except:
+                name = "Area {} not found".format(structID)
+            resultDict.update({name:count})
+        return resultDict
+    def get_total_voxels_per_area(self, zCoord):
+        allIDsThisSlice = self.annotationVol[:,:,zCoord].ravel()
+        voxelsPerID = collections.Counter(allIDsThisSlice)
+        voxelsPerStructure = self.get_structure_count_from_ids(voxelsPerID)
+        return voxelsPerStructure
 
 class AllenAtlas(object):
     def __init__(self):
