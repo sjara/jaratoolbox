@@ -750,7 +750,7 @@ class ClusterInforec(object):
         #FIXME: This produces a RuntimeWarning (parent module 'module' not found...)
         return inforec
 
-    def cluster_tetrode(self, experiment, site, tetrode,
+    def process_tetrode(self, experiment, site, tetrode,
                         saveSingleSessionCluFiles=True,
                         minClusters=3,
                         maxClusters=6,
@@ -783,28 +783,28 @@ class ClusterInforec(object):
                                         recluster=recluster)
         return oneTT
 
-    def cluster_site(self, experiment, site, **kwargs):
+    def process_site(self, experiment, site, **kwargs):
         '''
-        For available kwargs, see help(cluster_tetrode)
+        For available kwargs, see help(process_tetrode)
         '''
         siteObj = self.inforec.experiments[experiment].sites[site]
         for tetrode in siteObj.tetrodes:
-            self.cluster_tetrode(experiment, site, tetrode, **kwargs)
+            self.process_tetrode(experiment, site, tetrode, **kwargs)
 
-    def cluster_all_sites(self, indExperiment, **kwargs):
+    def process_all_sites(self, indExperiment, **kwargs):
         '''
-        For available kwargs, see help(cluster_tetrode)
+        For available kwargs, see help(process_tetrode)
         '''
         experiment = self.inforec.experiments[indExperiment]
         for indSite, site in enumerate(experiment.sites):
-            self.cluster_site(indExperiment, indSite, **kwargs)
+            self.process_site(indExperiment, indSite, **kwargs)
 
-    def cluster_all_experiments(self, **kwargs):
+    def process_all_experiments(self, **kwargs):
         '''
-        For available kwargs, see help(cluster_tetrode)
+        For available kwargs, see help(process_tetrode)
         '''
         for indExperiment, _ in enumerate(self.inforec.experiments):
-            self.cluster_all_sites(indExperiment, **kwargs)
+            self.process_all_sites(indExperiment, **kwargs)
 
     def pretty_print_inforec(self, sites=True, sessions=False):
         message = []
@@ -849,6 +849,9 @@ def cluster_many_sessions(subject, sessions,
         maxClusters (int): Max clusters for KK to find
         maxPossibleClusters (int): Max clusters for KK to find
         recluster (bool): Whether to recluster the site if clustering has been done already
+    Returns:
+        saves a clusterStats file with the following attributes:
+            clusterPeakAmplitudes: an array of shape (nClusters, 3) with amps of cap peak, Na peak, K peak
     '''
 
     oneTT = MultipleSessionsToCluster(subject,
