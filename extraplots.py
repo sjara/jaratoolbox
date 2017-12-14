@@ -99,7 +99,7 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
     (trialsEachCond,nTrialsEachCond,nCond) = trials_each_cond_inds(trialsEachCond,nTrials)
 
     if colorEachCond is None:
-        colorEachCond = ['0.5','0.75']*np.ceil(nCond/2.0)
+        colorEachCond = ['0.5','0.75']*int(np.ceil(nCond/2.0))
 
     if fillWidth is None:
         fillWidth = 0.05*np.diff(timeRange)
