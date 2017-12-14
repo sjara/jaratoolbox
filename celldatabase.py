@@ -7,8 +7,6 @@ import numpy as np
 import os
 import sys
 from jaratoolbox import settings
-from jaratoolbox import loadbehavior
-from jaratoolbox import loadopenephys
 import pandas as pd
 import imp
 
@@ -275,6 +273,9 @@ class Experiment(object):
           self.info=info
           self.sites=[]
           self.tetrodes = [1,2,3,4,5,6,7,8]
+          self.maxDepth = None
+          self.shankEnds = None
+          # self.probeGeometryFile = '/tmp/A4x2tet_5mm_150_200_121.py' #TODO: Implement something for probe geometry long-term storage?
      def add_site(self, depth, tetrodes = None):
           '''
           Append a new Site object to the list of sites.
@@ -382,7 +383,7 @@ class Site(object):
                self.tetrodes.remove(tetrode)
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
           '''
-          Add a session to the list of sessions. 
+          Add a session to the list of sessions.
           Args:
                timestamp (str): The timestamp used by openEphys GUI to name the session
                behavsuffix (str): The suffix of the behavior file
@@ -413,32 +414,35 @@ class Site(object):
           '''
           dirs = [session.ephys_dir() for session in self.sessions]
           return dirs
-     def session_behav_filenames(self):
-          '''
-          Returns a list of the behavior filenames for all sessions recorded at this site.
-          Returns:
-              fns (list): list of behavior filenames for each session in self.sessions
-          '''
-          fns = [session.behav_filename() for session in self.sessions]
-          return fns
-     def session_types(self):
-          '''
-          Returns a list of the session type strings for all sessions recorded at this site.
-          Returns:
-              types (list): List of the sessiontype strings for each session in self.sessions
-          '''
-          types=[session.sessiontype for session in self.sessions]
-          return types
-     def find_session(self, sessiontype):
-          '''
-          Return indexes of sessions of type sessiontype.
-          Args:
-              sessiontype (str): The sessiontype string to search for.
-          Returns:
-              inds (list): List of indices of sessions of type sessiontype.
-          '''
-          inds = [i for i, st in enumerate(self.session_types()) if st==sessiontype]
-          return inds
+     # def session_behav_filenames(self):
+     #      '''
+     #      Returns a list of the behavior filenames for all sessions recorded at this site.
+     #      Returns:
+     #          fns (list): list of behavior filenames for each session in self.sessions
+     #      DEPRECATED (2017-10-30): session function no longer implemented
+     #      '''
+     #      fns = [session.behav_filename() for session in self.sessions]
+     #      return fns
+     # def session_types(self):
+     #      '''
+     #      Returns a list of the session type strings for all sessions recorded at this site.
+     #      Returns:
+     #          types (list): List of the sessiontype strings for each session in self.sessions
+     #      DEPRECATED (2017-10-30): We just have the generator in the cluster_info method to be clear
+     #      about what is returned per session and what is a site attr.
+     #      '''
+     #      types=[session.sessiontype for session in self.sessions]
+     #      return types
+     # def find_session(self, sessiontype):
+     #      '''
+     #      Return indexes of sessions of type sessiontype.
+     #      Args:
+     #          sessiontype (str): The sessiontype string to search for.
+     #      Returns:
+     #          inds (list): List of indices of sessions of type sessiontype.
+     #      '''
+     #      inds = [i for i, st in enumerate(self.session_types()) if st==sessiontype]
+     #      return inds
      def cluster_info(self):
           '''
           Returns a dictionary with the information needed to identify clusters that come from this site.
@@ -448,12 +452,13 @@ class Site(object):
           infoDict = {
                'subject':self.subject,
                'date':self.date,
-               'brainarea': self.brainarea,
+               'brainArea': self.brainarea,
                'info': self.info,
                'depth':self.depth,
-               'ephys':self.session_ephys_dirs(),
-               'behavior':self.session_behav_filenames(),
-               'sessiontype':self.session_types()
+               'ephysTime':[session.timestamp for session in self.sessions],
+               'paradigm':[session.paradigm for session in self.sessions],
+               'behavSuffix':[session.behavsuffix for session in self.sessions],
+               'sessionType':[session.sessiontype for session in self.sessions]
           }
           return infoDict
 
@@ -507,23 +512,25 @@ class Session(object):
           Join the date and the session timestamp to generate the actual directory used store the ephys data
           Returns:
               path (str): The full folder name used by OpenEphys to save the ephys data
+          DEPRECATED (2017-10-30): We are going to return just the timestamp, not with the date attached
           '''
           path = os.path.join('{}_{}'.format(self.date, self.timestamp))
           return path
-     def behav_filename(self):
-          '''
-          Generate the behavior filename from session attributes and the beahvior suffix.
-          Returns:
-              fn (str): The full behavior filename
-          '''
-          fn=None
-          if self.behavsuffix:
-               bdate = ''.join(self.date.split('-'))
-               fn = '{}_{}_{}{}.h5'.format(self.subject,
-                                        self.paradigm,
-                                        bdate,
-                                        self.behavsuffix)
-          return fn
+     # def behav_filename(self):
+     #      '''
+     #      Generate the behavior filename from session attributes and the beahvior suffix.
+     #      Returns:
+     #          fn (str): The full behavior filename
+     #      DEPRECATED (2017-10-30) We are going to return the suffix and paradigm, not the full path for each session
+     #      '''
+     #      fn=None
+     #      if self.behavsuffix:
+     #           bdate = ''.join(self.date.split('-'))
+     #           fn = '{}_{}_{}{}.h5'.format(self.subject,
+     #                                    self.paradigm,
+     #                                    bdate,
+     #                                    self.behavsuffix)
+     #      return fn
      def pretty_print(self):
           '''
           Print a string containing the timestamp and sessiontype string
@@ -564,7 +571,7 @@ class Session(object):
 
 def generate_cell_database(inforecPath):
     '''
-    Iterates over all sites in an inforec and builds a cell database
+    Iterates over all sites in an inforec and builds a cell database. This function requires that the data is already clustered.
     Args:
         inforecPath (str): absolute path to the inforec file
     Returns:
@@ -574,8 +581,10 @@ def generate_cell_database(inforecPath):
     #clusterDirFormat = 'multisession_exp{}site{}'
     tetrodeStatsFormat = 'Tetrode{}_stats.npz'
     inforec = imp.load_source('module.name', inforecPath)
-    db = pd.DataFrame()
+    print '\n# -- Generating database for new inforec file -- #\n'
+    db = pd.DataFrame(dtype=object)
     for indExperiment, experiment in enumerate(inforec.experiments):
+        print 'Adding experiment from {} on {}'.format(experiment.subject, experiment.date)
         for indSite, site in enumerate(experiment.sites):
             #clusterDir = clusterDirFormat.format(indExperiment, indSite)
              clusterFolder = site.clusterFolder
@@ -590,19 +599,22 @@ def generate_cell_database(inforecPath):
                 clusterStats = np.load(clusterStatsFullPath)
 
                 for indc, cluster in enumerate(clusterStats['clusters']):
+                    #Calculate cluster shape quality
+                    clusterPeakAmps = clusterStats['clusterPeakAmplitudes'][indc]
+                    clusterSpikeSD = clusterStats['clusterSpikeSD'][indc]
+                    clusterShapeQuality = abs(clusterPeakAmps[1]/clusterSpikeSD.mean())
                     clusterDict = {'tetrode':tetrode,
                                    'cluster':cluster,
-                                   'indExperiment':indExperiment,
-                                   'indSite':indSite,
-                                   'inforecPath':inforecPath,
                                    'nSpikes':clusterStats['nSpikes'][indc],
                                    'isiViolations':clusterStats['isiViolations'][indc],
-                                   'clusterSpikeShape':clusterStats['clusterSpikeShape'][indc],
-                                   'clusterSpikeSD':clusterStats['clusterSpikeSD'][indc],
-                                   'clusterPeakAmplitudes':clusterStats['clusterPeakAmplitudes'][indc],
-                                   'clusterPeakTimes':clusterStats['clusterPeakTimes'][indc]}
+                                   'spikeShape':clusterStats['clusterSpikeShape'][indc],
+                                   'spikeShapeSD':clusterSpikeSD,
+                                   'spikePeakAmplitudes':clusterPeakAmps,
+                                   'spikePeakTimes':clusterStats['clusterPeakTimes'][indc],
+                                   'spikeShapeQuality':clusterShapeQuality}
                     clusterDict.update(site.cluster_info())
                     db = db.append(clusterDict, ignore_index=True)
+    #NOTE: This is an ugly way to force these columns to be int. Will fix in future if possible
     db['tetrode'] = db['tetrode'].astype(int)
     db['cluster'] = db['cluster'].astype(int)
     db['nSpikes'] = db['nSpikes'].astype(int)
@@ -610,3 +622,11 @@ def generate_cell_database(inforecPath):
 
 class NotClusteredYetError(Exception):
     pass
+
+def find_cell(db, subject, date, depth, tetrode, cluster):
+    cell = db.query('subject==@subject and date==@date and depth==@depth\
+                       and tetrode==@tetrode and cluster==@cluster')
+    if len(result)!=1:
+        #Does not exist or not unique
+        raise
+    return cell[0]
