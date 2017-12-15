@@ -171,6 +171,41 @@ def avg_num_spikes_each_condition(trialsEachCondition, indexLimitsEachTrial):
     avgSpikesArray = np.sum(spikesFilteredByTrialType, axis=0) / np.sum(trialsEachCondition, axis=0).astype('float')
     return avgSpikesArray
 
+
+def response_latency(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, threshold=0.5, win=None):
+    '''
+    Calculate response latency as time point where smooth PSTH crosses some fraction of
+    the (baseline subtracted) max response.
+
+    Args: 
+        timeRange (list): 2-item list defining time-range of the data.
+        threshold (float): fraction of max response (baseline subtracted).
+        win (np.ndarray): window to use for smoothing. Default is hanning(7).
+    '''
+    # FIXME: decide if really want to import this (for Hanning window)
+    #        and put it at the top. Or make a Gaussian function in this module.
+    if win is None:
+        win = np.array([0, 0.25, 0.75, 1, 0.75, 0.25, 0]) # scipy.signal.hanning(7)
+    binEdges = np.arange(timeRange[0],timeRange[-1],0.001)
+    timeVec = binEdges[1:]  # FIXME: is this the best way to define the time axis?
+    spikeCountMat = spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,binEdges)
+    avResp = np.mean(spikeCountMat,axis=0)
+    smoothPSTH = np.convolve(avResp,win, mode='same')
+    baselineBins = (timeVec<0)
+    if not np.any(baselineBins):
+        raise ValueError('The data needs to include a period before the stimulus.')
+    avBaseline = np.mean(smoothPSTH[baselineBins])
+    maxResp = np.max(smoothPSTH)
+    thresholdSpikeCount = avBaseline + 0.5*(maxResp-avBaseline)
+    respLatencyInd = np.flatnonzero(smoothPSTH>thresholdSpikeCount)[0]
+    yDiff = (smoothPSTH[respLatencyInd]-smoothPSTH[respLatencyInd-1])
+    yFraction = (thresholdSpikeCount-smoothPSTH[respLatencyInd-1])/ yDiff
+    respLatency = timeVec[respLatencyInd-1] + yFraction*(timeVec[respLatencyInd]-timeVec[respLatencyInd-1])
+    interim = {'timeVec':timeVec,'avgCount':avResp,'psth':smoothPSTH,'baseline':avBaseline,
+               'maxResponse':maxResp,'threshold':thresholdSpikeCount}
+    return (respLatency,interim)
+
+    
 """
 def calculate_psth(spikeRasterMat,timeVec,windowSize):
     '''Calculate Peri-Stimulus Time Histogram.
