@@ -184,6 +184,7 @@ def response_latency(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, 
     '''
     if win is None:
         win = np.array([0, 0.25, 0.75, 1, 0.75, 0.25, 0]) # scipy.signal.hanning(7)
+        win = win/np.sum(win)
     binEdges = np.arange(timeRange[0],timeRange[-1],0.001)
     timeVec = binEdges[1:]  # FIXME: is this the best way to define the time axis?
     spikeCountMat = spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,binEdges)
