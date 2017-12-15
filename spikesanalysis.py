@@ -182,8 +182,6 @@ def response_latency(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, 
         threshold (float): fraction of max response (baseline subtracted).
         win (np.ndarray): window to use for smoothing. Default is hanning(7).
     '''
-    # FIXME: decide if really want to import this (for Hanning window)
-    #        and put it at the top. Or make a Gaussian function in this module.
     if win is None:
         win = np.array([0, 0.25, 0.75, 1, 0.75, 0.25, 0]) # scipy.signal.hanning(7)
     binEdges = np.arange(timeRange[0],timeRange[-1],0.001)
