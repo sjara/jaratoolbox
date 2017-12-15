@@ -620,13 +620,34 @@ def generate_cell_database(inforecPath):
     db['nSpikes'] = db['nSpikes'].astype(int)
     return db
 
+def find_cell(database, subject, date, depth, tetrode, cluster):
+     cell = database.query('subject==@subject and date==@date and depth==@depth and tetrode==@tetrode and cluster==@cluster')
+     if len(cell)>1:
+          raise AssertionError('This information somehow defines more than 1 cell in the database.')
+     elif len(cell)==0:
+          raise AssertionError('No cells fit this search criteria.')
+     elif len(cell)==1:
+          return cell.index[0], cell.iloc[0] #Return the index and the series: once you convert to series the index is lost
+
+def get_cell_info(database, index):
+     '''
+     The index is THE index from the original pandas dataframe. It is not the positional index.
+     '''
+     cell = database.loc[index]
+     cellDict = {'subject':cell['subject'],
+                 'date':cell['date'],
+                 'depth':cell['depth'],
+                 'tetrode':cell['tetrode'],
+                 'cluster':cell['cluster']}
+     return cellDict
+
 class NotClusteredYetError(Exception):
     pass
 
-def find_cell(db, subject, date, depth, tetrode, cluster):
-    cell = db.query('subject==@subject and date==@date and depth==@depth\
-                       and tetrode==@tetrode and cluster==@cluster')
-    if len(result)!=1:
-        #Does not exist or not unique
-        raise
-    return cell[0]
+# def find_cell(db, subject, date, depth, tetrode, cluster):
+#     cell = db.query('subject==@subject and date==@date and depth==@depth\
+#                        and tetrode==@tetrode and cluster==@cluster')
+#     if len(result)!=1:
+#         #Does not exist or not unique
+#         raise
+#     return cell[0]
