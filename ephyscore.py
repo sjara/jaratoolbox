@@ -12,7 +12,9 @@ from jaratoolbox import settings
 # Define the event channel mapping for each paradigm. For each paradigm, you
 # should include a dict like this: {eventName:intanEventChannel}
 CHANNELMAPS = {'am_tuning_curve': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
-               'bandwidth_am':{'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5}}
+               'bandwidth_am':{'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
+               'laser_tuning_curve':{'stim':0, 'trialStart':1, 'laser':2},
+               '2afc':{'stim':0, 'trialStart':1}}
 
 class Cell(object):
     def __init__(self, dbRow):
