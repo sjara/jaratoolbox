@@ -447,6 +447,46 @@ def OLD_calculate_psychometric(behavData,parameterName='targetFrequency'):
     return (possibleValues,fractionRightEachValue,confintervRightEachValue,nTrialsEachValue,nRightwardEachValue)
 
 
+def subset_trials_equalized(trialsEachCond, fraction):
+    '''
+    Create a new matrix of trialsEachCond with only a subset of trials
+    trying to equalize the number of trials per condition.
+
+    trialsThisCond (np.array bool): nTrials x nConditions
+    fraction (float): fraction of trials to extract (bewteen 0 and 1).
+    '''
+    nCond = trialsEachCond.shape[1]
+    nTrialsEachCondition = trialsEachCond.sum(axis=0)
+    equalizedTrialCount = equalized_trial_count(nTrialsEachCondition,fraction)
+    newTrialsEachCond = np.zeros(trialsEachCond.shape)
+    for indc in range(nCond):
+        trialsThisCond = np.flatnonzero(trialsEachCond[:,indc])
+        if equalizedTrialCount[indc]>0:
+            subsetInds = np.random.choice(trialsThisCond, equalizedTrialCount[indc])
+            newTrialsEachCond[subsetInds,indc] = True
+    return newTrialsEachCond
+    
+def equalized_trial_count(nTrialsEachCondition, fraction):
+    '''
+    Given the number of trials for each condition and a fraction of trials to take,
+    find the new numbers that equalize the number of trials per condition.
+    '''
+    equalizedTrialCount = np.zeros(nTrialsEachCondition.shape, dtype=int)
+    nCond = len(nTrialsEachCondition)
+    totalTrials = np.sum(nTrialsEachCondition)
+    idealTotal = int(fraction*totalTrials)
+    remaining = idealTotal
+    for indc,trialcount in enumerate(nTrialsEachCondition):
+        idealTrialsEachCond = remaining/(nCond-indc)
+        if trialcount<idealTrialsEachCond:
+            equalizedTrialCount[indc] = trialcount
+        else:
+            equalizedTrialCount[indc] = idealTrialsEachCond
+        remaining = idealTotal - np.sum(equalizedTrialCount)
+    return equalizedTrialCount
+
+
+
 if __name__ == "__main__":
 
     CASE=6
