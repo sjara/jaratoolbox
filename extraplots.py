@@ -294,7 +294,31 @@ def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSiz
     hs.set_clip_on(False)
     plt.hold(False)
 
-    
+def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fontSize=10, gapFactor=0.1):
+    '''
+    xRange: 2-element list or array with x values for horizontal extent of line.
+    yPos: scalar indicating vertical position of line.
+    yLength: scalar indicating length of vertical ticks
+    starMarker (str): The string to use for the 'star'. Can be '*', or 'n.s.'
+    '''
+    nStars=1  # I haven't implemented plotting more than one star.
+    plt.hold(True) # FIXME: Use holdState
+    xGap = gapFactor*nStars
+    xVals = [xRange[0],xRange[0], 
+             np.mean(xRange)-xGap*np.diff(xRange), np.nan, 
+             np.mean(xRange)+xGap*np.diff(xRange),
+             xRange[1],xRange[1]]
+    yVals = [yPos-yLength, yPos, yPos, np.nan, yPos, yPos, yPos-yLength]
+    hlines, = plt.plot(xVals,yVals,color=color)
+    hlines.set_clip_on(False)
+    xPosStar = [] # FINISH THIS! IT DOES NOT WORK WITH nStars>1
+    starsXvals = np.mean(xRange)
+
+    # hs, = plt.plot(starsXvals,np.tile(yPos,nStars),
+    #                starMarker,mfc=color, mec='None')
+    plt.annotate(starMarker, xy=(starsXvals, yPos), xycoords='data', fontsize=fontSize, fontweight='bold', va='center', ha='center')
+    plt.hold(False)
+
 def breakaxis(xpos, ypos, width, height, gap=0.25):
     plt.hold(1)
     xvals = np.array([xpos-width/2.0,xpos+width/2.0])
