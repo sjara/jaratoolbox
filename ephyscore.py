@@ -14,6 +14,7 @@ from jaratoolbox import settings
 # where intanEventChannel is the digital input channel that your event TTL is connected to
 CHANNELMAPS = {'am_tuning_curve': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'bandwidth_am':{'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
+               'laser_tuning_curve':{'stim':0, 'trialStart':1, 'laser':2},
                '2afc':{'stim':0, 'trialStart':1}}
 
 class Cell(object):

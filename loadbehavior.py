@@ -150,7 +150,7 @@ class FlexCategBehaviorData(BehaviorData):
         self.nTrials = len(self['currentBlock'])
         self.blocks = {}
     def find_boundaries_each_block(self):
-        print len(self['currentBlock'])
+        #print len(self['currentBlock']) ### DEBUG
         blockBoundaries = np.flatnonzero(np.diff(self['currentBlock']))
         lastTrialEachBlock = np.hstack((blockBoundaries,self.nTrials))
         firstTrialEachBlock = np.hstack((0,lastTrialEachBlock[:-1]+1))
