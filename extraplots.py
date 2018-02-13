@@ -316,7 +316,7 @@ def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fon
 
     # hs, = plt.plot(starsXvals,np.tile(yPos,nStars),
     #                starMarker,mfc=color, mec='None')
-    plt.annotate(starMarker, xy=(starsXvals, yPos), xycoords='data', fontsize=fontSize, fontweight='bold', va='center', ha='center')
+    plt.text(starsXvals, yPos, starMarker, fontsize=fontSize, va='center', ha='center', clip_on=False)
     plt.hold(False)
 
 def breakaxis(xpos, ypos, width, height, gap=0.25):
