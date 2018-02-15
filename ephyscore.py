@@ -37,19 +37,20 @@ class Cell(object):
         self.cluster = dbRow['cluster']
         self.ephysBaseDir = os.path.join(settings.EPHYS_PATH, self.subject)
 
-    def load(self, sessiontype):
+    def load(self, sessiontype, behavClass=None):
         '''
         Load the spikes, events, and behavior data for a single session. Loads the LAST recorded
         session of the type that was recorded from the cell.
         Args:
             sessiontype (str): the type of session to load data for.
+            behavClass (jaratoolbox.loadbehavior Class): The loading class to use, each class of behavData will have different methods.
         Returns:
             ephysData (list): Spiketimes (array), samples (array) and events (dict)
             behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
         '''
         sessionInds = self.get_session_inds(sessiontype)
         sessionIndToUse = sessionInds[-1] #NOTE: Taking the last session of this type!
-        ephysData, behavData = self.load_by_index(sessionIndToUse)
+        ephysData, behavData = self.load_by_index(sessionIndToUse, behavClass=behavClass)
         return ephysData, behavData
 
     def get_session_inds(self, sessiontype):
@@ -63,17 +64,18 @@ class Cell(object):
         sessionInds = [i for i, st in enumerate(self.dbRow['sessionType']) if st==sessiontype]
         return sessionInds
 
-    def load_by_index(self, sessionInd):
+    def load_by_index(self, sessionInd, behavClass=None):
         '''
         Load both ephys and behavior data for a session using the absolute index in the list of sessions for the cell.
         Args:
             sessionInd (int): The index of the session in the list of sessions recorded for the cell.
+            behavClass (jaratoolbox.loadbehavior Class): The loading class to use, each class of behavData will have different methods.
         Returns:
             ephysData (list): Spiketimes (array), samples (array) and events (dict)
             behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
         '''
         ephysData = self.load_ephys_by_index(sessionInd)
-        behavData = self.load_behavior_by_index(sessionInd)
+        behavData = self.load_behavior_by_index(sessionInd, behavClass=behavClass)
         return ephysData, behavData
 
     def load_ephys_by_index(self, sessionInd):
@@ -130,11 +132,12 @@ class Cell(object):
                                       'Tetrode{}.spikes'.format(self.tetrode))
         return spikesFilename, eventsFilename
 
-    def load_behavior_by_index(self, sessionInd):
+    def load_behavior_by_index(self, sessionInd, behavClass=None):
         '''
         Load the behavior data for a session using the absolute index in the list of sessions for the cell.
         Args:
             sessionInd (int): The index of the session in the list of sessions recorded for the cell.
+            behavClass (jaratoolbox.loadbehavior Class): The loading class to use, each class of behavData will have different methods.
         Returns:
             behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
 
@@ -142,6 +145,10 @@ class Cell(object):
         * Allow use of different readmode for loading partial data
         * Allow use of different loading class for paradigms like FlexCategBehaviorData
         '''
+        #Set the loading class for behavior data
+        if behavClass==None:
+            behavClass = loadbehavior.BehaviorData
+
         #Load the behavior data
         if self.dbRow['behavSuffix'][sessionInd] is not None:
             dateStr = ''.join(self.dbRow['date'].split('-'))
@@ -149,7 +156,7 @@ class Cell(object):
             behavDataFilePath = loadbehavior.path_to_behavior_data(self.subject,
                                                                 self.dbRow['paradigm'][sessionInd],
                                                                 fullSessionStr)
-            bdata = loadbehavior.BehaviorData(behavDataFilePath,readmode='full')
+            bdata = behavClass(behavDataFilePath,readmode='full')
         else:
             bdata = None
         return bdata
