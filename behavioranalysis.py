@@ -333,9 +333,42 @@ def plot_frequency_psycurve(bdata,fontsize=12):
     extraplots.set_ticks_fontsize(plt.gca(),fontsize)
     return (pline, pcaps, pbars, pdots)
 
-def plot_dynamics(behavData,winsize=40,fontsize=12,soundfreq=None):
+def plot_dynamics_2afc(behavData,winsize=40,fontsize=12):
     '''
-    Plot performance in time for one session.
+    Plot performance in time for one session for left and right trials.
+    First argument is an object created by loadbehavior.BehaviorData (or subclasses)
+    '''
+    ax = plt.gca()
+    ax.cla()
+    lineWidth = 2
+    possibleRewardSide = np.unique(behavData['rewardSide'])
+    possibleColors = ['b','r']
+    rightChoice = behavData['choice']==behavData.labels['choice']['right']
+
+    hPlots = []
+    plt.hold(True)
+    valid = behavData['valid'].astype(bool)
+    for indr,thisSide in enumerate(possibleRewardSide):
+        thisColor = possibleColors[indr]
+        trialsThisSide = (behavData['rewardSide']==thisSide)
+        choiceVecThisSide = np.ma.masked_array(rightChoice[valid])
+        choiceVecThisSide.mask = ~trialsThisSide[valid]
+        movAvChoice = extrafuncs.moving_average_masked(choiceVecThisSide,winsize)
+        hp, = plt.plot(range(0,len(movAvChoice)),100*movAvChoice,
+                       lw=lineWidth,color=thisColor)
+        hPlots.append(hp)
+    plt.ylim([-5,105])
+    plt.axhline(50,color='0.5',ls='--')
+    plt.ylabel('% rightward',fontsize=fontsize)
+    plt.xlabel('Trial',fontsize=fontsize)
+    extraplots.set_ticks_fontsize(ax,fontsize)
+    #plt.draw()
+    #plt.show()
+    return hPlots
+
+def plot_dynamics_2afc_by_freq(behavData,winsize=40,fontsize=12,soundfreq=None):
+    '''
+    Plot performance in time per frequency for one session.
     First argument is an object created by loadbehavior.BehaviorData (or subclasses)
     '''
     ax = plt.gca()
