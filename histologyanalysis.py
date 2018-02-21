@@ -432,7 +432,7 @@ class AllenAnnotation(object):
     def get_structure_id_many_xy(self, xyArr, zSlice):
         names = []
         structIDs = []
-	xyArr = xyArr.astype(int)
+        xyArr = xyArr.astype(int)
         for indCell in range(xyArr.shape[1]):
             coords = (xyArr[0, indCell], xyArr[1, indCell], zSlice)
             # structID, name = self.get_structure(coords)
@@ -441,22 +441,38 @@ class AllenAnnotation(object):
             structIDs.append(structID)
         # return structIDs, names
         return structIDs
-    def get_structure_count_from_ids(self, idCounts):
-        resultDict = {}
-        # if not isinstance(idCounts, collections.Counter):
-        #     idCounts = collections.Counter(idCounts)
-        for structID, count in idCounts.iteritems():
-            try:
-                name = self.get_name(structID)
-            except:
-                name = "Area {} not found".format(structID)
-            resultDict.update({name:count})
-        return resultDict
+    def get_structure_from_id(self, structID):
+        try:
+            name = self.get_name(structID)
+        except:
+            name = "Area {} not found".format(structID)
+        return name
     def get_total_voxels_per_area(self, zCoord):
         allIDsThisSlice = self.annotationVol[:,:,zCoord].ravel()
         voxelsPerID = collections.Counter(allIDsThisSlice)
-        voxelsPerStructure = self.get_structure_count_from_ids(voxelsPerID)
+        voxelsPerStructure = {self.get_structure_from_id(structID):count for structID, count in voxelsPerID.iteritems()}
         return voxelsPerStructure
+
+class AllenCorticalCoordinates(object):
+    def __init__(self):
+        self.laplacianFn =  os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_laplacian_25.nrrd')
+        laplacianData = nrrd.read(self.laplacianFn)
+        self.laplacianVol = laplacianData[0]
+    def get_cortical_depth(self, coords):
+        #coords needs to be a 3-TUPLE (x, y, z)
+        depth = self.laplacianVol[coords]
+        return depth
+    def get_cortical_depth_many_xy(self, xyArr, zSlice):
+        names = []
+        allDepths = []
+        xyArr = xyArr.astype(int)
+        for indCell in range(xyArr.shape[1]):
+            coords = (xyArr[0, indCell], xyArr[1, indCell], zSlice)
+            # structID, name = self.get_structure(coords)
+            depth = self.get_cortical_depth(coords)
+            allDepths.append(depth)
+        allDepths = np.array(allDepths)
+        return allDepths
 
 class AllenAtlas(object):
     def __init__(self):
@@ -572,9 +588,20 @@ def get_svg_transform(filename, sliceSize=[1388, 1040]):
     return (scale, translate, affine)
 
 def apply_svg_transform(scale, translate, affine, coords):
-    '''Apply transformation in the appropriate order.'''
+    '''
+    Apply transformation in the appropriate order.
+    This transforms the image coordinates to atlas coordinates
+    '''
     newCoords = scale*coords + translate
     newCoords = np.dot(affine, newCoords)
+    return newCoords
+
+def apply_svg_inverse_transform(scale, translate, affine, coords):
+    '''
+    This transforms the atlas coordinates into image coordinates.
+    '''
+    newCoords = np.dot(np.linalg.inv(affine), coords)
+    newCoords = (newCoords - translate)/scale
     return newCoords
 
 def get_coords_from_fiji_csv(filename, pixelSize=1):
