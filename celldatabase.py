@@ -584,6 +584,12 @@ def generate_cell_database(inforecPath):
     print '\n# -- Generating database for new inforec file -- #\n'
     db = pd.DataFrame(dtype=object)
     for indExperiment, experiment in enumerate(inforec.experiments):
+        #Complain if the maxDepth attr is not set for this experiment
+        if experiment.maxDepth is None:
+            print "Please set the attribute maxDepth for experiment with subject {} on {}".format(experiment.subject, experiment.date)
+            maxDepthThisExp = None
+        else:
+            maxDepthThisExp = experiment.maxDepth
         print 'Adding experiment from {} on {}'.format(experiment.subject, experiment.date)
         for indSite, site in enumerate(experiment.sites):
             #clusterDir = clusterDirFormat.format(indExperiment, indSite)
@@ -603,7 +609,8 @@ def generate_cell_database(inforecPath):
                     clusterPeakAmps = clusterStats['clusterPeakAmplitudes'][indc]
                     clusterSpikeSD = clusterStats['clusterSpikeSD'][indc]
                     clusterShapeQuality = abs(clusterPeakAmps[1]/clusterSpikeSD.mean())
-                    clusterDict = {'tetrode':tetrode,
+                    clusterDict = {'maxDepth':maxDepthThisExp,
+                                   'tetrode':tetrode,
                                    'cluster':cluster,
                                    'nSpikes':clusterStats['nSpikes'][indc],
                                    'isiViolations':clusterStats['isiViolations'][indc],
