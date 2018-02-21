@@ -45,7 +45,11 @@ class Cell(object):
             sessiontype (str): the type of session to load data for.
             behavClass (jaratoolbox.loadbehavior Class): The loading class to use, each class of behavData will have different methods.
         Returns:
-            ephysData (list): Spiketimes (array), samples (array) and events (dict)
+            ephysData (dict):'spikeTimes' (array), 'samples' (array) and 'events' (dict)
+                              The dictionary 'events' contains two keys for each type of event
+                              used in the paradigm - one for the eventOn, when the event turns on,
+                              and one for the eventOff, when the event turns off. These will look like
+                              'stimOn' and 'stimOff' for the event type 'stim' defined in the paradigm.
             behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
         '''
         sessionInds = self.get_session_inds(sessiontype)
