@@ -937,6 +937,31 @@ def calculate_ISI_violations(timestamps, threshold=2e-3):
     isiViolations = np.mean(ISI<threshold) # Assumes ISI in usec
     return isiViolations
 
+def distance_to_centroid(featureMat):
+    '''
+    Mahalanobis distance:  d = sqrt ( (x-u)T * invCov * (x-u) )
+
+    Args:
+        featureMat (np.array): size (nSamples, nDim)
+    Returns:
+        dMahalanobis: Mahalanobis distance from each point to cluster center
+    '''
+    nPoints, nDim = featureMat.shape
+    points = featureMat.T
+    pMean = points.mean(axis=1)
+    zPoints = points-pMean[:,np.newaxis]
+    pCov = np.cov(zPoints)
+    pInvCov = np.linalg.inv(pCov)
+    # -- Calculate distance from each point to origin --
+    dMahalanobis = np.empty(points.shape[1])
+    for ind in range(nPoints):
+        zPoint = zPoints[:,ind]
+        term2 = np.dot(pInvCov, zPoint)
+        term1 = np.dot(zPoint.T, term2)
+        dMahalanobis[ind] = np.sqrt(term1)
+    return dMahalanobis
+
+
 
 if __name__ == "__main__":
     CASE = 4
