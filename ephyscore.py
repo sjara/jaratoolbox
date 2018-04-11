@@ -18,17 +18,19 @@ CHANNELMAPS = {'am_tuning_curve': {'stim':0, 'trialStart':1, 'laser':2, 'soundDe
                '2afc':{'stim':0, 'trialStart':1}}
 
 class Cell(object):
-    def __init__(self, dbRow):
+    def __init__(self, dbRow, useModifiedClusters=False):
         '''
         Things to check at the end:
         * When looping through cells, make sure that nothing is preserved from iteration to the next
         Args:
             dbRow (pandas.core.series.Series): A row from a dataframe. Must contain at least:
             * sessionType
+            useModifiedClusters (bool): Whether to load the modified cluster files created after cleaning clusters, if they exist.
         '''
         if not isinstance(dbRow, pd.core.series.Series):
             raise TypeError('This object must be initialized with a pandas Series object.')
         self.dbRow = dbRow
+        self.useModifiedClusters = useModifiedClusters
 
         # We use these variables many times to load data
         # Date and depth are not really used to load the data
@@ -97,8 +99,20 @@ class Cell(object):
         if spikeData.timestamps is not None:
             clustersDir = os.path.join(self.ephysBaseDir, '{}_{}_kk'.format(self.dbRow['date'],
                                                                             self.dbRow['ephysTime'][sessionInd]))
-            clustersFile = os.path.join(clustersDir,'Tetrode{}.clu.1'.format(self.tetrode))
-            spikeData.set_clusters(clustersFile)
+            if self.useModifiedClusters is False:
+                # Always use the original .clu.1 file
+                clustersFile = os.path.join(clustersDir,'Tetrode{}.clu.1'.format(self.tetrode))
+                spikeData.set_clusters(clustersFile)
+            elif self.useModifiedClusters is True:
+                # Use the modified .clu file if it exists, otherwise use the original one
+                clustersFileModified = os.path.join(clustersDir,'Tetrode{}.clu.modified'.format(self.tetrode))
+                if os.path.exists(clustersFileModified):
+                    print "Loading modified .clu file for session {}".format(spikesFilename)
+                    spikeData.set_clusters(clustersFileModified)
+                else:
+                    print "Modified .clu file does not exist, loading standard .clu file for session {}".format(spikesFilename)
+                    clustersFile = os.path.join(clustersDir,'Tetrode{}.clu.1'.format(self.tetrode))
+                    spikeData.set_clusters(clustersFile)
             spikeData.samples = spikeData.samples[spikeData.clusters==self.cluster]
             spikeData.timestamps = spikeData.timestamps[spikeData.clusters==self.cluster]
             spikeData = loadopenephys.convert_openephys(spikeData)
@@ -164,3 +178,38 @@ class Cell(object):
         else:
             bdata = None
         return bdata
+
+    def load_all_spikedata(self):
+        '''
+        Load the spike data for all recorded sessions into a set of arrays.
+        Returns:
+            timestamps (np.array): The timestamps for all spikes across all sessions
+            samples (np.array): The samples for all spikes across all sessions
+            recordingNumber (np.array): The index of the session where the spike was recorded
+        '''
+        samples=np.array([])
+        timestamps=np.array([])
+        recordingNumber=np.array([])
+        for sessionInd, sessionType in enumerate(self.dbRow['sessionType']):
+            try:
+                ephysData = self.load_ephys_by_index(sessionInd)
+            except ValueError, errMsg: #File contains no spikes
+                print str(errMsg)
+                continue
+            numSpikes = len(ephysData['spikeTimes'])
+            sessionVector = np.zeros(numSpikes)+sessionInd
+            if len(samples)==0:
+                samples = ephysData['samples']
+                timestamps = ephysData['spikeTimes']
+                recordingNumber = sessionVector
+            else:
+                samples = np.concatenate([samples, ephysData['samples']])
+                # Check to see if next session ts[0] is lower than self.timestamps[-1]
+                # If so, add self.timestamps[-1] to all new timestamps before concat
+                if not len(ephysData['spikeTimes'])==0:
+                    if ephysData['spikeTimes'][0]<timestamps[-1]:
+                        ephysData['spikeTimes'] = ephysData['spikeTimes'] + timestamps[-1]
+                    timestamps = np.concatenate([timestamps, ephysData['spikeTimes']])
+                    recordingNumber = np.concatenate([recordingNumber, sessionVector])
+        recordingNumber = recordingNumber.astype(int)
+        return timestamps, samples, recordingNumber

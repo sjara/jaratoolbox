@@ -294,13 +294,15 @@ def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSiz
     hs.set_clip_on(False)
     plt.hold(False)
 
-def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fontSize=10, gapFactor=0.1):
+def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fontSize=10, gapFactor=0.1, ax=None):
     '''
     xRange: 2-element list or array with x values for horizontal extent of line.
     yPos: scalar indicating vertical position of line.
     yLength: scalar indicating length of vertical ticks
     starMarker (str): The string to use for the 'star'. Can be '*', or 'n.s.'
     '''
+    if ax==None:
+        ax=plt.gca()
     nStars=1  # I haven't implemented plotting more than one star.
     plt.hold(True) # FIXME: Use holdState
     xGap = gapFactor*nStars
@@ -309,14 +311,14 @@ def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fon
              np.mean(xRange)+xGap*np.diff(xRange),
              xRange[1],xRange[1]]
     yVals = [yPos-yLength, yPos, yPos, np.nan, yPos, yPos, yPos-yLength]
-    hlines, = plt.plot(xVals,yVals,color=color)
+    hlines, = ax.plot(xVals,yVals,color=color)
     hlines.set_clip_on(False)
     xPosStar = [] # FINISH THIS! IT DOES NOT WORK WITH nStars>1
     starsXvals = np.mean(xRange)
 
     # hs, = plt.plot(starsXvals,np.tile(yPos,nStars),
     #                starMarker,mfc=color, mec='None')
-    plt.text(starsXvals, yPos, starMarker, fontsize=fontSize, va='center', ha='center', clip_on=False)
+    ax.text(starsXvals, yPos, starMarker, fontsize=fontSize, va='center', ha='center', clip_on=False)
     plt.hold(False)
 
 def breakaxis(xpos, ypos, width, height, gap=0.25):
