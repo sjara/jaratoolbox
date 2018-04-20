@@ -158,6 +158,8 @@ def avg_num_spikes_each_condition(trialsEachCondition, indexLimitsEachTrial):
            (defined by either one of nValues1 or a combination of a value in nValues1 and a value in nValues2).
     '''
 
+    print "WARNING!!! avg_num_spikes_each_condition is deprecated and will be removed in the next version of jaratoolbox."
+
     numSpikesInTimeRangeEachTrial = np.squeeze(np.diff(indexLimitsEachTrial, axis=0))
     conditionMatShape = np.shape(trialsEachCondition)
     # -- We repeat and reshape the number of spikes each trial so it matches the shape of trialsEachCondition
