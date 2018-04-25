@@ -327,6 +327,22 @@ def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fon
     ax.text(starsXvals, yPos, starMarker, fontsize=fontSize, va='center', ha='center', clip_on=False)
     plt.hold(False)
 
+
+def spread_plot(xVal, yVals, spacing):
+    '''
+    Plot at one x position samples that are quantized in y, by spreading dots equally.
+    '''
+    uniqueY = np.unique(yVals)
+    allMarkers = []
+    for oneY in uniqueY:
+        nVals = np.sum(yVals==oneY)
+        possibleOffsets = spacing * np.arange(-nVals/2.0+0.5, nVals/2.0, 1)
+        xOffset = possibleOffsets[:nVals]
+        hp, = plt.plot(np.tile(xVal,nVals)+xOffset, np.tile(oneY,nVals), 'o', mfc='none')
+        allMarkers.append(hp)
+    return allMarkers
+
+
 def breakaxis(xpos, ypos, width, height, gap=0.25):
     plt.hold(1)
     xvals = np.array([xpos-width/2.0,xpos+width/2.0])
