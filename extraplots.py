@@ -16,7 +16,7 @@ def boxoff(ax,keep='left',yaxis=True):
     if keep=='left':
         ax.spines['right'].set_visible(False)
     else:
-        ax.spines['left'].set_visible(False)        
+        ax.spines['left'].set_visible(False)
     xtlines = ax.get_xticklines()
     ytlines = ax.get_yticklines()
     for t in xtlines[1::2]+ytlines[1::2]:
@@ -28,7 +28,7 @@ def boxoff(ax,keep='left',yaxis=True):
         for t in ytlines:
             t.set_visible(False)
 
-            
+
 def adjust_pos(ax, modifier):
     '''
     THIS METHOD IS NOT FINISHED.
@@ -44,7 +44,7 @@ def adjust_pos(ax, modifier):
     axPos.update_from_data(xVals,yVals)
     ax.set_position(axPos)
 
-    
+
 def set_axes_color(ax,axColor):
     '''
     Change the color of axes, ticks and labels.
@@ -156,7 +156,7 @@ def raster_plot(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange,trialsEa
 def plot_psth(spikeCountMat,smoothWinSize,binsStartTime,trialsEachCond=[],
               colorEachCond=None,linestyle=None,linewidth=3,downsamplefactor=1):
     '''
-    TODO: 
+    TODO:
     - Check if the windowing is non-causal
     - Check the units of the vertical axis (is it spikes/sec?)
     '''
@@ -184,7 +184,7 @@ def plot_psth(spikeCountMat,smoothWinSize,binsStartTime,trialsEachCond=[],
         ph, = plt.plot(binsStartTime[sSlice],smoothPSTH[sSlice],ls=linestyle[indc])
         pPSTH.append(ph)
         pPSTH[-1].set_linewidth(linewidth)
-        pPSTH[-1].set_color(colorEachCond[indc])    
+        pPSTH[-1].set_color(colorEachCond[indc])
         plt.hold(True)
     return pPSTH
 
@@ -194,7 +194,7 @@ def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,
     if ciHitsEachValue is not None:
         upperWhisker = ciHitsEachValue[1,:]-fractionHitsEachValue
         lowerWhisker = fractionHitsEachValue-ciHitsEachValue[0,:]
-        (pline, pcaps, pbars) = plt.errorbar(possibleValues, 100*fractionHitsEachValue, 
+        (pline, pcaps, pbars) = plt.errorbar(possibleValues, 100*fractionHitsEachValue,
                                              yerr = [100*lowerWhisker, 100*upperWhisker],color='k')
     else:
         pline = plt.plot(possibleValues, 100*fractionHitsEachValue,'k')
@@ -259,7 +259,7 @@ def set_log_ticks(ax,tickValues,axis='x'):
         ax.set_yticks(tickLogValues)
         ax.set_yticklabels(tickLabels)
 
-        
+
 def scalebar(xpos,ypos,width,height,xstring,ystring,fontsize=10):
     '''Show scale bars with labels'''
     pbar = plt.plot([xpos,xpos,xpos+width],[ypos+height,ypos,ypos],'k',lw=2, clip_on=False)
@@ -270,17 +270,19 @@ def scalebar(xpos,ypos,width,height,xstring,ystring,fontsize=10):
     return(pbar,xstring,ystring)
 
 
-def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSize=8, gapFactor=0.1):
+def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSize=8, starString=None, gapFactor=0.1):
     '''
     xRange: 2-element list or array with x values for horizontal extent of line.
     yPos: scalar indicating vertical position of line.
     yLength: scalar indicating length of vertical ticks
+    starMarker: the marker type to use (e.g., '*' or '+')
+    starString: if defined, use this string instead of a marker. In this case fontsize=starSize
     '''
     nStars=1  # I haven't implemented plotting more than one star.
     plt.hold(True) # FIXME: Use holdState
     xGap = gapFactor*nStars
-    xVals = [xRange[0],xRange[0], 
-             np.mean(xRange)-xGap*np.diff(xRange), np.nan, 
+    xVals = [xRange[0],xRange[0],
+             np.mean(xRange)-xGap*np.diff(xRange), np.nan,
              np.mean(xRange)+xGap*np.diff(xRange),
              xRange[1],xRange[1]]
     yVals = [yPos-yLength, yPos, yPos, np.nan, yPos, yPos, yPos-yLength]
@@ -288,11 +290,15 @@ def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSiz
     hlines.set_clip_on(False)
     xPosStar = [] # FINISH THIS! IT DOES NOT WORK WITH nStars>1
     starsXvals = np.mean(xRange)
-    hs, = plt.plot(starsXvals,np.tile(yPos,nStars),
-                   starMarker,mfc=color, mec='None')
-    hs.set_markersize(starSize)
-    hs.set_clip_on(False)
+    if starString is None:
+        hs, = plt.plot(starsXvals,np.tile(yPos,nStars),
+                       starMarker,mfc=color, mec='None', clip_on=False)
+        hs.set_markersize(starSize)
+    else:
+        hs = plt.text(starsXvals, yPos, starString, fontsize=starSize,
+              va='center', ha='center', clip_on=False)
     plt.hold(False)
+    return [hs, hlines]
 
 def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fontSize=10, gapFactor=0.1, ax=None):
     '''
@@ -306,8 +312,8 @@ def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fon
     nStars=1  # I haven't implemented plotting more than one star.
     plt.hold(True) # FIXME: Use holdState
     xGap = gapFactor*nStars
-    xVals = [xRange[0],xRange[0], 
-             np.mean(xRange)-xGap*np.diff(xRange), np.nan, 
+    xVals = [xRange[0],xRange[0],
+             np.mean(xRange)-xGap*np.diff(xRange), np.nan,
              np.mean(xRange)+xGap*np.diff(xRange),
              xRange[1],xRange[1]]
     yVals = [yPos-yLength, yPos, yPos, np.nan, yPos, yPos, yPos-yLength]
