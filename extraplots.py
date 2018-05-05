@@ -360,7 +360,7 @@ def save_figure(filename, fileformat, figsize, outputDir='./'):
     plt.gcf().set_frameon(False)
     plt.savefig(fullName,format=fileformat,facecolor='none')
     plt.gcf().set_frameon(True)
-    print 'Figure saved to {0}'.format(fullName)
+    print('Figure saved to {0}'.format(fullName))
 
 
 class FlipThrough(object):
