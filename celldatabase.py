@@ -9,6 +9,8 @@ import sys
 from jaratoolbox import settings
 import pandas as pd
 import imp
+import h5py
+import ast  # To parse string representing a list
 
 class EphysSessionInfo(object):
      def __init__(self, animalName, ephysSession, behavSession,
@@ -29,7 +31,7 @@ class EphysSessionInfo(object):
 
 class CellInfo(object):
     '''
-    Container of information for one cell. 
+    Container of information for one cell.
     '''
     def __init__(self, animalName, ephysSession, behavSession, tetrode, cluster,
                  trialsToExclude=[]):
@@ -108,7 +110,7 @@ class CellDatabase(list):
                         print "Format of 'trialsToExclude' is not correct ({0})".format(oneCell)
                 self.append(oneCell)
 
-        
+
     def findcell(self,firstParam,behavSession='',tetrode=-1,cluster=-1):
         '''
         Find index of cell. It can be used in two ways:
@@ -229,11 +231,11 @@ Tetrode' and the .spikes file would show up as something like 'SingleElectrode1.
 
   Pros:
       The relevant information for clustering and plotting reports will be easy to add
-      to a pandas dataframe because we can do vars(session) and this returns a dict, 
-      which we can add to a pandas dataframe directly. Later, we can simply use this 
-      column instead of having to get multiple columns and create the correct 
+      to a pandas dataframe because we can do vars(session) and this returns a dict,
+      which we can add to a pandas dataframe directly. Later, we can simply use this
+      column instead of having to get multiple columns and create the correct
   Cons:
-      This is redundant if we are also storing the date, timestamp, paradigm, etc. 
+      This is redundant if we are also storing the date, timestamp, paradigm, etc.
 
 ---
 
@@ -649,6 +651,74 @@ def get_cell_info(database, index):
                  'cluster':cell['cluster']}
      return cellDict
 
+def save_hdf(dframe, filename):
+    '''
+    Save database as HDF5, in a cleaner format than pandas.DataFrame.to_hdf()
+    Use celldatabase.load_hdf() to load these files.
+
+    Args:
+        dframe: pandas dataframe containing database.
+        filename: full path to output file.
+
+    TODO: save index
+    '''
+    h5file = h5py.File(filename,'w')
+    string_dt = h5py.special_dtype(vlen=str)
+    try:
+        dbGroup = h5file.require_group('/') # database
+        for onecol in dframe.columns:
+            if isinstance(dframe[onecol][0], np.ndarray):
+                arraydata = np.vstack(dframe[onecol].values)
+                dset = dbGroup.create_dataset(onecol, data=arraydata)
+            elif isinstance(dframe[onecol][0], int) or \
+                isinstance(dframe[onecol][0], float):
+                arraydata=dframe[onecol].values
+                dset = dbGroup.create_dataset(onecol, data=arraydata)
+            elif isinstance(dframe[onecol][0], str):
+                arraydata = dframe[onecol].values.astype(str)
+                dset = dbGroup.create_dataset(onecol, data=arraydata)
+            elif isinstance(dframe[onecol][0], list):
+                # For columns like: behavSuffix, ephysTime, paradigm, sessionType
+                arraydata = dframe[onecol].values
+                dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=string_dt)
+            else:
+                raise ValueError('Trying to save items of invalid type')
+            #dset.attrs['Description'] = onecol
+        h5file.close()
+    except:
+        h5file.close()
+        raise
+
+def load_hdf(filename, root='/'):
+    '''
+    Load database into a pandas dataframe from an HDF5 file
+    saved by celldatabase.save_hdf()
+
+    Args:
+        filename: full path to HDF5 file.
+        root: the HDF5 group containing the database.
+    '''
+    dbDict = {}
+    try:
+        h5file = h5py.File(filename,'r')
+    except IOError:
+        print '{0} does not exist or cannot be opened.'.format(filename)
+        raise
+    for varname,varvalue in h5file[root].items():
+        if varvalue.dtype==np.int or varvalue.dtype==np.float:
+            if len(varvalue.shape)==1:
+                dbDict[varname] = varvalue[...]
+            else:
+                dbDict[varname] = list(varvalue[...]) # If it is an array
+        if varvalue.dtype.kind=='S':
+            dbDict[varname] = varvalue[...]
+        if varvalue.dtype==np.object:
+            dataAsList = [ast.literal_eval(v) for v in varvalue]
+            dbDict[varname] = dataAsList
+    return pd.DataFrame(dbDict)
+
+
+
 class NotClusteredYetError(Exception):
     pass
 
@@ -659,3 +729,12 @@ class NotClusteredYetError(Exception):
 #         #Does not exist or not unique
 #         raise
 #     return cell[0]
+
+'''
+import h5py
+h5file = h5py.File('/tmp/test.h5','w')
+dbGroup = h5file.require_group('/')
+
+dset = dbGroup.create_dataset('mykey', data=x)
+h5file.close()
+'''
