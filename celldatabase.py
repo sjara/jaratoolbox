@@ -604,7 +604,7 @@ def generate_cell_database(inforecPath):
                                                     clusterFolder,
                                                     clusterStatsFn)
                 if not os.path.isfile(clusterStatsFullPath):
-                    raise NotClusteredYetError("Experiment {} Site {} Tetrode {} is not clustered".format(indExperiment, indSite, tetrode))
+                    raise NotClusteredYetError("Experiment {} Site {} Tetrode {} is not clustered.\nNo file {}".format(indExperiment, indSite, tetrode,clusterStatsFullPath))
                 clusterStats = np.load(clusterStatsFullPath)
 
                 for indc, cluster in enumerate(clusterStats['clusters']):
@@ -667,17 +667,18 @@ def save_hdf(dframe, filename):
     try:
         dbGroup = h5file.require_group('/') # database
         for onecol in dframe.columns:
-            if isinstance(dframe[onecol][0], np.ndarray):
+            onevalue = dframe.iloc[0][onecol]
+            if isinstance(onevalue, np.ndarray):
                 arraydata = np.vstack(dframe[onecol].values)
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
-            elif isinstance(dframe[onecol][0], int) or \
-                isinstance(dframe[onecol][0], float):
+            elif isinstance(onevalue, int) or \
+                isinstance(onevalue, float):
                 arraydata=dframe[onecol].values
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
-            elif isinstance(dframe[onecol][0], str):
+            elif isinstance(onevalue, str):
                 arraydata = dframe[onecol].values.astype(str)
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
-            elif isinstance(dframe[onecol][0], list):
+            elif isinstance(onevalue, list):
                 # For columns like: behavSuffix, ephysTime, paradigm, sessionType
                 arraydata = dframe[onecol].values
                 dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=string_dt)
