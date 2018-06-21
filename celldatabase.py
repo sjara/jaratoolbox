@@ -278,18 +278,21 @@ class Experiment(object):
           self.maxDepth = None
           self.shankEnds = None
           # self.probeGeometryFile = '/tmp/A4x2tet_5mm_150_200_121.py' #TODO: Implement something for probe geometry long-term storage?
-     def add_site(self, depth, tetrodes = None):
+     def add_site(self, depth, date=None, tetrodes=None):
           '''
           Append a new Site object to the list of sites.
           Args:
                depth (int): The depth of the tip of the electrode array for this site
+               date (str): The date of recording for this site
                tetrodes (list): Tetrodes to analyze for this site
           Returns:
                site (celldatabase.Site object): Handle to site object
           '''
+          if date is None:
+              date = self.date
           if tetrodes is None:
               tetrodes = self.tetrodes
-          site=Site(self.subject, self.date, self.brainarea, self.info, depth, tetrodes)
+          site=Site(self.subject, date, self.brainarea, self.info, depth, tetrodes)
           self.sites.append(site)
           return site
      def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
@@ -672,7 +675,9 @@ def save_hdf(dframe, filename):
                 arraydata = np.vstack(dframe[onecol].values)
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
             elif isinstance(onevalue, int) or \
-                isinstance(onevalue, float):
+                isinstance(onevalue, float) or \
+                isinstance(onevalue, bool) or \
+                isinstance(onevalue, np.bool_):
                 arraydata=dframe[onecol].values
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
             elif isinstance(onevalue, str):
@@ -688,6 +693,7 @@ def save_hdf(dframe, filename):
         h5file.close()
     except:
         h5file.close()
+        # TODO: We may want to rename the incomplete h5 file
         raise
 
 def load_hdf(filename, root='/'):
