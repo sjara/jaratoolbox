@@ -8,6 +8,21 @@ Additional functions often used but not available in python modules.
 import numpy as np
 import datetime
 
+def pad_float_list(listOfLists, length=None, pad=np.NaN):
+    '''Pad a list of lists of floats with nan to the same length.
+    Args:
+        listOfLists: a list of lists of floats.
+        length: optional argument for the length wish to pad all the sublist to.
+        pad: value to pad empty slots with, default to np.NaN since datatype is float.
+    Returns:
+        A list of lists where all the sublists are of the same length.
+    '''
+    if length == None:
+        # Take the longest length of all the sublists
+        length = len(sorted(listOfLists, key=len, reverse=True)[0])
+    resultList = [sublist + [pad] * (length-len(sublist)) for sublist in listOfLists]
+    return resultList
+
 def interpolate_nan(xvals):
     '''Creates a new array with interpolated values where elements were NaN'''
     ixvals = xvals.copy()
