@@ -722,6 +722,7 @@ def load_hdf(filename, root='/'):
         if varvalue.dtype==np.object:
             dataAsList = [ast.literal_eval(v) for v in varvalue]
             dbDict[varname] = dataAsList
+    h5file.close()
     return pd.DataFrame(dbDict)
 
 

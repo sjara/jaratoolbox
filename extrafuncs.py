@@ -20,7 +20,7 @@ def pad_float_list(listOfLists, length=None, pad=np.NaN):
     if length == None:
         # Take the longest length of all the sublists
         length = len(sorted(listOfLists, key=len, reverse=True)[0])
-    resultList = [sublist + [pad] * (length-len(sublist)) for sublist in listOfLists]
+    resultList = [np.concatenate((sublist, [pad] * (length-len(sublist)))) for sublist in listOfLists]
     return resultList
 
 def interpolate_nan(xvals):
