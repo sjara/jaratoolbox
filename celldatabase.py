@@ -592,8 +592,9 @@ def generate_cell_database(inforecPath):
     for indExperiment, experiment in enumerate(inforec.experiments):
         #Complain if the maxDepth attr is not set for this experiment
         if experiment.maxDepth is None:
-            print "Please set the attribute maxDepth for experiment with subject {} on {}".format(experiment.subject, experiment.date)
-            maxDepthThisExp = None
+             print "Attribute maxDepth not set for experiment with subject {} on {}".format(experiment.subject, experiment.date)
+             # maxDepthThisExp = None
+             raise AttributeError('You must set maxDepth for each experiment.')
         else:
             maxDepthThisExp = experiment.maxDepth
         print 'Adding experiment from {} on {}'.format(experiment.subject, experiment.date)
@@ -667,7 +668,8 @@ def save_hdf(dframe, filename):
     '''
     h5file = h5py.File(filename,'w')
     string_dt = h5py.special_dtype(vlen=str)
-    try:
+    # try:
+    if 1:
         dbGroup = h5file.require_group('/') # database
         for onecol in dframe.columns:
             onevalue = dframe.iloc[0][onecol]
@@ -691,10 +693,10 @@ def save_hdf(dframe, filename):
                 raise ValueError('Trying to save items of invalid type')
             #dset.attrs['Description'] = onecol
         h5file.close()
-    except:
-        h5file.close()
-        # TODO: We may want to rename the incomplete h5 file
-        raise
+    # except:
+    #     h5file.close()
+    #     # TODO: We may want to rename the incomplete h5 file
+    #     raise
 
 def load_hdf(filename, root='/'):
     '''
