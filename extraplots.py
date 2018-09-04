@@ -10,15 +10,21 @@ import os
 def boxoff(ax,keep='left',yaxis=True):
     '''
     Hide axis lines, except left and bottom.
-    You can specify to keep instead right and bottom with keep='right'
+    You can specify which axes to keep: 'left' (default), 'right', 'none'.
     '''
     ax.spines['top'].set_visible(False)
-    if keep=='left':
-        ax.spines['right'].set_visible(False)
-    else:
-        ax.spines['left'].set_visible(False)
     xtlines = ax.get_xticklines()
     ytlines = ax.get_yticklines()
+    if keep=='left':
+        ax.spines['right'].set_visible(False)
+    elif keep=='right':
+        ax.spines['left'].set_visible(False)
+    elif keep=='none':
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        for t in xtlines+ytlines:
+            t.set_visible(False)
     for t in xtlines[1::2]+ytlines[1::2]:
         t.set_visible(False)
     if not yaxis:
@@ -190,7 +196,8 @@ def plot_psth(spikeCountMat,smoothWinSize,binsStartTime,trialsEachCond=[],
 
 
 
-def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,xTicks=None,xTickPeriod=1000):
+def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,xTicks=None,
+                      xTickPeriod=1000, xscale='log'):
     if ciHitsEachValue is not None:
         upperWhisker = ciHitsEachValue[1,:]-fractionHitsEachValue
         lowerWhisker = fractionHitsEachValue-ciHitsEachValue[0,:]
@@ -204,7 +211,7 @@ def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,
     plt.setp(pline,lw=2)
     plt.axhline(y=50, color = '0.5',ls='--')
     ax=plt.gca()
-    ax.set_xscale('log')
+    ax.set_xscale(xscale)
     if xTicks is None:
         xTicks = [possibleValues[0],possibleValues[-1]]
     ax.set_xticks(xTicks)
@@ -214,7 +221,11 @@ def plot_psychometric(possibleValues,fractionHitsEachValue,ciHitsEachValue=None,
         axis.set_major_formatter(ScalarFormatter())
 
     plt.ylim([0,100])
-    plt.xlim([possibleValues[0]/1.2,possibleValues[-1]*1.2])
+    if xscale=='log':
+        plt.xlim([possibleValues[0]/1.2,possibleValues[-1]*1.2])
+    elif xscale=='linear':
+        valRange = possibleValues[-1]-possibleValues[0]
+        plt.xlim([possibleValues[0]-0.1*valRange,possibleValues[-1]+0.1*valRange])
     #plt.xlabel('Frequency (kHz)')
     #plt.ylabel('Rightward trials (%)')
     return (pline, pcaps, pbars, pdots)
