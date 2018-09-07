@@ -178,14 +178,14 @@ class EphysInterface(object):
             pass
         sessionObj = sessions[sessionIndex] #Get the right session object
         return sessionObj
-    
+
     def get_site_obj(self, experiment, site):
 
         self.inforec = self.load_inforec()
         #List of session objects and session ephys names for the specified experiment and site
-        
+
         sites = self.inforec.experiments[experiment].sites
-        
+
         if isinstance(site, int):
             siteIndex = site #Use site as an index directly
         siteObj = sites[siteIndex] #Get the right session object
@@ -508,6 +508,7 @@ class EphysInterface(object):
         for tetrode in tetrodes:
             self.cluster_session(session, tetrode, experiment, site)
 
+
     def cluster_array_multisession(self, sessionList, site=-1, experiment=-1):
         '''sessionList has to be a list of inds'''
 
@@ -517,11 +518,11 @@ class EphysInterface(object):
         sessionsToCluster = [siteObj.session_ephys_dirs()[ind] for ind in sessionList]
         subject = self.inforec.subject
         idString = 'online_multisession_{}'.format('-'.join(sessionsToCluster))
-        
+
         for tetrode in siteObj.tetrodes:
-            spikesorting.cluster_many_sessions(subject, 
-                    sessionsToCluster, 
-                    tetrode, 
+            spikesorting.cluster_many_sessions(subject,
+                    sessionsToCluster,
+                    tetrode,
                     idString,
                     minClusters=3,
                     maxClusters=6,
