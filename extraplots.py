@@ -307,7 +307,7 @@ def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSiz
         hs.set_markersize(starSize)
     else:
         hs = plt.text(starsXvals, yPos, starString, fontsize=starSize,
-              va='center', ha='center', clip_on=False)
+                      va='center', ha='center', color=color, clip_on=False)
     plt.hold(False)
     return [hs, hlines]
 
