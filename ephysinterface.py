@@ -8,10 +8,11 @@ The job of the module will be to take session names, get the data, and then pass
 
 import os
 import imp
-from jaratest.nick.database import dataloader_v2 as dataloader
-from jaratest.nick.database import dataplotter
-reload(dataplotter)
-reload(dataloader)
+# from jaratest.nick.database import dataloader_v2 as dataloader
+# from jaratest.nick.database import dataplotter
+from jaratoolbox import ephyscore
+# reload(dataplotter)
+# reload(dataloader)
 import numpy as np
 from matplotlib import pyplot as plt
 import functools
@@ -19,6 +20,7 @@ from jaratoolbox import extraplots
 from jaratoolbox import spikesanalysis
 from jaratoolbox import spikesorting
 from jaratoolbox import behavioranalysis
+from jaratoolbox import loadbehavior
 
 def plot_raster(spikeTimestamps,
                 eventOnsetTimes,
@@ -132,7 +134,7 @@ class EphysInterface(object):
 
         self.filepath = filepath
         self.inforec = self.load_inforec()
-        self.loader = dataloader.DataLoader(self.inforec.subject)
+        # self.loader = dataloader.DataLoader(self.inforec.subject)
 
     def load_inforec(self):
         inforec = imp.load_source('module.name', self.filepath)
@@ -191,52 +193,89 @@ class EphysInterface(object):
         siteObj = sites[siteIndex] #Get the right session object
         return siteObj
 
-    def plot_session_raster(self, session, tetrode, experiment=-1, site=-1, cluster = None, sortArray = 'currentFreq', timeRange=[-0.5, 1], replace=0, ms=4, colorEachCond=None):
-        ##  ---  ###
-        #TODO: Use this to get the data for all the plots we do
+    def load_session_data(self, session, experiment, site, tetrode, cluster=None, behavClass=None):
+        '''
+        Return ephys and behavior data for a particular session.
+        Args
+            session (int or str): Can be an integer index, to be used
+                                  on the list of sessions for this site/experiment,
+                                  or a string with the timestamp of the session.
+            experiment (int): The index of the experiment to use
+            site (int): The index of the site to use
+            tetrode (int): Tetrode number to load
+            cluster (int): Cluster number to load (set to None to load all clusters)
+            behavClass (str): name of jaratoolbox.loadbehavior class to use for loading behavior
+        Returns
+            ephysData (dict): dictionary of ephys data returned by jaratoolbox.ephyscore.load_ephys()
+            bdata (dict): jaratoolbox.loadbehavior.BehaviorData (or subclass, depending on behavClass arg)
+        '''
         sessionObj = self.get_session_obj(session, experiment, site)
         sessionDir = sessionObj.ephys_dir()
-        behavFile = sessionObj.behav_filename()
-        if not behavFile:
-            sortArray = []
+
+        #Some info to return about the session. TODO: Is this necessary??
+        info = {'sessionDir':sessionDir}
+
+        if behavClass == None:
+            behavClass = loadbehavior.BehaviorData
+        if sessionObj.behavsuffix is not None:
+            dateStr = ''.join(sessionObj.date.split('-'))
+            fullSessionStr = '{}{}'.format(dateStr, sessionObj.behavsuffix)
+            behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
+                                                                sessionObj.paradigm,
+                                                                fullSessionStr)
+            bdata = behavClass(behavDataFilePath,readmode='full')
         else:
-            bdata = self.loader.get_session_behavior(behavFile)
+            bdata = None
+        ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
+        return ephysData, bdata, info
+
+    def plot_session_raster(self, session, tetrode, experiment=-1, site=-1, cluster=None, sortArray='currentFreq', timeRange=[-0.5, 1], replace=0, ms=4, colorEachCond=None):
+        ##  ---  ###
+        #TODO: Use this to get the data for all the plots we do
+        # behavFile = sessionObj.behav_filename()
+        #Load the behavior data if it exists and set the array that will be used to sort the raster trials.
+        ephysData, bdata, info = self.load_session_data(session, experiment, site, tetrode, cluster)
+        eventOnsetTimes = ephysData['events']['stimOn']
+        spikeTimestamps = ephysData['spikeTimes']
+        if bdata is not None:
             sortArray = bdata[sortArray]
-        spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
-        eventData = self.loader.get_session_events(sessionDir)
-        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
-        spikeTimestamps=spikeData.timestamps
-        plotTitle = sessionDir
+        else:
+            sortArray = []
+        plotTitle = info['sessionDir']
         ##  ---  ##
         if replace:
             plt.cla()
         else:
             plt.figure()
-        plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, ms=ms, colorEachCond=colorEachCond)
+        plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray,
+                    timeRange=timeRange, ms=ms, colorEachCond=colorEachCond)
 
-    def plot_session_PSTH(self, session, tetrode, experiment=-1, site=-1, cluster = None, sortArray = 'currentFreq', timeRange = [-0.5, 1], replace=0, lw=3, colorEachCond=None):
+    def plot_session_PSTH(self, session, tetrode, experiment=-1, site=-1, cluster = None, sortArray='currentFreq', timeRange = [-0.5, 1], replace=0, lw=3, colorEachCond=None):
         sessionObj = self.get_session_obj(session, experiment, site)
         sessionDir = sessionObj.ephys_dir()
-        behavFile = sessionObj.behav_filename()
-        if not behavFile:
-            sortArray = []
-        else:
-            bdata = self.loader.get_session_behavior(behavFile)
+
+        ephysData, bdata, info = self.load_session_data(session, experiment, site, tetrode, cluster)
+        eventOnsetTimes = ephysData['events']['stimOn']
+        spikeTimestamps = ephysData['spikeTimes']
+        if bdata is not None:
             sortArray = bdata[sortArray]
             if colorEachCond is None:
                 colorEachCond = self.get_colours(len(np.unique(sortArray)))
-        plotTitle = sessionDir
-        spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
-        eventData = self.loader.get_session_events(sessionDir)
-        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
-        spikeTimestamps=spikeData.timestamps
+        else:
+            sortArray = []
+        plotTitle = info['sessionDir']
+
+        ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
+        eventOnsetTimes = ephysData['events']['stimOn']
+        spikeTimestamps = ephysData['spikeTimes']
+
         if replace:
             plt.cla()
         elif replace==2:
             plt.sca(ax)
         else:
             plt.figure()
-        plot_psth(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, lw=lw, colorEachCond=colorEachCond, plotLegend=1)
+        plot_psth(spikeTimestamps, eventOnsetTimes, sortArray = sortArray, timeRange=timeRange, lw=lw, colorEachCond=colorEachCond, plotLegend=0)
 
     def plot_am_freq_tuning(self, freqsession, amsession, tetrode, cluster = None,experiment=-1, site=-1, freqTimeRange = [-0.1, 0.3], amTimeRange = [-0.2, 0.8], colorEachCond=None, replace=1, ms=1, lw=3):
         if replace:
@@ -345,17 +384,35 @@ class EphysInterface(object):
         '''
         sessionObj = self.get_session_obj(session, experiment, site)
         sessionDir = sessionObj.ephys_dir()
-        behavFile = sessionObj.behav_filename()
-        if not behavFile:
-            sortArray = []
-        else:
-            bdata = self.loader.get_session_behavior(behavFile)
+
+        # behavFile = sessionObj.behav_filename()
+        # if not behavFile:
+        #     sortArray = []
+        # else:
+        #     bdata = self.loader.get_session_behavior(behavFile)
+        #     sortArray = bdata[sortArray]
+
+        behavClass = None #TODO: This should be an option somewhere.
+        if behavClass == None:
+            behavClass = loadbehavior.BehaviorData
+        if sessionObj.behavsuffix is not None:
+            dateStr = ''.join(sessionObj.date.split('-'))
+            fullSessionStr = '{}{}'.format(dateStr, sessionObj.behavsuffix)
+            behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
+                                                                sessionObj.paradigm,
+                                                                fullSessionStr)
+            bdata = behavClass(behavDataFilePath,readmode='full')
             sortArray = bdata[sortArray]
+        else:
+            sortArray = []
+
         if not tetrodes:
             tetrodes=sessionObj.tetrodes
         numTetrodes = len(tetrodes)
-        eventData = self.loader.get_session_events(sessionDir)
-        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+
+        # eventData = self.loader.get_session_events(sessionDir)
+        # eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+
         plotTitle = sessionDir
         if replace:
             fig = plt.gcf()
@@ -363,12 +420,16 @@ class EphysInterface(object):
         else:
             fig = plt.figure()
         for ind , tetrode in enumerate(tetrodes):
-            spikeData = self.loader.get_session_spikes(sessionDir, tetrode)
+            # spikeData = self.loader.get_session_spikes(sessionDir, tetrode)
+            ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode)
+            eventOnsetTimes = ephysData['events']['stimOn']
+            spikeTimestamps = ephysData['spikeTimes']
+
             if ind == 0:
                 ax = fig.add_subplot(numTetrodes,1,ind+1)
             else:
                 ax = fig.add_subplot(numTetrodes,1,ind+1, sharex = fig.axes[0], sharey = fig.axes[0])
-            spikeTimestamps = spikeData.timestamps
+            # spikeTimestamps = spikeData.timestamps
             plot_raster(spikeTimestamps, eventOnsetTimes, sortArray=sortArray, ms=ms, timeRange = timeRange)
             if ind == 0:
                 plt.title(plotTitle)

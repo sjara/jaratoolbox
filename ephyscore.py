@@ -92,45 +92,10 @@ class Cell(object):
         Returns:
             ephysData (list): Spiketimes (array), samples (array) and events (dict)
         '''
-        #Load the spikes and events
-        spikesFilename, eventsFilename = self.get_ephys_filename(sessionInd)
-        eventData = loadopenephys.Events(eventsFilename)
-        spikeData = loadopenephys.DataSpikes(spikesFilename)
-        if spikeData.timestamps is not None:
-            clustersDir = os.path.join(self.ephysBaseDir, '{}_{}_kk'.format(self.dbRow['date'],
-                                                                            self.dbRow['ephysTime'][sessionInd]))
-            if self.useModifiedClusters is False:
-                # Always use the original .clu.1 file
-                clustersFile = os.path.join(clustersDir,'Tetrode{}.clu.1'.format(self.tetrode))
-                spikeData.set_clusters(clustersFile)
-            elif self.useModifiedClusters is True:
-                # Use the modified .clu file if it exists, otherwise use the original one
-                clustersFileModified = os.path.join(clustersDir,'Tetrode{}.clu.modified'.format(self.tetrode))
-                if os.path.exists(clustersFileModified):
-                    print "Loading modified .clu file for session {}".format(spikesFilename)
-                    spikeData.set_clusters(clustersFileModified)
-                else:
-                    print "Modified .clu file does not exist, loading standard .clu file for session {}".format(spikesFilename)
-                    clustersFile = os.path.join(clustersDir,'Tetrode{}.clu.1'.format(self.tetrode))
-                    spikeData.set_clusters(clustersFile)
-            spikeData.samples = spikeData.samples[spikeData.clusters==self.cluster]
-            spikeData.timestamps = spikeData.timestamps[spikeData.clusters==self.cluster]
-            spikeData = loadopenephys.convert_openephys(spikeData)
-        else:
-            raise ValueError('File {} contains no spikes.'.format(spikesFilename))
-        eventData = loadopenephys.convert_openephys(eventData)
-        #Choose channel map based on paradigm
-        paradigm = self.dbRow['paradigm'][sessionInd]
-        channelMap = CHANNELMAPS[paradigm]
-        eventDict = {}
-        for channelType, channelID in channelMap.iteritems():
-            thisChannelOn = eventData.get_event_onset_times(eventID=1, eventChannel=channelID)
-            thisChannelOff = eventData.get_event_onset_times(eventID=0, eventChannel=channelID)
-            eventDict.update({'{}On'.format(channelType):thisChannelOn,
-                              '{}Off'.format(channelType):thisChannelOff})
-        ephysData = {'spikeTimes':spikeData.timestamps,
-                     'samples':spikeData.samples,
-                     'events':eventDict}
+
+        (sessionDir, paradigm) = self.get_ephys_filename(sessionInd)
+        #TODO: Maybe sessionDir and paradigm should be a tuple?
+        ephysData = load_ephys(self.subject, paradigm, sessionDir, self.tetrode, self.cluster, useModifiedClusters=self.useModifiedClusters)
         return ephysData
 
     def get_ephys_filename(self, sessionInd):
@@ -143,12 +108,9 @@ class Cell(object):
             eventsFilename (str): Full path to the .events file
         '''
         ephysTime = self.dbRow['ephysTime'][sessionInd]
-        ephysSessionFolder = '{}_{}'.format(self.dbRow['date'], ephysTime)
-        eventsFilename = os.path.join(self.ephysBaseDir, ephysSessionFolder,
-                                     'all_channels.events')
-        spikesFilename = os.path.join(self.ephysBaseDir, ephysSessionFolder,
-                                      'Tetrode{}.spikes'.format(self.tetrode))
-        return spikesFilename, eventsFilename
+        sessionDir = '{}_{}'.format(self.dbRow['date'], ephysTime)
+        paradigm = self.dbRow['paradigm'][sessionInd]
+        return (sessionDir, paradigm)
 
     def load_behavior_by_index(self, sessionInd, behavClass=None):
         '''
@@ -213,3 +175,69 @@ class Cell(object):
                     recordingNumber = np.concatenate([recordingNumber, sessionVector])
         recordingNumber = recordingNumber.astype(int)
         return timestamps, samples, recordingNumber
+
+# spikesFilename, eventsFilename = self.get_ephys_filename(sessionInd)
+# paradigm = self.dbRow['paradigm'][sessionInd]
+# #Base, Folder, spikesFn (Need tetrode), eventsFn (always the same)
+# #Really need base (settings + subject), folder, tetrode
+
+# #clustersDir = Base + Folder_kk + clustersFn
+
+# clustersDir = os.path.join(self.ephysBaseDir, '{}_{}_kk'.format(self.dbRow['date'],
+                                                                    # self.dbRow['ephysTime'][sessionInd]))
+
+def load_ephys(subject, paradigm, sessionDir, tetrode, cluster=None, useModifiedClusters=False):
+
+    #Setup path and filenames
+    ephysBaseDir = os.path.join(settings.EPHYS_PATH, subject)
+    eventsFilename = os.path.join(ephysBaseDir, sessionDir,
+                                    'all_channels.events')
+    spikesFilename = os.path.join(ephysBaseDir, sessionDir,
+                                    'Tetrode{}.spikes'.format(tetrode))
+
+    #Load the spikes and events
+    eventData = loadopenephys.Events(eventsFilename)
+    spikeData = loadopenephys.DataSpikes(spikesFilename)
+
+    #Fail if there are no spikes for the tetrode
+    if spikeData.timestamps is None:
+        raise ValueError('File {} contains no spikes.'.format(spikesFilename))
+
+    #Set clusters and limits spikes and samples to one cluster
+    if cluster is not None:
+        clustersDir = os.path.join(ephysBaseDir, '{}_kk'.format(sessionDir))
+        # Get clusters file name, load and set the clusters
+        if useModifiedClusters is False:
+            # Always use the original .clu.1 file
+            clustersFile = os.path.join(clustersDir,'Tetrode{}.clu.1'.format(tetrode))
+            spikeData.set_clusters(clustersFile)
+        elif useModifiedClusters is True:
+            # Use the modified .clu file if it exists, otherwise use the original one
+            clustersFileModified = os.path.join(clustersDir,'Tetrode{}.clu.modified'.format(tetrode))
+            if os.path.exists(clustersFileModified):
+                print "Loading modified .clu file for session {}".format(spikesFilename)
+                spikeData.set_clusters(clustersFileModified)
+            else:
+                print "Modified .clu file does not exist, loading standard .clu file for session {}".format(spikesFilename)
+                clustersFile = os.path.join(clustersDir,'Tetrode{}.clu.1'.format(tetrode))
+                spikeData.set_clusters(clustersFile)
+        spikeData.samples = spikeData.samples[spikeData.clusters==cluster]
+        spikeData.timestamps = spikeData.timestamps[spikeData.clusters==cluster]
+
+    #Convert to real units
+    spikeData = loadopenephys.convert_openephys(spikeData)
+    eventData = loadopenephys.convert_openephys(eventData)
+
+    #Choose channel map based on paradigm
+    channelMap = CHANNELMAPS[paradigm]
+    eventDict = {}
+    for channelType, channelID in channelMap.iteritems():
+        thisChannelOn = eventData.get_event_onset_times(eventID=1, eventChannel=channelID)
+        thisChannelOff = eventData.get_event_onset_times(eventID=0, eventChannel=channelID)
+        eventDict.update({'{}On'.format(channelType):thisChannelOn,
+                            '{}Off'.format(channelType):thisChannelOff})
+    ephysData = {'spikeTimes':spikeData.timestamps,
+                    'samples':spikeData.samples,
+                    'events':eventDict}
+    return ephysData
+
