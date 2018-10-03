@@ -9,7 +9,7 @@ The job of the module will be to take session names, get the data, and then pass
 import os
 import imp
 # from jaratest.nick.database import dataloader_v2 as dataloader
-# from jaratest.nick.database import dataplotter
+from jaratest.nick.database import dataplotter #TODO: We need to get rid of dataplotter functions (see color psth)
 from jaratoolbox import ephyscore
 # reload(dataplotter)
 # reload(dataloader)
@@ -784,4 +784,4 @@ class EphysInterface(object):
                     if indSession==0:
                         cluster_ax = plt.subplot(gs[crow, ccolStart:ccolEnd])
                         # print 'r{}c{} : Cluster {}, {} spikes'.format(crow, ccolStart, cluster, len(spikeData.timestamps))
-                        plot_colored_waveforms(spikeData.samples, clusterColor, ax=cluster_ax)
+                        plot_colored_waveforms(ephysData['samples'], clusterColor, ax=cluster_ax)

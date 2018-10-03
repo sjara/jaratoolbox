@@ -428,16 +428,16 @@ class Site(object):
      #      '''
      #      fns = [session.behav_filename() for session in self.sessions]
      #      return fns
-     # def session_types(self):
-     #      '''
-     #      Returns a list of the session type strings for all sessions recorded at this site.
-     #      Returns:
-     #          types (list): List of the sessiontype strings for each session in self.sessions
-     #      DEPRECATED (2017-10-30): We just have the generator in the cluster_info method to be clear
-     #      about what is returned per session and what is a site attr.
-     #      '''
-     #      types=[session.sessiontype for session in self.sessions]
-     #      return types
+     def session_types(self):
+          '''
+          Returns a list of the session type strings for all sessions recorded at this site.
+          Returns:
+              types (list): List of the sessiontype strings for each session in self.sessions
+          DEPRECATED (2017-10-30): We just have the generator in the cluster_info method to be clear
+          about what is returned per session and what is a site attr.
+          '''
+          types=[session.sessiontype for session in self.sessions]
+          return types
      # def find_session(self, sessiontype):
      #      '''
      #      Return indexes of sessions of type sessiontype.
