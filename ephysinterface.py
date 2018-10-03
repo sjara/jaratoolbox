@@ -229,6 +229,42 @@ class EphysInterface(object):
         ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
         return ephysData, bdata, info
 
+    def load_session_data_from_object(self, sessionObj, tetrode, cluster=None, behavClass=None):
+        '''
+        TODO: Either keep this one or the one above, not both
+        Return ephys and behavior data for a particular session.
+        Args
+            session (int or str): Can be an integer index, to be used
+                                  on the list of sessions for this site/experiment,
+                                  or a string with the timestamp of the session.
+            experiment (int): The index of the experiment to use
+            site (int): The index of the site to use
+            tetrode (int): Tetrode number to load
+            cluster (int): Cluster number to load (set to None to load all clusters)
+            behavClass (str): name of jaratoolbox.loadbehavior class to use for loading behavior
+        Returns
+            ephysData (dict): dictionary of ephys data returned by jaratoolbox.ephyscore.load_ephys()
+            bdata (dict): jaratoolbox.loadbehavior.BehaviorData (or subclass, depending on behavClass arg)
+        '''
+        sessionDir = sessionObj.ephys_dir()
+
+        #Some info to return about the session. TODO: Is this necessary??
+        info = {'sessionDir':sessionDir}
+
+        if behavClass == None:
+            behavClass = loadbehavior.BehaviorData
+        if sessionObj.behavsuffix is not None:
+            dateStr = ''.join(sessionObj.date.split('-'))
+            fullSessionStr = '{}{}'.format(dateStr, sessionObj.behavsuffix)
+            behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
+                                                                sessionObj.paradigm,
+                                                                fullSessionStr)
+            bdata = behavClass(behavDataFilePath,readmode='full')
+        else:
+            bdata = None
+        ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
+        return ephysData, bdata, info
+
     def plot_session_raster(self, session, tetrode, experiment=-1, site=-1, cluster=None, sortArray='currentFreq', timeRange=[-0.5, 1], replace=0, ms=4, colorEachCond=None):
         ##  ---  ###
         #TODO: Use this to get the data for all the plots we do
@@ -604,11 +640,44 @@ class EphysInterface(object):
         #TODO: Make sure this function is using nice new cms with numclusters=6
         self.cluster_array_multisession(sessionList, site=site, experiment=experiment)
 
+
+        # allSessionObj = [self.get_session_obj(session, experiment, site) for session in sessionList]
+        # allSessionDir = [so.ephys_dir() for so in allSessionObj]
+        # allEventData = [self.loader.get_session_events(sd) for sd in allSessionDir]
+
+
+        ##########
+        # allSessionObj = []
+        # allSessionDir = []
+        # allEventData = []
+
+        # for session in sessionList:
+        #     # TODO: This is copied from load_session_data, should refactor
+
+        #     sessionObj = self.get_session_obj(session, experiment, site)
+        #     allSessionObj.append(sessionObj)
+
+        #     sessionDir = sessionObj.ephys_dir()
+        #     allSessionDir.append(sessionDir)
+
+        #     if behavClass == None:
+        #         behavClass = loadbehavior.BehaviorData
+        #     if sessionObj.behavsuffix is not None:
+        #         dateStr = ''.join(sessionObj.date.split('-'))
+        #         fullSessionStr = '{}{}'.format(dateStr, sessionObj.behavsuffix)
+        #         behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
+        #                                                             sessionObj.paradigm,
+        #                                                             fullSessionStr)
+        #         bdata = behavClass(behavDataFilePath,readmode='full')
+        #     else:
+        #         bdata = None
+        #     ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
+        ##########
+
         allSessionObj = [self.get_session_obj(session, experiment, site) for session in sessionList]
-        allSessionDir = [so.ephys_dir() for so in allSessionObj]
-        allEventData = [self.loader.get_session_events(sd) for sd in allSessionDir]
-        allEventOnsetTimes = [self.loader.get_event_onset_times(ed) for ed in allEventData]
         allTetrodes=[so.tetrodes for so in allSessionObj]
+
+        # allEventOnsetTimes = [self.loader.get_event_onset_times(ed) for ed in allEventData]
 
         siteObj = self.get_site_obj(site=site, experiment=experiment)
         allSessionType = [siteObj.session_types()[ind] for ind in sessionList]
@@ -628,16 +697,28 @@ class EphysInterface(object):
         colors = [cp['SkyBlue1'], cp['Chameleon1'], cp['Orange1'],
                   cp['Plum1'], cp['ScarletRed1'], cp['Aluminium4']]
 
-        for indSession, _ in enumerate(allSessionObj):
+        for indSession, sessionObj in enumerate(allSessionObj):
 
-            sessionObj = allSessionObj[indSession]
-            sessionDir = allSessionDir[indSession]
-            eventData = allEventData[indSession]
-            eventOnsetTimes = allEventOnsetTimes[indSession]
+            # sessionObj = allSessionObj[indSession]
+            # sessionDir = allSessionDir[indSession]
+            sessionDir = sessionObj.ephys_dir()
+
+            # eventData = allEventData[indSession]
+            # eventOnsetTimes = allEventOnsetTimes[indSession]
+
             tetrodes = allTetrodes[indSession]
+
             if plotType[indSession] == 'tuning':
-                behavFile = sessionObj.behav_filename()
-                bdata=self.loader.get_session_behavior(behavFile)
+
+                if sessionObj.behavsuffix is None:
+                    raise AttributeError('There is no behavior suffix recorded for this session') #TODO: add session info
+                behavClass = loadbehavior.BehaviorData
+                dateStr = ''.join(sessionObj.date.split('-'))
+                fullSessionStr = '{}{}'.format(dateStr, sessionObj.behavsuffix)
+                behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
+                                                                    sessionObj.paradigm,
+                                                                    fullSessionStr)
+                bdata = behavClass(behavDataFilePath,readmode='full')
                 freqEachTrial = bdata['currentFreq']
                 freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]
 
@@ -649,9 +730,13 @@ class EphysInterface(object):
 
                 for indc, cluster in enumerate(range(1, nClusters+1)):
 
+                    ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
+                    spikeTimestamps = ephysData['spikeTimes']
+                    eventOnsetTimes = ephysData['events']['stimOn']
+
                     clusterColor = colors[indc]
-                    spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
-                    spikeTimestamps = spikeData.timestamps
+                    # spikeData= self.loader.get_session_spikes(sessionDir, tetrode, cluster)
+                    # spikeTimestamps = spikeData.timestamps
                     timeRange = [-0.2, 1]
                     spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
                         spikeTimestamps, eventOnsetTimes, timeRange)
