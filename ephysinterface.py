@@ -345,7 +345,7 @@ class EphysInterface(object):
             plt.cla()
         else:
             plt.figure()
-        # sessionObj = self.get_session_obj(session, experiment, site)
+        sessionObj = self.get_session_obj(session, experiment, site)
         sessionDir = sessionObj.ephys_dir()
 
         ephysData, bdata, info = self.load_session_data(session, experiment, site, tetrode, cluster)
