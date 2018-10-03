@@ -345,17 +345,22 @@ class EphysInterface(object):
             plt.cla()
         else:
             plt.figure()
-        sessionObj = self.get_session_obj(session, experiment, site)
+        # sessionObj = self.get_session_obj(session, experiment, site)
         sessionDir = sessionObj.ephys_dir()
-        behavFile = sessionObj.behav_filename()
-        bdata = self.loader.get_session_behavior(behavFile)
+
+        ephysData, bdata, info = self.load_session_data(session, experiment, site, tetrode, cluster)
         freqEachTrial = bdata[sortArray]
-        eventData = self.loader.get_session_events(sessionDir)
-        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+
+        # eventData = self.loader.get_session_events(sessionDir)
+        # eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+        # spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster)
+        # spikeTimestamps = spikeData.timestamps
+        eventOnsetTimes = ephysData['events']['stimOn']
+        spikeTimestamps = ephysData['spikeTimes']
+
+
         plotTitle = sessionDir
         freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]
-        spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster)
-        spikeTimestamps = spikeData.timestamps
         dataplotter.one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, freqEachTrial, timeRange=timeRange)
         ax = plt.gca()
         ax.set_xticks(range(len(freqLabels)))
