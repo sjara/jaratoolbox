@@ -229,41 +229,41 @@ class EphysInterface(object):
         ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
         return ephysData, bdata, info
 
-    def load_session_data_from_object(self, sessionObj, tetrode, cluster=None, behavClass=None):
-        '''
-        TODO: Either keep this one or the one above, not both
-        Return ephys and behavior data for a particular session.
-        Args
-            session (int or str): Can be an integer index, to be used
-                                  on the list of sessions for this site/experiment,
-                                  or a string with the timestamp of the session.
-            experiment (int): The index of the experiment to use
-            site (int): The index of the site to use
-            tetrode (int): Tetrode number to load
-            cluster (int): Cluster number to load (set to None to load all clusters)
-            behavClass (str): name of jaratoolbox.loadbehavior class to use for loading behavior
-        Returns
-            ephysData (dict): dictionary of ephys data returned by jaratoolbox.ephyscore.load_ephys()
-            bdata (dict): jaratoolbox.loadbehavior.BehaviorData (or subclass, depending on behavClass arg)
-        '''
-        sessionDir = sessionObj.ephys_dir()
+    # def load_session_data_from_object(self, sessionObj, tetrode, cluster=None, behavClass=None):
+    #     '''
+    #     TODO: Either keep this one or the one above, not both
+    #     Return ephys and behavior data for a particular session.
+    #     Args
+    #         session (int or str): Can be an integer index, to be used
+    #                               on the list of sessions for this site/experiment,
+    #                               or a string with the timestamp of the session.
+    #         experiment (int): The index of the experiment to use
+    #         site (int): The index of the site to use
+    #         tetrode (int): Tetrode number to load
+    #         cluster (int): Cluster number to load (set to None to load all clusters)
+    #         behavClass (str): name of jaratoolbox.loadbehavior class to use for loading behavior
+    #     Returns
+    #         ephysData (dict): dictionary of ephys data returned by jaratoolbox.ephyscore.load_ephys()
+    #         bdata (dict): jaratoolbox.loadbehavior.BehaviorData (or subclass, depending on behavClass arg)
+    #     '''
+    #     sessionDir = sessionObj.ephys_dir()
 
-        #Some info to return about the session. TODO: Is this necessary??
-        info = {'sessionDir':sessionDir}
+    #     #Some info to return about the session. TODO: Is this necessary??
+    #     info = {'sessionDir':sessionDir}
 
-        if behavClass == None:
-            behavClass = loadbehavior.BehaviorData
-        if sessionObj.behavsuffix is not None:
-            dateStr = ''.join(sessionObj.date.split('-'))
-            fullSessionStr = '{}{}'.format(dateStr, sessionObj.behavsuffix)
-            behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
-                                                                sessionObj.paradigm,
-                                                                fullSessionStr)
-            bdata = behavClass(behavDataFilePath,readmode='full')
-        else:
-            bdata = None
-        ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
-        return ephysData, bdata, info
+    #     if behavClass == None:
+    #         behavClass = loadbehavior.BehaviorData
+    #     if sessionObj.behavsuffix is not None:
+    #         dateStr = ''.join(sessionObj.date.split('-'))
+    #         fullSessionStr = '{}{}'.format(dateStr, sessionObj.behavsuffix)
+    #         behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
+    #                                                             sessionObj.paradigm,
+    #                                                             fullSessionStr)
+    #         bdata = behavClass(behavDataFilePath,readmode='full')
+    #     else:
+    #         bdata = None
+    #     ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
+    #     return ephysData, bdata, info
 
     def plot_session_raster(self, session, tetrode, experiment=-1, site=-1, cluster=None, sortArray='currentFreq', timeRange=[-0.5, 1], replace=0, ms=4, colorEachCond=None):
         ##  ---  ###
@@ -280,11 +280,12 @@ class EphysInterface(object):
         plotTitle = info['sessionDir']
         ##  ---  ##
         if replace:
-            plt.cla()
+            plt.clf()
         else:
             plt.figure()
         plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray,
                     timeRange=timeRange, ms=ms, colorEachCond=colorEachCond)
+        plt.show()
 
     def plot_session_PSTH(self, session, tetrode, experiment=-1, site=-1, cluster = None, sortArray='currentFreq', timeRange = [-0.5, 1], replace=0, lw=3, colorEachCond=None):
         sessionObj = self.get_session_obj(session, experiment, site)
@@ -396,6 +397,7 @@ class EphysInterface(object):
         ax.set_xticks(range(len(freqLabels)))
         ax.set_xticklabels(freqLabels, rotation='vertical')
 
+    # TODO: This seems like it would be good to get working, even though people don't really use it.
     # def plot_array_freq_tuning(self, session, experiment=-1, site=-1, tetrodes=None, replace=0, timeRange=[0, 0.1]):
 
     #     sessionObj = self.get_session_obj(session, experiment, site)
@@ -514,6 +516,7 @@ class EphysInterface(object):
         plt.xlabel('time (sec)')
         plt.show()
 
+    # FIXME: This function won't load data correctly
     def plot_two_axis_sorted_raster(self, session, tetrode, experiment=-1, site=-1, firstSort='currentFreq', secondSort='currentIntensity', cluster = None, replace=0, timeRange = [-0.5, 1], ms = 1, firstLabels=None, secondLabels=None, yLabel=None, plotTitle=None):
         '''
         Plot rasters sorted by 2 arrays.
@@ -631,55 +634,6 @@ class EphysInterface(object):
                 plt.ylabel(yLabel)
 
         plt.show()
-
-    #Relies on external TC heatmap plotting functions
-    # def plot_session_tc_heatmap(self, session, tetrode, experiment=-1, site=-1, cluster=None, replace=True, timeRange=[0, 0.1]):
-    #     sessionObj = self.get_session_obj(session, experiment, site)
-    #     sessionDir = sessionObj.ephys_dir()
-    #     behavFile = sessionObj.behav_filename()
-    #     bdata = self.loader.get_session_behavior(behavFile)
-    #     plotTitle = sessionDir
-    #     eventData = self.loader.get_session_events(sessionDir)
-    #     spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster)
-
-    #     spikeTimestamps = spikeData.timestamps
-
-    #     eventOnsetTimes = self.loader.get_event_onset_times(eventData)
-
-    #     freqEachTrial = bdata['currentFreq']
-    #     intensityEachTrial = bdata['currentIntensity']
-
-    #     possibleFreq = np.unique(freqEachTrial)
-    #     possibleIntensity = np.unique(intensityEachTrial)
-
-    #     if replace:
-    #         fig = plt.gcf()
-    #         plt.clf()
-    #     else:
-    #         fig = plt.figure()
-
-
-    #     xlabel='Frequency (kHz)'
-    #     ylabel='Intensity (dB SPL)'
-
-    #     freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0] #FIXME: This should be outside this function
-    #     intenLabels = ['{}'.format(inten) for inten in possibleIntensity]
-
-    #     dataplotter.two_axis_heatmap(spikeTimestamps=spikeTimestamps,
-    #                                         eventOnsetTimes=eventOnsetTimes,
-    #                                         firstSortArray=intensityEachTrial,
-    #                                         secondSortArray=freqEachTrial,
-    #                                         firstSortLabels=intenLabels,
-    #                                         secondSortLabels=freqLabels,
-    #                                         xlabel='Frequency (kHz)',
-    #                                         ylabel='Intensity (dB SPL)',
-    #                                         plotTitle=plotTitle,
-    #                                         flipFirstAxis=False,
-    #                                         flipSecondAxis=False,
-    #                                         timeRange=[0, 0.1])
-
-    #     plt.show()
-
 
     def cluster_session(self, session, tetrode, experiment=-1, site=-1):
         '''
@@ -812,6 +766,7 @@ class EphysInterface(object):
                                                                     sessionObj.paradigm,
                                                                     fullSessionStr)
                 bdata = behavClass(behavDataFilePath,readmode='full')
+                #FIXME: Hardcoded variable name to sort by for tuning
                 freqEachTrial = bdata['currentFreq']
                 freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]
 
@@ -873,3 +828,5 @@ class EphysInterface(object):
                         cluster_ax = plt.subplot(gs[crow, ccolStart:ccolEnd])
                         # print 'r{}c{} : Cluster {}, {} spikes'.format(crow, ccolStart, cluster, len(spikeData.timestamps))
                         plot_colored_waveforms(ephysData['samples'], clusterColor, ax=cluster_ax)
+
+        plt.show()
