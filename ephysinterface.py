@@ -340,6 +340,36 @@ class EphysInterface(object):
         plt.suptitle('TT{}'.format(tetrode))
 
     # DEPRECATED? we never use this
+
+    def one_axis_tc_or_rlf(self, spikeTimestamps, eventOnsetTimes, sortArray, timeRange=[0, 0.1], labels = None):
+        trialsEachCond = behavioranalysis.find_trials_each_type(
+            sortArray, np.unique(sortArray))
+        spikeArray = self.avg_spikes_in_event_locked_timerange_each_cond(
+            spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange)
+        plt.plot(spikeArray, ls='-', lw=2, c='0.25')
+
+    def avg_spikes_in_event_locked_timerange_each_cond(self, spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
+        if len(eventOnsetTimes) != np.shape(trialsEachCond)[0]:
+            eventOnsetTimes = eventOnsetTimes[:-1]
+            print "FIXME: Using bad hack to make event onset times equal number of trials"
+        spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
+            spikeTimestamps, eventOnsetTimes, timeRange)
+        spikeArray = self.avg_locked_spikes_per_condition(indexLimitsEachTrial,
+                                                    trialsEachCond)
+        return spikeArray
+
+    def avg_locked_spikes_per_condition(self, indexLimitsEachTrial, trialsEachCond):
+        numSpikesInTimeRangeEachTrial = np.squeeze(np.diff(indexLimitsEachTrial,
+                                                        axis=0))
+        conditionMatShape = np.shape(trialsEachCond)
+        numRepeats = np.product(conditionMatShape[1:])
+        nSpikesMat = np.reshape(
+            numSpikesInTimeRangeEachTrial.repeat(numRepeats), conditionMatShape)
+        spikesFilteredByTrialType = nSpikesMat * trialsEachCond
+        avgSpikesArray = np.sum(spikesFilteredByTrialType, 0) / np.sum(
+            trialsEachCond, 0).astype('float')
+        return avgSpikesArray
+
     def plot_session_freq_tuning(self, session, tetrode, experiment = -1, site = -1, cluster = None, sortArray='currentFreq', replace=0, timeRange=[0,0.1]):
         if replace:
             plt.cla()
@@ -361,67 +391,73 @@ class EphysInterface(object):
 
         plotTitle = sessionDir
         freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]
-        dataplotter.one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, freqEachTrial, timeRange=timeRange)
+        self.one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, freqEachTrial, timeRange=timeRange)
         ax = plt.gca()
         ax.set_xticks(range(len(freqLabels)))
         ax.set_xticklabels(freqLabels, rotation='vertical')
 
+    # def plot_array_freq_tuning(self, session, experiment=-1, site=-1, tetrodes=None, replace=0, timeRange=[0, 0.1]):
 
-    def plot_array_freq_tuning(self, session, experiment=-1, site=-1, tetrodes=None, replace=0, timeRange=[0, 0.1]):
+    #     sessionObj = self.get_session_obj(session, experiment, site)
+    #     sessionDir = sessionObj.ephys_dir()
+    #     behavFile = sessionObj.behav_filename()
+    #     if not tetrodes:
+    #         tetrodes=sessionObj.tetrodes
+    #     numTetrodes = len(tetrodes)
+    #     eventData = self.loader.get_session_events(sessionDir)
+    #     eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+    #     plotTitle = sessionDir
+    #     bdata=self.loader.get_session_behavior(behavFile)
+    #     freqEachTrial = bdata['currentFreq']
+    #     freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]
 
-        sessionObj = self.get_session_obj(session, experiment, site)
-        sessionDir = sessionObj.ephys_dir()
-        behavFile = sessionObj.behav_filename()
-        if not tetrodes:
-            tetrodes=sessionObj.tetrodes
-        numTetrodes = len(tetrodes)
-        eventData = self.loader.get_session_events(sessionDir)
-        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
-        plotTitle = sessionDir
-        bdata=self.loader.get_session_behavior(behavFile)
-        freqEachTrial = bdata['currentFreq']
-        freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]
+    #     if replace:
+    #         fig = plt.gcf()
+    #         plt.clf()
+    #     else:
+    #         fig = plt.figure()
 
-        if replace:
-            fig = plt.gcf()
-            plt.clf()
-        else:
-            fig = plt.figure()
+    #     for ind , tetrode in enumerate(tetrodes):
 
+    #         spikeData = self.loader.get_session_spikes(sessionDir, tetrode)
 
-        for ind , tetrode in enumerate(tetrodes):
+    #         if ind == 0:
+    #             ax = fig.add_subplot(numTetrodes,1,ind+1)
+    #         else:
+    #             ax = fig.add_subplot(numTetrodes,1,ind+1, sharex = fig.axes[0], sharey = fig.axes[0])
 
-            spikeData = self.loader.get_session_spikes(sessionDir, tetrode)
+    #         spikeTimestamps = spikeData.timestamps
+    #         dataplotter.one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, freqEachTrial, timeRange=timeRange)
 
-            if ind == 0:
-                ax = fig.add_subplot(numTetrodes,1,ind+1)
-            else:
-                ax = fig.add_subplot(numTetrodes,1,ind+1, sharex = fig.axes[0], sharey = fig.axes[0])
+    #         ax.set_xticks(range(len(freqLabels)))
 
-            spikeTimestamps = spikeData.timestamps
-            dataplotter.one_axis_tc_or_rlf(spikeTimestamps, eventOnsetTimes, freqEachTrial, timeRange=timeRange)
-
-            ax.set_xticks(range(len(freqLabels)))
-
-            if ind == numTetrodes-1:
-                ax.set_xticklabels(freqLabels, rotation='vertical')
-                plt.xlabel('Frequency (kHz)')
-            else:
-                plt.setp(ax.get_xticklabels(), visible=False)
+    #         if ind == numTetrodes-1:
+    #             ax.set_xticklabels(freqLabels, rotation='vertical')
+    #             plt.xlabel('Frequency (kHz)')
+    #         else:
+    #             plt.setp(ax.get_xticklabels(), visible=False)
 
 
-            plt.ylabel('TT {}'.format(tetrode))
+    #         plt.ylabel('TT {}'.format(tetrode))
 
 
-        plt.figtext(0.05, 0.5, 'Average number of spikes in range {}'.format(timeRange), rotation='vertical', va='center', ha='center')
-        plt.show()
+    #     plt.figtext(0.05, 0.5, 'Average number of spikes in range {}'.format(timeRange), rotation='vertical', va='center', ha='center')
+    #     plt.show()
 
     def plot_array_raster(self, session, experiment=-1, site=-1, tetrodes=None, replace=0, sortArray='currentFreq', timeRange = [-0.5, 1], ms=4, electrodeName='Tetrode'):
         '''
-        This is the much-improved version of a function to plot a raster for each tetrode. All rasters
-        will be plotted using standardized plotting code, and we will simply call the functions.
-        In this case, we get the event data once, and then loop through the tetrodes, getting the
-        spike data and calling the plotting code for each tetrode.
+        Plot rasters for each tetrode, for a single recording session.
+        Args:
+            session (index): The index of the session to cluster.
+            experiment (index): The index of the experiment to get the site from.
+            site (index): The index of the site to pull sessions from.
+            tetrodes (list of int): The tetrodes to plot. Defaults to all siteObj.tetrodes
+            replace (bool): True clears and uses the current figure. False makes a new figure.
+            sortArray (string): Label of the bdata array used to sort the trials.
+            timeRange (list): Time range around each event to align spikes.
+            ms (float): matplotlib marker size for raster plots
+            electrodeName (string): Name of spikes file should be {electrodeName}{electrodeNumber}.spikes
+        Returns nothing - draws a figure.
         '''
         sessionObj = self.get_session_obj(session, experiment, site)
         sessionDir = sessionObj.ephys_dir()
@@ -518,72 +554,143 @@ class EphysInterface(object):
         else:
             fig = plt.figure()
 
-        dataplotter.two_axis_sorted_raster(spikeTimestamps,
-                                           eventOnsetTimes,
-                                           firstSortArray,
-                                           secondSortArray,
-                                           firstLabels,
-                                           secondLabels,
-                                           xLabel,
-                                           yLabel,
-                                           plotTitle,
-                                           flipFirstAxis=False,
-                                           flipSecondAxis=True,
-                                           timeRange=timeRange,
-                                           ms=ms)
+        # dataplotter.two_axis_sorted_raster(spikeTimestamps,
+        #                                    eventOnsetTimes,
+        #                                    firstSortArray,
+        #                                    secondSortArray,
+        #                                    firstLabels,
+        #                                    secondLabels,
+        #                                    xLabel,
+        #                                    yLabel,
+        #                                    plotTitle,
+        #                                    flipFirstAxis=False,
+        #                                    flipSecondAxis=True,
+        #                                    timeRange=timeRange,
+        #                                    ms=ms)
+
+        # We flip the second axis so that high intensities appear at the top
+        flipFirstAxis=False
+        flipSecondAxis=True
+
+        if not firstSortLabels:
+            firstSortLabels = []
+        if not secondSortLabels:
+            secondSortLabels = []
+        if not xLabel:
+            xlabel = ''
+        if not yLabel:
+            ylabel = ''
+        if not plotTitle:
+            plotTitle = ''
+        #Set first and second possible val arrays and invert them if desired for plotting
+        firstPossibleVals = np.unique(firstSortArray)
+        secondPossibleVals = np.unique(secondSortArray)
+        if flipFirstAxis:
+            firstPossibleVals = firstPossibleVals[::-1]
+            firstSortLabels = firstSortLabels[::-1]
+        if flipSecondAxis:
+            secondPossibleVals = secondPossibleVals[::-1]
+            secondSortLabels = secondSortLabels[::-1]
+        #Find the trials that correspond to each pair of sorting values
+        trialsEachCond = behavioranalysis.find_trials_each_combination(
+            firstSortArray, firstPossibleVals, secondSortArray, secondPossibleVals)
+        #Calculate the spike times relative to event onset times
+        spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
+            spikeTimestamps, eventOnsetTimes, timeRange)
+        #Grab the current figure and clear it for plotting
+        fig = plt.gcf()
+        plt.clf()
+        plt.suptitle(plotTitle)
+
+        #Make a new plot for each unique value of the second sort array, and then plot a raster on that plot sorted by this second array
+        for ind, secondArrayVal in enumerate(secondPossibleVals):
+            if ind == 0:
+                fig.add_subplot(len(secondPossibleVals), 1, ind + 1)
+                plt.title(plotTitle)
+            else:
+                fig.add_subplot(
+                    len(secondPossibleVals),
+                    1,
+                    ind + 1,
+                    sharex=fig.axes[0],
+                    sharey=fig.axes[0])
+            trialsThisSecondVal = trialsEachCond[:, :, ind]
+            pRaster, hcond, zline = extraplots.raster_plot(
+                spikeTimesFromEventOnset,
+                indexLimitsEachTrial,
+                timeRange,
+                trialsEachCond=trialsThisSecondVal,
+                labels=firstSortLabels)
+            plt.setp(pRaster, ms=ms)
+            if secondSortLabels:
+                # plt.ylabel(secondSortLabels[ind])
+                plt.title(secondSortLabels[ind])
+            if ind == len(secondPossibleVals) - 1:
+                plt.xlabel(xLabel)
+            if yLabel:
+                plt.ylabel(yLabel)
 
         plt.show()
 
     #Relies on external TC heatmap plotting functions
-    def plot_session_tc_heatmap(self, session, tetrode, experiment=-1, site=-1, cluster=None, replace=True, timeRange=[0, 0.1]):
-        sessionObj = self.get_session_obj(session, experiment, site)
-        sessionDir = sessionObj.ephys_dir()
-        behavFile = sessionObj.behav_filename()
-        bdata = self.loader.get_session_behavior(behavFile)
-        plotTitle = sessionDir
-        eventData = self.loader.get_session_events(sessionDir)
-        spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster)
+    # def plot_session_tc_heatmap(self, session, tetrode, experiment=-1, site=-1, cluster=None, replace=True, timeRange=[0, 0.1]):
+    #     sessionObj = self.get_session_obj(session, experiment, site)
+    #     sessionDir = sessionObj.ephys_dir()
+    #     behavFile = sessionObj.behav_filename()
+    #     bdata = self.loader.get_session_behavior(behavFile)
+    #     plotTitle = sessionDir
+    #     eventData = self.loader.get_session_events(sessionDir)
+    #     spikeData = self.loader.get_session_spikes(sessionDir, tetrode, cluster)
 
-        spikeTimestamps = spikeData.timestamps
+    #     spikeTimestamps = spikeData.timestamps
 
-        eventOnsetTimes = self.loader.get_event_onset_times(eventData)
+    #     eventOnsetTimes = self.loader.get_event_onset_times(eventData)
 
-        freqEachTrial = bdata['currentFreq']
-        intensityEachTrial = bdata['currentIntensity']
+    #     freqEachTrial = bdata['currentFreq']
+    #     intensityEachTrial = bdata['currentIntensity']
 
-        possibleFreq = np.unique(freqEachTrial)
-        possibleIntensity = np.unique(intensityEachTrial)
+    #     possibleFreq = np.unique(freqEachTrial)
+    #     possibleIntensity = np.unique(intensityEachTrial)
 
-        if replace:
-            fig = plt.gcf()
-            plt.clf()
-        else:
-            fig = plt.figure()
+    #     if replace:
+    #         fig = plt.gcf()
+    #         plt.clf()
+    #     else:
+    #         fig = plt.figure()
 
 
-        xlabel='Frequency (kHz)'
-        ylabel='Intensity (dB SPL)'
+    #     xlabel='Frequency (kHz)'
+    #     ylabel='Intensity (dB SPL)'
 
-        freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0] #FIXME: This should be outside this function
-        intenLabels = ['{}'.format(inten) for inten in possibleIntensity]
+    #     freqLabels = ["%.1f" % freq for freq in possibleFreq/1000.0] #FIXME: This should be outside this function
+    #     intenLabels = ['{}'.format(inten) for inten in possibleIntensity]
 
-        dataplotter.two_axis_heatmap(spikeTimestamps=spikeTimestamps,
-                                            eventOnsetTimes=eventOnsetTimes,
-                                            firstSortArray=intensityEachTrial,
-                                            secondSortArray=freqEachTrial,
-                                            firstSortLabels=intenLabels,
-                                            secondSortLabels=freqLabels,
-                                            xlabel='Frequency (kHz)',
-                                            ylabel='Intensity (dB SPL)',
-                                            plotTitle=plotTitle,
-                                            flipFirstAxis=False,
-                                            flipSecondAxis=False,
-                                            timeRange=[0, 0.1])
+    #     dataplotter.two_axis_heatmap(spikeTimestamps=spikeTimestamps,
+    #                                         eventOnsetTimes=eventOnsetTimes,
+    #                                         firstSortArray=intensityEachTrial,
+    #                                         secondSortArray=freqEachTrial,
+    #                                         firstSortLabels=intenLabels,
+    #                                         secondSortLabels=freqLabels,
+    #                                         xlabel='Frequency (kHz)',
+    #                                         ylabel='Intensity (dB SPL)',
+    #                                         plotTitle=plotTitle,
+    #                                         flipFirstAxis=False,
+    #                                         flipSecondAxis=False,
+    #                                         timeRange=[0, 0.1])
 
-        plt.show()
+    #     plt.show()
 
 
     def cluster_session(self, session, tetrode, experiment=-1, site=-1):
+        '''
+        Cluster a single tetrode for a recording session.
+        Args:
+            session (index): The index of the session to cluster.
+            tetrode (int): The tetrode number to cluster.
+            site (index): The index of the site to pull sessions from.
+            experiment (index): The index of the experiment to get the site from.
+        Returns nothing, but .clu files and multisession cluster reports will be created.
+        '''
         from jaratoolbox import spikesorting
 
         print 'Clustering tetrode {}'.format(tetrode)
@@ -604,6 +711,14 @@ class EphysInterface(object):
             oneTT.save_report()
 
     def cluster_array(self, session, site=-1, experiment=-1):
+        '''
+        Cluster every tetrode for a recording session.
+        Args:
+            session (index): The index of the session to cluster.
+            site (index): The index of the site to pull sessions from.
+            experiment (index): The index of the experiment to get the site from.
+        Returns nothing, but .clu files and multisession cluster reports will be created.
+        '''
 
         sessionObj = self.get_session_obj(session, experiment, site)
         tetrodes=sessionObj.tetrodes
@@ -612,7 +727,14 @@ class EphysInterface(object):
 
 
     def cluster_array_multisession(self, sessionList, site=-1, experiment=-1):
-        '''sessionList has to be a list of inds'''
+        '''
+        Run multisession clustering on all tetrodes for a number of recording sessions.
+        Args:
+            sessionList (list of indices): A list of the indices of the sessions you want to cluster together.
+            site (index): The index of the site to pull sessions from.
+            experiment (index): The index of the experiment to get the site from.
+        Returns nothing, but .clu files and multisession cluster reports will be created.
+        '''
 
         from jaratoolbox import spikesorting
 
@@ -633,7 +755,6 @@ class EphysInterface(object):
     def cluster_color_psth(self, sessionList, plotType=None, site=-1, experiment=-1, tuningTimeRange = [0.0,0.1]):
         '''
         Display cluster waveforms and a colormap-style psth. Could also just do lines for each cluster.
-        could also just plot spikes in color for each cluster.
         '''
 
         if not isinstance(sessionList, list):
@@ -645,39 +766,6 @@ class EphysInterface(object):
         #TODO: Make sure this function is using nice new cms with numclusters=6
         self.cluster_array_multisession(sessionList, site=site, experiment=experiment)
 
-
-        # allSessionObj = [self.get_session_obj(session, experiment, site) for session in sessionList]
-        # allSessionDir = [so.ephys_dir() for so in allSessionObj]
-        # allEventData = [self.loader.get_session_events(sd) for sd in allSessionDir]
-
-
-        ##########
-        # allSessionObj = []
-        # allSessionDir = []
-        # allEventData = []
-
-        # for session in sessionList:
-        #     # TODO: This is copied from load_session_data, should refactor
-
-        #     sessionObj = self.get_session_obj(session, experiment, site)
-        #     allSessionObj.append(sessionObj)
-
-        #     sessionDir = sessionObj.ephys_dir()
-        #     allSessionDir.append(sessionDir)
-
-        #     if behavClass == None:
-        #         behavClass = loadbehavior.BehaviorData
-        #     if sessionObj.behavsuffix is not None:
-        #         dateStr = ''.join(sessionObj.date.split('-'))
-        #         fullSessionStr = '{}{}'.format(dateStr, sessionObj.behavsuffix)
-        #         behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
-        #                                                             sessionObj.paradigm,
-        #                                                             fullSessionStr)
-        #         bdata = behavClass(behavDataFilePath,readmode='full')
-        #     else:
-        #         bdata = None
-        #     ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
-        ##########
 
         allSessionObj = [self.get_session_obj(session, experiment, site) for session in sessionList]
         allTetrodes=[so.tetrodes for so in allSessionObj]
@@ -756,9 +844,9 @@ class EphysInterface(object):
                         smoothWinSize = 3
                         winShape = np.concatenate((np.zeros(smoothWinSize),np.ones(smoothWinSize))) # Square (causal)
                         winShape = winShape/np.sum(winShape)
-    
+
                         binsStartTime=binEdges[:-1]
-    
+
                         binSize = binEdges[1]-binEdges[0]
                         thisPSTH = np.mean(spikeCountMat/binSize,axis=0)
                         smoothPSTH = np.convolve(thisPSTH,winShape,mode='same')
