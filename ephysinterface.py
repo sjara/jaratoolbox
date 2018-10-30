@@ -131,7 +131,8 @@ def plot_colored_waveforms(waveforms, color='k', ntraces=40, ax=None):
 class EphysInterface(object):
 
     def __init__(self, filepath):
-
+        if not os.path.isfile(filepath):
+            raise AttributeError("The path provided does not point to an inforec file.")
         self.filepath = filepath
         self.inforec = self.load_inforec()
         # self.loader = dataloader.DataLoader(self.inforec.subject)
