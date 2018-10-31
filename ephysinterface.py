@@ -9,7 +9,7 @@ The job of the module will be to take session names, get the data, and then pass
 import os
 import imp
 # from jaratest.nick.database import dataloader_v2 as dataloader
-from jaratest.nick.database import dataplotter #TODO: We need to get rid of dataplotter functions (see color psth)
+# from jaratest.nick.database import dataplotter #TODO: We need to get rid of dataplotter functions (see color psth)
 from jaratoolbox import ephyscore
 # reload(dataplotter)
 # reload(dataloader)
@@ -812,7 +812,8 @@ class EphysInterface(object):
                         psth_ax.set_xlim(timeRange)
                     elif plotType[indSession] == 'tuning':
                         trialsEachCond = behavioranalysis.find_trials_each_type(freqEachTrial, np.unique(freqEachTrial))
-                        spikeArray = dataplotter.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange=tuningTimeRange)
+                        # spikeArray = dataplotter.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange=tuningTimeRange)
+                        spikeArray = self.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange=tuningTimeRange)
                         psth_ax.plot(spikeArray, ls='-', lw=2, color = clusterColor)
                         psth_ax.set_xticks(range(len(np.unique(freqEachTrial))))
                         psth_ax.set_xticklabels(freqLabels,fontsize=8)
