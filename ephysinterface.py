@@ -334,7 +334,7 @@ class EphysInterface(object):
     def avg_spikes_in_event_locked_timerange_each_cond(self, spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
         if len(eventOnsetTimes) != np.shape(trialsEachCond)[0]:
             eventOnsetTimes = eventOnsetTimes[:-1]
-            print "FIXME: Using bad hack to make event onset times equal number of trials"
+            print "Removing last event onset time to align with behavior data"
         spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
             spikeTimestamps, eventOnsetTimes, timeRange)
         spikeArray = self.avg_locked_spikes_per_condition(indexLimitsEachTrial,
