@@ -9,7 +9,7 @@ The job of the module will be to take session names, get the data, and then pass
 import os
 import imp
 # from jaratest.nick.database import dataloader_v2 as dataloader
-from jaratest.nick.database import dataplotter #TODO: We need to get rid of dataplotter functions (see color psth)
+# from jaratest.nick.database import dataplotter #TODO: We need to get rid of dataplotter functions (see color psth)
 from jaratoolbox import ephyscore
 # reload(dataplotter)
 # reload(dataloader)
@@ -104,6 +104,14 @@ def plot_psth(spikeTimestamps, eventOnsetTimes, sortArray=[], timeRange=[-0.5,1]
             plt.legend(ncol=3, loc='best')
 
 def plot_colored_waveforms(waveforms, color='k', ntraces=40, ax=None):
+    '''
+    Plot mean waveform and variance as a colored area.
+    Args:
+        waveforms (array): waveform array of shape (nChannels,nSamplesPerSpike,nSpikes)
+        color (str): matplotlib color
+        ntraces (int): Number of randomly-selected traces to use
+        ax (matplotlib Axes object): The axis to plot on
+    '''
     if ax is None:
         ax = plt.gca()
     (nSpikes,nChannels,nSamplesPerSpike) = waveforms.shape
@@ -131,7 +139,12 @@ def plot_colored_waveforms(waveforms, color='k', ntraces=40, ax=None):
 class EphysInterface(object):
 
     def __init__(self, filepath):
-
+        '''
+        Args:
+           filepath (str): Absolute path to the inforec file.
+        '''
+        if not os.path.isfile(filepath):
+            raise AttributeError("The path provided does not point to an inforec file.")
         self.filepath = filepath
         self.inforec = self.load_inforec()
         # self.loader = dataloader.DataLoader(self.inforec.subject)
@@ -141,7 +154,9 @@ class EphysInterface(object):
         return inforec
 
     def get_colours(self, ncolours):
-        ''' returns n distinct colours for plotting purpouses when you don't want to manually specify colours'''
+        '''
+        Returns n colors from the matplotlib rainbow colormap.
+        '''
         from matplotlib.pyplot import cm
         colours = cm.rainbow(np.linspace(0,1,ncolours))
         return colours
@@ -158,9 +173,9 @@ class EphysInterface(object):
                                   or a string with the timestamp of the session.
             experiment (int): The index of the experiment to use
             site (int): The index of the site to use
+        Returns:
+            sessionObj (jaratoolbox.celldatabase.Session)
 
-        TODO: Allow date to be used to select experiment
-        TODO: Allow depth to be used to select site
         '''
 
         self.inforec = self.load_inforec()
@@ -182,6 +197,14 @@ class EphysInterface(object):
         return sessionObj
 
     def get_site_obj(self, experiment, site):
+        '''
+        Get the site object given experiment and site indices.
+        Args:
+            experiment (index): The index of the experiment to get the site from.
+            site (index): The index of the site in the experiment.
+        Returns:
+            siteObj (jaratoolbox.celldatabase.Site): The site object.
+        '''
 
         self.inforec = self.load_inforec()
         #List of session objects and session ephys names for the specified experiment and site
@@ -229,46 +252,7 @@ class EphysInterface(object):
         ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
         return ephysData, bdata, info
 
-    # def load_session_data_from_object(self, sessionObj, tetrode, cluster=None, behavClass=None):
-    #     '''
-    #     TODO: Either keep this one or the one above, not both
-    #     Return ephys and behavior data for a particular session.
-    #     Args
-    #         session (int or str): Can be an integer index, to be used
-    #                               on the list of sessions for this site/experiment,
-    #                               or a string with the timestamp of the session.
-    #         experiment (int): The index of the experiment to use
-    #         site (int): The index of the site to use
-    #         tetrode (int): Tetrode number to load
-    #         cluster (int): Cluster number to load (set to None to load all clusters)
-    #         behavClass (str): name of jaratoolbox.loadbehavior class to use for loading behavior
-    #     Returns
-    #         ephysData (dict): dictionary of ephys data returned by jaratoolbox.ephyscore.load_ephys()
-    #         bdata (dict): jaratoolbox.loadbehavior.BehaviorData (or subclass, depending on behavClass arg)
-    #     '''
-    #     sessionDir = sessionObj.ephys_dir()
-
-    #     #Some info to return about the session. TODO: Is this necessary??
-    #     info = {'sessionDir':sessionDir}
-
-    #     if behavClass == None:
-    #         behavClass = loadbehavior.BehaviorData
-    #     if sessionObj.behavsuffix is not None:
-    #         dateStr = ''.join(sessionObj.date.split('-'))
-    #         fullSessionStr = '{}{}'.format(dateStr, sessionObj.behavsuffix)
-    #         behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
-    #                                                             sessionObj.paradigm,
-    #                                                             fullSessionStr)
-    #         bdata = behavClass(behavDataFilePath,readmode='full')
-    #     else:
-    #         bdata = None
-    #     ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
-    #     return ephysData, bdata, info
-
     def plot_session_raster(self, session, tetrode, experiment=-1, site=-1, cluster=None, sortArray='currentFreq', timeRange=[-0.5, 1], replace=0, ms=4, colorEachCond=None):
-        ##  ---  ###
-        #TODO: Use this to get the data for all the plots we do
-        # behavFile = sessionObj.behav_filename()
         #Load the behavior data if it exists and set the array that will be used to sort the raster trials.
         ephysData, bdata, info = self.load_session_data(session, experiment, site, tetrode, cluster)
         eventOnsetTimes = ephysData['events']['stimOn']
@@ -345,8 +329,6 @@ class EphysInterface(object):
         plt.ylabel('Average number of spikes in range [0, 0.1]')
         plt.suptitle('TT{}'.format(tetrode))
 
-    # DEPRECATED? we never use this
-
     def one_axis_tc_or_rlf(self, spikeTimestamps, eventOnsetTimes, sortArray, timeRange=[0, 0.1], labels = None):
         trialsEachCond = behavioranalysis.find_trials_each_type(
             sortArray, np.unique(sortArray))
@@ -357,7 +339,7 @@ class EphysInterface(object):
     def avg_spikes_in_event_locked_timerange_each_cond(self, spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
         if len(eventOnsetTimes) != np.shape(trialsEachCond)[0]:
             eventOnsetTimes = eventOnsetTimes[:-1]
-            print "FIXME: Using bad hack to make event onset times equal number of trials"
+            print "Removing last event onset time to align with behavior data"
         spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
             spikeTimestamps, eventOnsetTimes, timeRange)
         spikeArray = self.avg_locked_spikes_per_condition(indexLimitsEachTrial,
@@ -713,7 +695,17 @@ class EphysInterface(object):
 
     def cluster_color_psth(self, sessionList, plotType=None, site=-1, experiment=-1, tuningTimeRange = [0.0,0.1]):
         '''
-        Display cluster waveforms and a colormap-style psth. Could also just do lines for each cluster.
+        Display cluster waveforms and a PSTH or tuning curve for each cluster.
+        Performs multisession clustering for each tetrode recorded at the site.
+        Args:
+            sessionList (list of indices): The indices of the sessions to be included in the multisession clustering.
+            plotType (list of str): A list the same length as sessionList, containing the type of plot for that session.
+                                    Current valid plotTypes are: 'psth', 'tuning'
+            site (index): The index of the site to pull sessions from.
+            experiment (index): The index of the experiment to get the site from.
+            tuningTimeRange (list of float): List containing [start, stop] times relative to event onset over which to
+                                             average spikes for tuning curve.
+        Returns nothing, but .clu files and multisession cluster reports will be created.
         '''
 
         if not isinstance(sessionList, list):
@@ -816,7 +808,8 @@ class EphysInterface(object):
                         psth_ax.set_xlim(timeRange)
                     elif plotType[indSession] == 'tuning':
                         trialsEachCond = behavioranalysis.find_trials_each_type(freqEachTrial, np.unique(freqEachTrial))
-                        spikeArray = dataplotter.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange=tuningTimeRange)
+                        # spikeArray = dataplotter.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange=tuningTimeRange)
+                        spikeArray = self.avg_spikes_in_event_locked_timerange_each_cond(spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange=tuningTimeRange)
                         psth_ax.plot(spikeArray, ls='-', lw=2, color = clusterColor)
                         psth_ax.set_xticks(range(len(np.unique(freqEachTrial))))
                         psth_ax.set_xticklabels(freqLabels,fontsize=8)
