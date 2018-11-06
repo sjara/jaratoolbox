@@ -280,7 +280,7 @@ class EphysInterface(object):
         plotTitle = info['sessionDir']
         ##  ---  ##
         if replace:
-            plt.clf()
+            plt.cla()
         else:
             plt.figure()
         plot_raster(spikeTimestamps, eventOnsetTimes, sortArray = sortArray,
@@ -306,7 +306,7 @@ class EphysInterface(object):
         eventOnsetTimes = ephysData['events']['stimOn']
         spikeTimestamps = ephysData['spikeTimes']
 
-        if replace:
+        if replace==1:
             plt.cla()
         elif replace==2:
             plt.sca(ax)
@@ -316,25 +316,30 @@ class EphysInterface(object):
 
     def plot_am_freq_tuning(self, freqsession, amsession, tetrode, cluster = None,experiment=-1, site=-1, freqTimeRange = [-0.1, 0.3], amTimeRange = [-0.2, 0.8], colorEachCond=None, replace=1, ms=1, lw=3):
         if replace:
-            plt.cla()
+            plt.clf()
         else:
             plt.figure()
         #FIXME: currently hardcoded for number of am rates Anna uses
         if colorEachCond is None:
             colorEachCond = self.get_colours(5)
-        plt.subplot(221)
+        axAMRaster = plt.subplot(221)
+	#plt.waitforbuttonpress()
+        #self.plot_session_raster(amsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=amTimeRange, ms=ms, colorEachCond=colorEachCond, ax=axAMRaster)
         self.plot_session_raster(amsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=amTimeRange, ms=ms, colorEachCond=colorEachCond)
         plt.xlabel('Time from event onset (sec)')
         plt.ylabel('Modulation rate (Hz)')
-        plt.subplot(223)
+        axAMPSTH = plt.subplot(223)
+        #self.plot_session_PSTH(amsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=amTimeRange, lw=lw, colorEachCond=colorEachCond, ax=axAMPSTH)
         self.plot_session_PSTH(amsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=amTimeRange, lw=lw, colorEachCond=colorEachCond)
         plt.xlabel('Time from event onset (sec)')
         plt.ylabel('Firing rate (Hz)')
-        plt.subplot(222)
+        axFreqRaster = plt.subplot(222)
+        #self.plot_session_raster(freqsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=freqTimeRange, ms=ms, ax=axFreqRaster)
         self.plot_session_raster(freqsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=freqTimeRange, ms=ms)
         plt.xlabel('Time from event onset (sec)')
         plt.ylabel('Frequency (Hz)')
-        plt.subplot(224)
+        axFreqTuning = plt.subplot(224)
+        #self.plot_session_freq_tuning(freqsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=[0, 0.1], ax=axFreqTuning)
         self.plot_session_freq_tuning(freqsession, tetrode, experiment, site, cluster=cluster, replace=1, timeRange=[0, 0.1])
         plt.xlabel('Frequency (kHz)')
         plt.ylabel('Average number of spikes in range [0, 0.1]')
