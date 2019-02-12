@@ -35,10 +35,18 @@ class Cell(object):
         # We use these variables many times to load data
         # Date and depth are not really used to load the data
         self.subject = dbRow['subject']
+        self.date = dbRow['date']
+        self.depth = dbRow['depth']
         self.tetrode = dbRow['tetrode']
         self.cluster = dbRow['cluster']
         self.ephysBaseDir = os.path.join(settings.EPHYS_PATH, self.subject)
 
+    def __str__(self):
+        objStr = '{} {} ({:0.0f}um) T{}c{}'.format(self.subject, self.date, self.depth,
+                                            self.tetrode, self.cluster)
+        return objStr
+        
+        
     def load(self, sessiontype, behavClass=None):
         '''
         Load the spikes, events, and behavior data for a single session. Loads the LAST recorded
@@ -108,7 +116,7 @@ class Cell(object):
             eventsFilename (str): Full path to the .events file
         '''
         ephysTime = self.dbRow['ephysTime'][sessionInd]
-        sessionDir = '{}_{}'.format(self.dbRow['date'], ephysTime)
+        sessionDir = '{}_{}'.format(self.date, ephysTime)
         paradigm = self.dbRow['paradigm'][sessionInd]
         return (sessionDir, paradigm)
 
@@ -131,7 +139,7 @@ class Cell(object):
 
         #Load the behavior data
         if self.dbRow['behavSuffix'][sessionInd] is not None:
-            dateStr = ''.join(self.dbRow['date'].split('-'))
+            dateStr = ''.join(self.date.split('-'))
             fullSessionStr = '{}{}'.format(dateStr, self.dbRow['behavSuffix'][sessionInd])
             behavDataFilePath = loadbehavior.path_to_behavior_data(self.subject,
                                                                 self.dbRow['paradigm'][sessionInd],
