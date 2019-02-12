@@ -635,11 +635,15 @@ def generate_cell_database(inforecPath):
     return db
 
 def find_cell(database, subject, date, depth, tetrode, cluster):
+     '''
+     Find a cell in the database.
+     Returns (index, pandasSeries)
+     '''
      cell = database.query('subject==@subject and date==@date and depth==@depth and tetrode==@tetrode and cluster==@cluster')
      if len(cell)>1:
           raise AssertionError('This information somehow defines more than 1 cell in the database.')
      elif len(cell)==0:
-          raise AssertionError('No cells fit this search criteria.')
+          raise AssertionError('No cells fit these search criteria.')
      elif len(cell)==1:
           return cell.index[0], cell.iloc[0] #Return the index and the series: once you convert to series the index is lost
 
