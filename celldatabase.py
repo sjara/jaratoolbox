@@ -580,35 +580,35 @@ def generate_cell_database(inforecPath):
     Args:
         inforecPath (str): absolute path to the inforec file
     Returns:
-        db (pandas.DataFrame): the cell database
+        celldb (pandas.DataFrame): the cell database
     '''
 
     #clusterDirFormat = 'multisession_exp{}site{}'
     tetrodeStatsFormat = 'Tetrode{}_stats.npz'
     #inforec = imp.load_source('module.name', inforecPath) # 'module.name' was meant to be an actual name
     inforec = imp.load_source('inforec_module', inforecPath)
-    print '\n# -- Generating database for new inforec file -- #\n'
-    db = pd.DataFrame(dtype=object)
+    print '\nGenerating database for {}'.format(inforecPath)
+    celldb = pd.DataFrame(dtype=object)
     for indExperiment, experiment in enumerate(inforec.experiments):
         #Complain if the maxDepth attr is not set for this experiment
         if experiment.maxDepth is None:
-             print "Attribute maxDepth not set for experiment with subject {} on {}".format(experiment.subject, experiment.date)
-             # maxDepthThisExp = None
-             raise AttributeError('You must set maxDepth for each experiment.')
+            print "Attribute maxDepth not set for experiment with subject {} on {}".format(experiment.subject, experiment.date)
+            # maxDepthThisExp = None
+            raise AttributeError('You must set maxDepth for each experiment.')
         else:
             maxDepthThisExp = experiment.maxDepth
         print 'Adding experiment from {} on {}'.format(experiment.subject, experiment.date)
         for indSite, site in enumerate(experiment.sites):
             #clusterDir = clusterDirFormat.format(indExperiment, indSite)
-             clusterFolder = site.clusterFolder
-             for tetrode in site.tetrodes:
+            clusterFolder = site.clusterFolder
+            for tetrode in site.tetrodes:
                 clusterStatsFn = tetrodeStatsFormat.format(tetrode)
                 clusterStatsFullPath = os.path.join(settings.EPHYS_PATH,
                                                     inforec.subject,
                                                     clusterFolder,
                                                     clusterStatsFn)
                 if not os.path.isfile(clusterStatsFullPath):
-                    raise NotClusteredYetError("Experiment {} Site {} Tetrode {} is not clustered.\nNo file {}".format(indExperiment, indSite, tetrode,clusterStatsFullPath))
+                    raise NotClusteredError("Experiment {} Site {} Tetrode {} is not clustered.\nNo file {}".format(indExperiment, indSite, tetrode,clusterStatsFullPath))
                 clusterStats = np.load(clusterStatsFullPath)
 
                 for indc, cluster in enumerate(clusterStats['clusters']):
@@ -627,12 +627,33 @@ def generate_cell_database(inforecPath):
                                    'spikePeakTimes':clusterStats['clusterPeakTimes'][indc],
                                    'spikeShapeQuality':clusterShapeQuality}
                     clusterDict.update(site.cluster_info())
-                    db = db.append(clusterDict, ignore_index=True)
+                    celldb = celldb.append(clusterDict, ignore_index=True)
     #NOTE: This is an ugly way to force these columns to be int. Will fix in future if possible
-    db['tetrode'] = db['tetrode'].astype(int)
-    db['cluster'] = db['cluster'].astype(int)
-    db['nSpikes'] = db['nSpikes'].astype(int)
-    return db
+    celldb['tetrode'] = celldb['tetrode'].astype(int)
+    celldb['cluster'] = celldb['cluster'].astype(int)
+    celldb['nSpikes'] = celldb['nSpikes'].astype(int)
+    return celldb
+
+
+def generate_cell_database_from_subjects(subjects, removeBadCells=True, isi=0.05, quality=2):
+    '''
+    This function generates a database for multiple subjects.
+
+    Args:
+        subjects (list): List of strings containing names of subjects
+
+    Returns:
+        fulldb (pandas.DataFrame): Database with cells from all subjects.
+    '''
+    fulldb = pd.DataFrame()
+    for subject in subjects:
+        inforec = os.path.join(settings.INFOREC_PATH,'{0}_inforec.py'.format(subject))
+        onedb = generate_cell_database(inforec)
+        if removeBadCells:
+             onedb = onedb[(onedb['isiViolations'] < isi) | (onedb['spikeShapeQuality'] > quality)]
+        fulldb = fulldb.append(onedb, ignore_index=True)
+    return fulldb
+
 
 def find_cell(database, subject, date, depth, tetrode, cluster):
      '''
@@ -733,7 +754,7 @@ def load_hdf(filename, root='/'):
 
 
 
-class NotClusteredYetError(Exception):
+class NotClusteredError(Exception):
     pass
 
 # def find_cell(db, subject, date, depth, tetrode, cluster):
