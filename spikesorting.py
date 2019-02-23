@@ -962,6 +962,132 @@ def distance_to_centroid(featureMat):
     return dMahalanobis
 
 
+def rescue_clusters(celldb, isiThreshold=0.02):
+    '''
+    Cleans clusters by removing spikes that are very different from the average spike.
+    This reduces the ISI violations.
+
+    The function takes each cluster from the database with ISI violations
+    greater than a threshold. For each of these clusters, it sequentially 
+    removes the spikes farthest away from the centroid until ISI violations
+    fall below the threshold.
+
+    Args:
+        celldb (pandas.DataFrame): created by celldatabase.py
+        isiThreshold (float): maximum ISI 
+
+    This function doesn't return anything, but it creates new .clu files in the
+    same folder as the originals, using the name 'Tetrode{}.clu.modified'
+
+    FIXME: this function is not very clean because of a few reasons:
+    - It imports new packages
+    - It requires knowledge of the database structure.
+    '''
+    from sklearn import neighbors
+    from jaratoolbox import ephyscore
+    
+    cellsToRescue = celldb.query('isiViolations>@isiThreshold')
+    for indRow, dbRow in cellsToRescue.iterrows():
+        cell = ephyscore.Cell(dbRow)
+        print dbRow['subject'], dbRow['date'], dbRow['depth']
+        timestamps, samples, recordingNumber = cell.load_all_spikedata()
+        tetrode = dbRow['tetrode']
+        cluster = dbRow['cluster']
+
+        #isiViolations = spikesorting.calculate_ISI_violations(timestamps)
+        isiViolations = dbRow['isiViolations']
+        print "isi violations: %{}".format(isiViolations*100)
+        print "nSpikes: {}".format(len(timestamps))
+        featuresToUse = ['peakFirstHalf', 'valleyFirstHalf', 'energy']
+        if len(timestamps)!=0:
+            featuresMat = spikesorting.calculate_features(samples, featuresToUse)
+
+            #To sort by nearest-neighbor distance
+            print "Calculating NN distance"
+            tic = time.time()
+            #This will use all the processors
+            nbrs = neighbors.NearestNeighbors(n_neighbors=2, algorithm='auto', n_jobs=-1).fit(featuresMat)
+            distances, indices = nbrs.kneighbors(featuresMat)
+            toc = time.time()
+            elapsed = toc-tic
+            print "NN done, elapsed time: {}".format(elapsed/60.)
+            sortArray = np.argsort(distances[:,1]) #Take second neighbor distance because first is self (0)
+
+            #To sort by mahalanobis distance to the cluster centroid
+            # centroid = featuresMat.mean(axis=0)
+
+            spikesToRemove = 0
+            thisISIviolation = isiViolations #The isi violations including all the spikes
+            jumpBy = int(len(timestamps)*0.01) #Jump by 1% of spikes each time
+            if jumpBy == 0:
+                jumpBy = 1 #remove at least 1 spike
+            while thisISIviolation>0.02:
+                spikesToRemove+=jumpBy
+                #We start to throw spikes at the end of the sort array away
+                includeBool = sortArray < (len(sortArray)-spikesToRemove)
+                # timestampsToInclude = sortedTimestamps[:-1*spikesToRemove]
+                timestampsToInclude = timestamps[includeBool]
+                thisISIviolation = spikesorting.calculate_ISI_violations(np.sort(timestampsToInclude))
+                print "Removing {} spikes, ISI violations: {}".format(spikesToRemove, thisISIviolation)
+            print "Final included spikes: {} out of {}".format(len(timestampsToInclude), len(timestamps))
+
+            #The inds of all the spikes that get to stay (have to have a low number in sort array)
+            #Sort array is in chronological order, so this include bool array is also chronological
+            # includeBool = sortArray < (len(sortArray)-spikesToRemove)
+
+            try:
+                for thisRecordingNum in np.unique(recordingNumber):
+                    #Which spikes in the total come from this recording
+                    indsThisRecording = np.flatnonzero(recordingNumber == thisRecordingNum)
+                    #What are the values in includeBool for those inds?
+                    includeThisRecording = includeBool[indsThisRecording]
+
+                    #load the .clu file
+                    #Need the recording info
+                    subject = cell.dbRow['subject']
+                    date = cell.dbRow['date']
+                    ephysTimeThisRecording = cell.dbRow['ephysTime'][thisRecordingNum]
+                    clusterDir = "{}_kk".format("_".join([date, ephysTimeThisRecording]))
+                    clusterFullPath = os.path.join(settings.EPHYS_PATH, subject, clusterDir)
+                    clusterFile = os.path.join(clusterFullPath,'Tetrode{}.clu.1'.format(tetrode))
+
+                    allClustersThisTetrode = np.fromfile(clusterFile,dtype='int32',sep=' ')[1:]
+
+                    nClusters = len(np.unique(allClustersThisTetrode))
+
+                    #The inds of the spikes from the cluster we are working on
+                    indsThisCluster = np.flatnonzero(allClustersThisTetrode == cluster)
+
+                    #For each spike from this cluster we have a bool value to include it or not
+                    assert len(indsThisCluster) == len(includeThisRecording)
+
+                    #For every spike in the cluster, we determine whether to keep or remove
+                    for indIter, indThisSpike in enumerate(indsThisCluster):
+                        includeThisSpike = includeThisRecording[indIter]
+                        if includeThisSpike == 0: #If we remove, just set the value in allClustersThisTetrode to 0
+                            allClustersThisTetrode[indThisSpike] = 0
+
+                    #Then just re-save the allClustersThisTetrode as a modified clu file
+                    modifiedClusterFile = os.path.join(clusterFullPath,'Tetrode{}.clu.modified'.format(tetrode))
+
+                    # FIXME: Make sure that adding cluster 0 does not mess up creating databases or
+                    #        other processes where we need to read the clu file
+                    fid = open(modifiedClusterFile,'w')
+                    #We added a new garbage cluster (0)
+                    fid.write('{0}\n'.format(nClusters+1))
+                    print "Writing .clu.modified file for session {}".format(ephysTimeThisRecording)
+                    for cn in allClustersThisTetrode:
+                        fid.write('{0}\n'.format(cn))
+                    fid.close()
+
+                    #Save the new ISI violation
+                    celldb.loc[indRow, 'modifiedISI'] = thisISIviolation
+
+            except:
+                print "Could not save modified .clu files"
+
+
+
 
 if __name__ == "__main__":
     CASE = 4
