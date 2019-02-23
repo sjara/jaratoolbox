@@ -663,6 +663,57 @@ def save_svg_for_registration(filenameSVG, filenameAtlas, filenameSlice, verbose
         print('Saved {}'.format(filenameSVG))
     return (atlasIm.size, sliceIm.size)
 
+def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
+    ''' 
+    Get the CCF coordinates of a recording tract and (optionally) any recording sites on the tract.
+    
+    Returns the x and y coordinates. Will only return site coordinates if both the recording depths and max depth are given.
+    
+    Args:
+        filenameSVG (str): full path to the SVG containing the drawn and aligned recording tract.
+        recordingDepths (list): list of ints corresponding to the site depths for this experiment (from inforec)
+        maxDepth (int): final penetration depth reached for this experiment
+        
+    Returns:
+        brainSurfCoords (list): CCF x and y coordinates where the tract enters the brain
+        tipCoords (list): CCF x and y coordinates for the end of the tract
+        siteCoords (list): CCF x and y coordinates for each recording site. None if no recording depths or max depth given.
+    '''
+        
+    # -- load SVG file and get coordinates for tip and brain surface --
+    tree = ETree.parse(filenameSVG)
+    root=tree.getroot()
+    paths = root.findall('{http://www.w3.org/2000/svg}path')
+    if len(paths)!=1:
+        raise ValueError('The SVG file must contain exactly 1 path')
+    pathCoords = paths[0].attrib['d']
+    reString = r'M (\d+\.*\d*),(\d+\.*\d*) (\d+\.*\d*),(\d+\.*\d*)'
+    coordStrings = re.findall(reString, pathCoords)
+    if len(coordStrings)==0:
+        raise ValueError('The path does not have the correct format. You probably did not double click for this tract')
+    tractCoords = coordStrings[0]
+    tractCoords = map(float, tractCoords)
+
+    tipCoords = [tractCoords[0], tractCoords[1]]
+    brainSurfCoords = [tractCoords[2], tractCoords[3]]
+
+    if tipCoords[1] < brainSurfCoords[1]:
+        raise ValueError('The brain surface is deeper than the tip!')
+    
+    # -- extrapolate locations of recording sites from path between surface and tip --
+    if recordingDepths is not None and maxDepth is not None:
+        siteFracFromSurface = np.array(recordingDepths)/float(maxDepth)
+        siteCoords = []
+        for fracFromSurface in siteFracFromSurface:
+            refVec = [tipCoords[0]-brainSurfCoords[0], tipCoords[1]-brainSurfCoords[1]]
+            vecToAdd = fracFromSurface * np.array(refVec)
+            coordsAtFraction = [brainSurfCoords[0]+vecToAdd[0], brainSurfCoords[1]+vecToAdd[1]]
+            siteCoords.append(coordsAtFraction)
+    else:
+        siteCoords = None
+    
+    return brainSurfCoords, tipCoords, siteCoords
+
 
 
 
