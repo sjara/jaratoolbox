@@ -649,7 +649,7 @@ class EphysInterface(object):
         else:
             oneTT.create_fet_files()
             oneTT.run_clustering(MinClusters=3, MaxClusters=6, MaxPossibleClusters=6)
-            oneTT.save_report()
+            oneTT.save_report(dirname='online_reports_clusters')
 
     def cluster_array(self, session, site=-1, experiment=-1):
         '''

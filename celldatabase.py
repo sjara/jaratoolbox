@@ -13,21 +13,21 @@ import h5py
 import ast  # To parse string representing a list
 
 class EphysSessionInfo(object):
-     def __init__(self, animalName, ephysSession, behavSession,
-                  clustersEachTetrode={}, trialsToExclude=[]):
-         '''
-         animalName [string] 'test000'
-         ephysSession [string] '2014-06-25_18-33-30'
-         behavSession [string] '20111209a'
-         clustersEachTetrode [dict] {2:[2,5,6], 6:[3,8,10]}  {tetrodeInd:[cluster1,cluster2], ...}
-         trialsToExclude [list of lists] [(2,5,range(100:200)), (6,10,range(600,650))]
-            [(tetrodeInd,clusterInd,trialrange), ...]
-         '''
-         self.animalName = animalName
-         self.ephysSession = ephysSession
-         self.behavSession = behavSession
-         self.clustersEachTetrode = clustersEachTetrode
-         self.trialsToExclude = trialsToExclude
+    def __init__(self, animalName, ephysSession, behavSession,
+                 clustersEachTetrode={}, trialsToExclude=[]):
+        '''
+        animalName [string] 'test000'
+        ephysSession [string] '2014-06-25_18-33-30'
+        behavSession [string] '20111209a'
+        clustersEachTetrode [dict] {2:[2,5,6], 6:[3,8,10]}  {tetrodeInd:[cluster1,cluster2], ...}
+        trialsToExclude [list of lists] [(2,5,range(100:200)), (6,10,range(600,650))]
+        [(tetrodeInd,clusterInd,trialrange), ...]
+        '''
+        self.animalName = animalName
+        self.ephysSession = ephysSession
+        self.behavSession = behavSession
+        self.clustersEachTetrode = clustersEachTetrode
+        self.trialsToExclude = trialsToExclude
 
 class CellInfo(object):
     '''
@@ -255,239 +255,239 @@ class InfoRecording(object):
 
 
 class Experiment(object):
-     '''
-     Experiment is a container of sites.
-     One per day.
-     Attributes:
-         subject(str): Name of the subject
-         date (str): The date the experiment was conducted
-         brainarea (str): The area of the brain where the recording was conducted
-         sites (list): A list of all recording sites for this experiment
-         info (str): Extra info about the experiment
-         tetrodes (list): Default tetrodes for this experiment
-     TODO: Fail gracefully if the experimenter tries to add sessions without adding a site first
-     TODO: Should the info attr be a dictionary?
-     '''
-     def __init__(self, subject, date, brainarea, info=''):
-          self.subject=subject
-          self.date=date
-          self.brainarea=brainarea
-          self.info=info
-          self.sites=[]
-          self.tetrodes = [1,2,3,4,5,6,7,8]
-          self.maxDepth = None
-          self.shankEnds = None
-          # self.probeGeometryFile = '/tmp/A4x2tet_5mm_150_200_121.py' #TODO: Implement something for probe geometry long-term storage?
-     def add_site(self, depth, date=None, tetrodes=None):
-          '''
-          Append a new Site object to the list of sites.
-          Args:
-               depth (int): The depth of the tip of the electrode array for this site
-               date (str): The date of recording for this site
-               tetrodes (list): Tetrodes to analyze for this site
-          Returns:
-               site (celldatabase.Site object): Handle to site object
-          '''
-          if date is None:
-              date = self.date
-          if tetrodes is None:
-              tetrodes = self.tetrodes
-          site=Site(self.subject, date, self.brainarea, self.info, depth, tetrodes)
-          self.sites.append(site)
-          return site
-     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
-          '''
-          Add a new Session object to the list of sessions belonging to the most recent Site
-          Args:
-               timestamp (str): The timestamp used by openEphys GUI to name the session
-               behavsuffix (str): The suffix of the behavior file
-               sessiontype (str): A string describing what kind of session this is.
-               paradigm (str): The name of the paradigm used to collect the session
-               date (str): The recording date. Only needed if the date of the session is different
-                           from the date of the Experiment/Site (if you record past midnight)
-          '''
-          try:
-               activeSite = self.sites[-1] #Use the most recent site for this experiment
-          except IndexError:
-               raise IndexError('There are no sites to add sessions to')
-          session = activeSite.add_session(timestamp,
-                                           behavsuffix,
-                                           sessiontype,
-                                           paradigm,
-                                           date)
-          return session
-     def pretty_print(self, sites=True, sessions=False):
-          '''
-          Print a string with date, brainarea, and optional list of sites/sessions by index
-          Args:
-              sites (bool): Whether to list all sites in the experiment by index
-              sessions (bool): Whether to list all sessions in each site by index
-          Returns:
-              message (str): A formatted string with the message to print
-          '''
-          message = []
-          message.append('Experiment on {} in {}\n'.format(self.date, self.brainarea))
-          if sites:
-               for indSite, site in enumerate(self.sites):
-                    #Append the ouput of the pretty_print() func for each site
-                    message.append('    [{}]: {}'.format(indSite,
-                                                         site.pretty_print(sessions=sessions)))
-          return ''.join(message)
-     def site_comment(self, message):
-          '''
-          Add a comment string to the list of comments for the most recent Site.
-          This method allows commenting on Site objects without returning handles to them.
-          Args:
-              message (str): The message string to append to the list of comments for the Site
-          '''
-          activeSite = self.sites[-1] #Use the most recent site for this experiment
-          activeSite.comment(message)
-     def session_comment(self, message):
-          '''
-          Add a comment string to the list of comments for the most recent Session.
-          This method allows commenting on Session objects without returning handles to them.
-          Args:
-              message (str): The message string to append to the list of comments for the Session
-          '''
-          activeSite = self.sites[-1] #Use the most recent Site for this Experiment
-          activeSession = activeSite.sessions[-1] #Use the most recent Session for this Site
-          activeSession.comment(message)
+    '''
+    Experiment is a container of sites.
+    One per day.
+    Attributes:
+        subject(str): Name of the subject
+        date (str): The date the experiment was conducted
+        brainarea (str): The area of the brain where the recording was conducted
+        sites (list): A list of all recording sites for this experiment
+        info (str): Extra info about the experiment
+        tetrodes (list): Default tetrodes for this experiment
+    TODO: Fail gracefully if the experimenter tries to add sessions without adding a site first
+    TODO: Should the info attr be a dictionary?
+    '''
+    def __init__(self, subject, date, brainarea, info=''):
+        self.subject=subject
+        self.date=date
+        self.brainarea=brainarea
+        self.info=info
+        self.sites=[]
+        self.tetrodes = [1,2,3,4,5,6,7,8]
+        self.maxDepth = None
+        self.shankEnds = None
+         # self.probeGeometryFile = '/tmp/A4x2tet_5mm_150_200_121.py' #TODO: Implement something for probe geometry long-term storage?
+    def add_site(self, depth, date=None, tetrodes=None):
+        '''
+        Append a new Site object to the list of sites.
+        Args:
+            depth (int): The depth of the tip of the electrode array for this site
+            date (str): The date of recording for this site
+            tetrodes (list): Tetrodes to analyze for this site
+        Returns:
+            site (celldatabase.Site object): Handle to site object
+        '''
+        if date is None:
+            date = self.date
+        if tetrodes is None:
+            tetrodes = self.tetrodes
+        site=Site(self.subject, date, self.brainarea, self.info, depth, tetrodes)
+        self.sites.append(site)
+        return site
+    def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
+        '''
+        Add a new Session object to the list of sessions belonging to the most recent Site
+        Args:
+            timestamp (str): The timestamp used by openEphys GUI to name the session
+            behavsuffix (str): The suffix of the behavior file
+            sessiontype (str): A string describing what kind of session this is.
+            paradigm (str): The name of the paradigm used to collect the session
+            date (str): The recording date. Only needed if the date of the session is different
+                        from the date of the Experiment/Site (if you record past midnight)
+        '''
+        try:
+             activeSite = self.sites[-1] #Use the most recent site for this experiment
+        except IndexError:
+             raise IndexError('There are no sites to add sessions to')
+        session = activeSite.add_session(timestamp,
+                                         behavsuffix,
+                                         sessiontype,
+                                         paradigm,
+                                         date)
+        return session
+    def pretty_print(self, sites=True, sessions=False):
+        '''
+        Print a string with date, brainarea, and optional list of sites/sessions by index
+        Args:
+            sites (bool): Whether to list all sites in the experiment by index
+            sessions (bool): Whether to list all sessions in each site by index
+        Returns:
+            message (str): A formatted string with the message to print
+        '''
+        message = []
+        message.append('Experiment on {} in {}\n'.format(self.date, self.brainarea))
+        if sites:
+            for indSite, site in enumerate(self.sites):
+                #Append the ouput of the pretty_print() func for each site
+                message.append('    [{}]: {}'.format(indSite,
+                                                     site.pretty_print(sessions=sessions)))
+        return ''.join(message)
+    def site_comment(self, message):
+        '''
+        Add a comment string to the list of comments for the most recent Site.
+        This method allows commenting on Site objects without returning handles to them.
+        Args:
+            message (str): The message string to append to the list of comments for the Site
+        '''
+        activeSite = self.sites[-1] #Use the most recent site for this experiment
+        activeSite.comment(message)
+    def session_comment(self, message):
+        '''
+        Add a comment string to the list of comments for the most recent Session.
+        This method allows commenting on Session objects without returning handles to them.
+        Args:
+            message (str): The message string to append to the list of comments for the Session
+        '''
+        activeSite = self.sites[-1] #Use the most recent Site for this Experiment
+        activeSession = activeSite.sessions[-1] #Use the most recent Session for this Site
+        activeSession.comment(message)
 
 class Site(object):
-     '''
-     Site is a container of sessions.
-     One per group of sessions which contain the same neurons and should be clustered together
-     Attributes:
-         subject(str): Name of the subject
-         date (str): The date the experiment was conducted
-         brainarea (str): The area of the brain where the recording was conducted
-         info (str): Extra info about the experiment
-         depth (int): The depth in microns at which the sessions were recorded
-         tetrodes (list): Tetrodes for this site
-         sessions (list): A list of all the sessions recorded at this site
-         comments (list of str): Comments for this site
-         clusterFolder (str): The folder where clustering info will be saved for this site
-     '''
-     def __init__(self, subject, date, brainarea, info, depth, tetrodes):
-          self.subject=subject
-          self.date=date
-          self.brainarea=brainarea
-          self.info=info
-          self.depth=depth
-          self.tetrodes = tetrodes
-          self.sessions=[]
-          self.comments=[]
-          self.clusterFolder = 'multisession_{}_{}um'.format(self.date, self.depth)
-     def remove_tetrodes(self, tetrodesToRemove):
-          '''
-          Remove tetrodes from a site's list of tetrodes
-          '''
-          if not isinstance(tetrodesToRemove, list):
-               tetrodesToRemove = [tetrodesToRemove]
-          for tetrode in tetrodesToRemove:
-               self.tetrodes.remove(tetrode)
-     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
-          '''
-          Add a session to the list of sessions.
-          Args:
-               timestamp (str): The timestamp used by openEphys GUI to name the session
-               behavsuffix (str): The suffix of the behavior file
-               sessiontype (str): A string describing what kind of session this is.
-               paradigm (str): The name of the paradigm used to collect the session
-               date (str): The recording date. Only needed if the date of the session is different
-                           from the date of the Experiment/Site (if you record past midnight)
-          '''
-          if date is None:
-               date=self.date
-          session = Session(self.subject,
-                            date,
-                            self.brainarea,
-                            self.info,
-                            self.depth,
-                            self.tetrodes,
-                            timestamp,
-                            behavsuffix,
-                            sessiontype,
-                            paradigm)
-          self.sessions.append(session)
-          return session
-     def session_ephys_dirs(self):
-          '''
-          Returns a list of the ephys directories for all sessions recorded at this site.
-          Returns:
-              dirs (list): List of ephys directories for each session in self.sessions
-          '''
-          dirs = [session.ephys_dir() for session in self.sessions]
-          return dirs
-     # def session_behav_filenames(self):
-     #      '''
-     #      Returns a list of the behavior filenames for all sessions recorded at this site.
-     #      Returns:
-     #          fns (list): list of behavior filenames for each session in self.sessions
-     #      DEPRECATED (2017-10-30): session function no longer implemented
-     #      '''
-     #      fns = [session.behav_filename() for session in self.sessions]
-     #      return fns
-     def session_types(self):
-          '''
-          Returns a list of the session type strings for all sessions recorded at this site.
-          Returns:
-              types (list): List of the sessiontype strings for each session in self.sessions
-          DEPRECATED (2017-10-30): We just have the generator in the cluster_info method to be clear
-          about what is returned per session and what is a site attr.
-          '''
-          types=[session.sessiontype for session in self.sessions]
-          return types
-     # def find_session(self, sessiontype):
-     #      '''
-     #      Return indexes of sessions of type sessiontype.
-     #      Args:
-     #          sessiontype (str): The sessiontype string to search for.
-     #      Returns:
-     #          inds (list): List of indices of sessions of type sessiontype.
-     #      '''
-     #      inds = [i for i, st in enumerate(self.session_types()) if st==sessiontype]
-     #      return inds
-     def cluster_info(self):
-          '''
-          Returns a dictionary with the information needed to identify clusters that come from this site.
-          Returns:
-              infoDict (dict): dictionary containing info defining clusters that come from this site
-          '''
-          infoDict = {
-               'subject':self.subject,
-               'date':self.date,
-               'brainArea': self.brainarea,
-               'info': self.info,
-               'depth':self.depth,
-               'ephysTime':[session.timestamp for session in self.sessions],
-               'paradigm':[session.paradigm for session in self.sessions],
-               'behavSuffix':[session.behavsuffix for session in self.sessions],
-               'sessionType':[session.sessiontype for session in self.sessions]
-          }
-          return infoDict
+    '''
+    Site is a container of sessions.
+    One per group of sessions which contain the same neurons and should be clustered together
+    Attributes:
+        subject(str): Name of the subject
+        date (str): The date the experiment was conducted
+        brainarea (str): The area of the brain where the recording was conducted
+        info (str): Extra info about the experiment
+        depth (int): The depth in microns at which the sessions were recorded
+        tetrodes (list): Tetrodes for this site
+        sessions (list): A list of all the sessions recorded at this site
+        comments (list of str): Comments for this site
+        clusterFolder (str): The folder where clustering info will be saved for this site
+    '''
+    def __init__(self, subject, date, brainarea, info, depth, tetrodes):
+        self.subject=subject
+        self.date=date
+        self.brainarea=brainarea
+        self.info=info
+        self.depth=depth
+        self.tetrodes = tetrodes
+        self.sessions=[]
+        self.comments=[]
+        self.clusterFolder = 'multisession_{}_{}um'.format(self.date, self.depth)
+    def remove_tetrodes(self, tetrodesToRemove):
+        '''
+        Remove tetrodes from a site's list of tetrodes
+        '''
+        if not isinstance(tetrodesToRemove, list):
+            tetrodesToRemove = [tetrodesToRemove]
+        for tetrode in tetrodesToRemove:
+            self.tetrodes.remove(tetrode)
+    def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
+        '''
+        Add a session to the list of sessions.
+        Args:
+            timestamp (str): The timestamp used by openEphys GUI to name the session
+            behavsuffix (str): The suffix of the behavior file
+            sessiontype (str): A string describing what kind of session this is.
+            paradigm (str): The name of the paradigm used to collect the session
+            date (str): The recording date. Only needed if the date of the session is different
+                        from the date of the Experiment/Site (if you record past midnight)
+        '''
+        if date is None:
+            date=self.date
+        session = Session(self.subject,
+                          date,
+                          self.brainarea,
+                          self.info,
+                          self.depth,
+                          self.tetrodes,
+                          timestamp,
+                          behavsuffix,
+                          sessiontype,
+                          paradigm)
+        self.sessions.append(session)
+        return session
+    def session_ephys_dirs(self):
+        '''
+        Returns a list of the ephys directories for all sessions recorded at this site.
+        Returns:
+            dirs (list): List of ephys directories for each session in self.sessions
+        '''
+        dirs = [session.ephys_dir() for session in self.sessions]
+        return dirs
+    # def session_behav_filenames(self):
+    #      '''
+    #      Returns a list of the behavior filenames for all sessions recorded at this site.
+    #      Returns:
+    #          fns (list): list of behavior filenames for each session in self.sessions
+    #      DEPRECATED (2017-10-30): session function no longer implemented
+    #      '''
+    #      fns = [session.behav_filename() for session in self.sessions]
+    #      return fns
+    def session_types(self):
+        '''
+        Returns a list of the session type strings for all sessions recorded at this site.
+        Returns:
+            types (list): List of the sessiontype strings for each session in self.sessions
+        DEPRECATED (2017-10-30): We just have the generator in the cluster_info method to be clear
+        about what is returned per session and what is a site attr.
+        '''
+        types=[session.sessiontype for session in self.sessions]
+        return types
+    # def find_session(self, sessiontype):
+    #      '''
+    #      Return indexes of sessions of type sessiontype.
+    #      Args:
+    #          sessiontype (str): The sessiontype string to search for.
+    #      Returns:
+    #          inds (list): List of indices of sessions of type sessiontype.
+    #      '''
+    #      inds = [i for i, st in enumerate(self.session_types()) if st==sessiontype]
+    #      return inds
+    def cluster_info(self):
+        '''
+        Returns a dictionary with the information needed to identify clusters that come from this site.
+        Returns:
+            infoDict (dict): dictionary containing info defining clusters that come from this site
+        '''
+        infoDict = {
+            'subject':self.subject,
+            'date':self.date,
+             'brainArea': self.brainarea,
+             'info': self.info,
+             'depth':self.depth,
+             'ephysTime':[session.timestamp for session in self.sessions],
+             'paradigm':[session.paradigm for session in self.sessions],
+             'behavSuffix':[session.behavsuffix for session in self.sessions],
+             'sessionType':[session.sessiontype for session in self.sessions]
+        }
+        return infoDict
 
-     def pretty_print(self, sessions=False):
-          '''
-          Print a string with depth, number of sessions, and optional list of sessions by index
-          Args:
-              sessions (bool): Whether to list all sessions by index
-          Returns:
-              message (str): A formatted string with the message to print
-          '''
-          message=[]
-          message.append('Site at {}um with {} sessions\n'.format(self.depth, len(self.sessions)))
-          if sessions:
-               for session in self.sessions:
-                    message.append('        {}\n'.format(session.pretty_print()))
-          return ''.join(message)
-     def comment(self, message):
-          '''
-          Add a comment to self.comments
-          Args:
-              message (str): The message string to append to self.comments
-          '''
-          self.comments.append(message)
+    def pretty_print(self, sessions=False):
+        '''
+        Print a string with depth, number of sessions, and optional list of sessions by index
+        Args:
+            sessions (bool): Whether to list all sessions by index
+        Returns:
+            message (str): A formatted string with the message to print
+        '''
+        message=[]
+        message.append('Site at {}um with {} sessions\n'.format(self.depth, len(self.sessions)))
+        if sessions:
+            for session in self.sessions:
+                message.append('        {}\n'.format(session.pretty_print()))
+        return ''.join(message)
+    def comment(self, message):
+        '''
+        Add a comment to self.comments
+        Args:
+            message (str): The message string to append to self.comments
+        '''
+        self.comments.append(message)
 
 class Session(object):
      '''
