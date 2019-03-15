@@ -23,6 +23,8 @@ FIGURES_DATA_PATH = '/mnt/jarahubdata/figuresdata' # Intermediate data for subfi
 
 INFOREC_PATH = '/home/jarauser/src/jaratest/common/inforecordings/'
 
+INFOHIST_PATH = '/home/jarauser/src/jaratest/common/infohistology/'
+
 DATABASE_PATH = '/mnt/jarahubdata/figuresdata'
 
 ALLEN_ATLAS_DIR = '/mnt/jarahubdata/atlas/AllenCCF_25/'
