@@ -1000,7 +1000,7 @@ def rescue_clusters(celldb, isiThreshold=0.02):
         print "nSpikes: {}".format(len(timestamps))
         featuresToUse = ['peakFirstHalf', 'valleyFirstHalf', 'energy']
         if len(timestamps)!=0:
-            featuresMat = spikesorting.calculate_features(samples, featuresToUse)
+            featuresMat = calculate_features(samples, featuresToUse)
 
             #To sort by nearest-neighbor distance
             print "Calculating NN distance"
@@ -1027,7 +1027,7 @@ def rescue_clusters(celldb, isiThreshold=0.02):
                 includeBool = sortArray < (len(sortArray)-spikesToRemove)
                 # timestampsToInclude = sortedTimestamps[:-1*spikesToRemove]
                 timestampsToInclude = timestamps[includeBool]
-                thisISIviolation = spikesorting.calculate_ISI_violations(np.sort(timestampsToInclude))
+                thisISIviolation = calculate_ISI_violations(np.sort(timestampsToInclude))
                 print "Removing {} spikes, ISI violations: {}".format(spikesToRemove, thisISIviolation)
             print "Final included spikes: {} out of {}".format(len(timestampsToInclude), len(timestamps))
 
@@ -1085,6 +1085,8 @@ def rescue_clusters(celldb, isiThreshold=0.02):
 
             except:
                 print "Could not save modified .clu files"
+                
+    return celldb
 
 
 
