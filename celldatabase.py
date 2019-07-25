@@ -650,7 +650,7 @@ def generate_cell_database_from_subjects(subjects, removeBadCells=True, isi=0.05
         inforec = os.path.join(settings.INFOREC_PATH,'{0}_inforec.py'.format(subject))
         onedb = generate_cell_database(inforec)
         if removeBadCells:
-             onedb = onedb[(onedb['isiViolations'] < isi) | (onedb['spikeShapeQuality'] > quality)]
+             onedb = onedb[(onedb['isiViolations'] < isi) & (onedb['spikeShapeQuality'] > quality)]
         fulldb = fulldb.append(onedb, ignore_index=True)
     return fulldb
 
