@@ -860,6 +860,9 @@ def cluster_many_sessions(subject, sessions,
                                       clusterFolder)
     oneTT.load_waveforms()
 
+    if oneTT.nSpikes == 0:
+        raise ValueError('This tetrode has no spikes. Please remove it.')
+
     clusterFile = os.path.join(oneTT.clustersDir,
                             'Tetrode%d.clu.1'%oneTT.tetrode)
     if os.path.isfile(clusterFile) and not recluster:
@@ -968,13 +971,13 @@ def rescue_clusters(celldb, isiThreshold=0.02):
     This reduces the ISI violations.
 
     The function takes each cluster from the database with ISI violations
-    greater than a threshold. For each of these clusters, it sequentially 
+    greater than a threshold. For each of these clusters, it sequentially
     removes the spikes farthest away from the centroid until ISI violations
     fall below the threshold.
 
     Args:
         celldb (pandas.DataFrame): created by celldatabase.py
-        isiThreshold (float): maximum ISI 
+        isiThreshold (float): maximum ISI
 
     This function doesn't return anything, but it creates new .clu files in the
     same folder as the originals, using the name 'Tetrode{}.clu.modified'
@@ -985,7 +988,7 @@ def rescue_clusters(celldb, isiThreshold=0.02):
     '''
     from sklearn import neighbors
     from jaratoolbox import ephyscore
-    
+
     cellsToRescue = celldb.query('isiViolations>@isiThreshold')
     for indRow, dbRow in cellsToRescue.iterrows():
         cell = ephyscore.Cell(dbRow)
@@ -1085,7 +1088,7 @@ def rescue_clusters(celldb, isiThreshold=0.02):
 
             except:
                 print "Could not save modified .clu files"
-                
+
     return celldb
 
 
