@@ -158,7 +158,7 @@ def avg_num_spikes_each_condition(trialsEachCondition, indexLimitsEachTrial):
            (defined by either one of nValues1 or a combination of a value in nValues1 and a value in nValues2).
     '''
 
-    print "WARNING!!! avg_num_spikes_each_condition is deprecated and will be removed in the next version of jaratoolbox."
+    print("WARNING!!! avg_num_spikes_each_condition is deprecated and will be removed in the next version of jaratoolbox.")
 
     numSpikesInTimeRangeEachTrial = np.squeeze(np.diff(indexLimitsEachTrial, axis=0))
     conditionMatShape = np.shape(trialsEachCondition)
@@ -237,12 +237,12 @@ if __name__ == "__main__":
         eventOnsetTimes = np.array([5,15,25,35])
         timeRange = [-5,10]
         (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial,spikeIndices) = eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange,spikeindex=True)
-        print spikeTimesFromEventOnset
-        print trialIndexForEachSpike
-        print indexLimitsEachTrial
-        print spikeIndices
+        print(spikeTimesFromEventOnset)
+        print(trialIndexForEachSpike)
+        print(indexLimitsEachTrial)
+        print(spikeIndices)
         nSpikes = count_spikes_in_range(spikeTimesFromEventOnset,indexLimitsEachTrial,timeRange)
-        print nSpikes
+        print(nSpikes)
     if CASE==2:
         timeStamps = np.array([4,10,25,27,29])
         eventOnsetTimes = np.array([5,15,25,35])
@@ -252,4 +252,4 @@ if __name__ == "__main__":
         trialsEachCond = [[0,2],[1,3]]
         responseRange = [-3,3]
         (meanSpikes,pValue) = evaluate_modulation(spikeTimesFromEventOnset,indexLimitsEachTrial,responseRange,trialsEachCond)
-        print (meanSpikes,pValue)
+        print(meanSpikes,pValue)
