@@ -5,6 +5,8 @@ Things to fix:
 #FIXME: This produces a RuntimeWarning (parent module 'module' not found...)
 '''
 
+from __future__ import print_function
+
 import matplotlib.pyplot as plt
 from jaratoolbox import settings
 from jaratoolbox import loadopenephys
@@ -45,7 +47,7 @@ class SessionToCluster(object):
         destPath = os.path.join(self.serverPath,self.animalName)
         remotePath = '%s@%s:%s'%(self.serverUser,self.serverName,destPath)
         transferCommand = ['rsync','-a', '--progress', self.localSessionPath, remotePath]
-        print ' '.join(transferCommand)
+        print(' '.join(transferCommand))
         subprocess.call(transferCommand)
     def run_clustering_remotely(self):
         self.client = paramiko.SSHClient()
@@ -58,22 +60,22 @@ class SessionToCluster(object):
         for oneTetrode in self.tetrodes:
             #oneTetrode=7
             commandStr = commandFormat%(self.animalName,self.ephysSession,oneTetrode)
-            print 'TT%d : creating FET files, clustering and creating report...'%oneTetrode
+            print('TT%d : creating FET files, clustering and creating report...'%oneTetrode)
             (stdin,stdout,stderr) = self.client.exec_command(commandStr)
             #print stderr.readlines()
-            print 'DONE!'
+            print('DONE!')
         self.client.close()
     def delete_fet_files(self):
         kkResultsPathRemote = os.path.join(self.serverPath,self.animalName,self.ephysSession)+'_kk'
         commandStr = 'mv %s/*.fet.* /tmp/'%kkResultsPathRemote
-        print 'Deleting FET files...'
-        print commandStr
+        print('Deleting FET files...')
+        print(commandStr)
         self.client = paramiko.SSHClient()
         self.client.load_system_host_keys()
         self.client.connect(self.serverName, 22, self.serverUser)
         (stdin,stdout,stderr) = self.client.exec_command(commandStr)
         #print commandStr
-        print 'DONE!'
+        print('DONE!')
     def transfer_results_back(self):
         destPath = os.path.join(self.serverPath,self.animalName)
         remotePath = '%s@%s:%s'%(self.serverUser,self.serverName,destPath)
@@ -82,9 +84,9 @@ class SessionToCluster(object):
         transferCommandResults = ['rsync','-a', '--progress', '--exclude', "'*.fet.*'",
                                   remotePathResults, self.localAnimalPath]
         transferCommandReports = ['rsync','-a', '--progress', remotePathReports, self.localAnimalPath]
-        print ' '.join(transferCommandResults)
+        print(' '.join(transferCommandResults))
         subprocess.call(transferCommandResults)
-        print ' '.join(transferCommandReports)
+        print(' '.join(transferCommandReports))
         subprocess.call(transferCommandReports)
     def consolidate_reports(self):
         # Create dest folder
@@ -92,14 +94,14 @@ class SessionToCluster(object):
         reportsDir = os.path.join(self.localAnimalPath,'clusters_report')
         thisSessionReportsDir = self.localSessionPath+'_report'
         if not os.path.exists(reportsDir):
-            print 'Creating output directory: %s'%(reportsDir)
+            print('Creating output directory: %s'%(reportsDir))
             os.makedirs(reportsDir)
         commandList = ['rsync','-a',thisSessionReportsDir+'/*',reportsDir]
         commandStr = ' '.join(commandList)
-        print 'Consolidating reports...'
-        print commandStr
+        print('Consolidating reports...')
+        print(commandStr)
         subprocess.call(commandStr,shell=True)
-        print 'DONE!'
+        print('DONE!')
 
 
 class TetrodeToCluster(object):
@@ -145,7 +147,7 @@ class TetrodeToCluster(object):
         Since the samples are saved as unsigned integers, converting them to microvolts
         involves subtracting 32768, dividing by the gain, and multiplying by 1000.
         '''
-        print 'Loading data...'
+        print('Loading data...')
         dataTT = loadopenephys.DataSpikes(self.tetrodeFile) #,readWaves=True)
         self.nSpikes = dataTT.nRecords# FIXME: this is specific to the OpenEphys format
         self.samples = dataTT.samples.astype(float)-2**15# FIXME: this is specific to OpenEphys
@@ -155,7 +157,7 @@ class TetrodeToCluster(object):
     def create_fet_files(self):
         # -- Create output directory --
         if not os.path.exists(self.clustersDir):
-            print 'Creating clusters directory: %s'%(self.clustersDir)
+            print('Creating clusters directory: %s'%(self.clustersDir))
             os.makedirs(self.clustersDir)
         if self.samples is None:
             self.load_waveforms()
@@ -176,10 +178,10 @@ class TetrodeToCluster(object):
                               '-MinClusters','%d'%MinClusters, '-MaxClusters','%d'%MaxClusters,
                               '-MaxPossibleClusters','%d'%MaxPossibleClusters,
                               '-UseFeatures',UseFeatures]
-        print ' '.join(KKcommandAndParams)
+        print(' '.join(KKcommandAndParams))
         returnCode = subprocess.call(KKcommandAndParams,cwd=self.clustersDir)
         if returnCode:
-            print 'WARNING! clustering gave an error'
+            print('WARNING! clustering gave an error')
         '''
 
         #KKparamsFormat = '-Subset %d -MinClusters %d -MaxClusters %d -MaxPossibleClusters %d -UseFeatures %s';
@@ -230,19 +232,19 @@ def calculate_features(waveforms,featureNames):
     [nSpikes,nChannels,nSamples] = waveforms.shape
     featureValues = np.empty((nSpikes,0),dtype=float)
     for oneFeature in featureNames:
-        print 'Calculating {0} ...'.format(oneFeature)
+        print('Calculating {0} ...'.format(oneFeature))
         if oneFeature=='peak':
             theseValues = waveforms.max(axis=2)
             featureValues = np.hstack((featureValues,theseValues))
         elif oneFeature=='peakFirstHalf':
-            halfSample = waveforms.shape[2]/2
+            halfSample = waveforms.shape[2]//2
             theseValues = waveforms[:,:,:halfSample].max(axis=2)
             featureValues = np.hstack((featureValues,theseValues))
         elif oneFeature=='valley':
             theseValues = waveforms.min(axis=2)
             featureValues = np.hstack((featureValues,theseValues))
         elif oneFeature=='valleyFirstHalf':
-            halfSample = waveforms.shape[2]/2
+            halfSample = waveforms.shape[2]//2
             theseValues = waveforms[:,:,:halfSample].min(axis=2)
             featureValues = np.hstack((featureValues,theseValues))
         elif oneFeature=='energy':
@@ -255,7 +257,7 @@ def write_fet_file(filename,fetArray):
     '''
     Save a file with features from all spikes, to be used by KlustaKwik.
     '''
-    print 'Saving features to {0}'.format(filename)
+    print('Saving features to {0}'.format(filename))
     nTotalFeatures = fetArray.shape[1]
     fid = open(filename,'w')
     fid.write('{0}\n'.format(nTotalFeatures))
@@ -270,12 +272,12 @@ def write_fet_file(filename,fetArray):
 def pp_features(featureValues,nvals=4):
     for indr in range(nvals):
         for oneval in featureValues[indr,:]:
-            print '%0.2f '%oneval,
-        print ''
-    print ' ...'
+            print('%0.2f '%oneval, end='')
+        print('')
+    print(' ...')
     for oneval in featureValues[-1,:]:
-        print '%0.2f '%oneval,
-    print ''
+        print('%0.2f '%oneval, end='')
+    print('')
 
 
 
@@ -353,17 +355,26 @@ def plot_waveforms(waveforms,ntraces=40,fontsize=8):
     scalebarSize = abs(meanWaveforms.min())
 
     xRange = np.arange(nSamplesPerSpike)
+
+    allWaves = []
+    meanWaves = []
+
     for indc in range(nChannels):
         newXrange = xRange+indc*(nSamplesPerSpike+2)
         wavesToPlot = alignedWaveforms[:,indc,:].T
-        plt.plot(newXrange,wavesToPlot,color='k',lw=0.4,clip_on=False)
+        wave = plt.plot(newXrange,wavesToPlot,color='k',lw=0.4,clip_on=False)
         plt.hold(True)
-        plt.plot(newXrange,meanWaveforms[indc,:],color='0.75',lw=1.5,clip_on=False)
-    plt.plot(2*[-7],[0,-scalebarSize],color='0.5',lw=2)
+        meanWave, = plt.plot(newXrange,meanWaveforms[indc,:],color='0.75',lw=1.5,clip_on=False)
+        allWaves.append(wave)
+        meanWaves.append(meanWave)
+    scaleBar, = plt.plot(2*[-7],[0,-scalebarSize],color='0.5',lw=2)
     plt.text(-10,-scalebarSize/2,'{0:0.0f}uV'.format(np.round(scalebarSize)),
              ha='right',va='center',ma='center',fontsize=fontsize)
     plt.hold(False)
     plt.axis('off')
+
+    return allWaves, meanWaves, scaleBar
+
 
 def align_waveforms(waveforms,peakPosition=8):
     '''
@@ -428,7 +439,7 @@ class ClusterReportFromData(object):
         for indc,clusterID in enumerate(self.clustersList):
             self.spikesEachCluster[indc,:] = (self.clusters==clusterID)
     def plot_report(self,showfig=False):
-        print 'Plotting report...'
+        print('Plotting report...')
         #plt.figure(self.fig)
         self.fig = plt.gcf()
         self.fig.clf()
@@ -439,7 +450,7 @@ class ClusterReportFromData(object):
         for indc,clusterID in enumerate(self.clustersList):
             #print('Preparing cluster %d'%clusterID)
             if (indc+1)>self.nRows:
-                print 'WARNING! This cluster was ignore (more clusters than rows)'
+                print('WARNING! This cluster was ignore (more clusters than rows)')
                 continue
             tsThisCluster = self.timestamps[self.spikesEachCluster[indc,:]]
             wavesThisCluster = self.samples[self.spikesEachCluster[indc,:],:,:]
@@ -474,7 +485,7 @@ class ClusterReportFromData(object):
     def save_report(self,outputdir,filename=None,figformat=None):
         # -- Create output directory --
         if not os.path.exists(outputdir):
-            print 'Creating clusters directory: %s'%(outputdir)
+            print('Creating clusters directory: %s'%(outputdir))
             os.makedirs(outputdir)
         self.fig.set_size_inches((8.5,11))
         if figformat is None:
@@ -482,7 +493,7 @@ class ClusterReportFromData(object):
         if filename is None:
             filename = self.get_default_filename(figformat)
         fullFileName = os.path.join(outputdir,filename)
-        print 'Saving figure to %s'%fullFileName
+        print('Saving figure to %s'%fullFileName)
         self.fig.savefig(fullFileName,format=figformat)
         #plt.close(self.fig)
         ###def closefig(self):
@@ -512,7 +523,7 @@ class ClusterReportTetrode(ClusterReportFromData):
         self.dataDir = os.path.join(settings.EPHYS_PATH,'%s/%s/'%(self.animalName,self.ephysSession))
         clustersDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(self.animalName,self.ephysSession))
         self.tetrodeFile = os.path.join(self.dataDir,'TT%d.ntt'%self.tetrode)
-        print 'Loading data %s'%(self.tetrodeFile)
+        print('Loading data %s'%(self.tetrodeFile))
         dataTT = loadneuralynx.DataTetrode(self.tetrodeFile,readWaves=True)
         #dataTT.timestamps = dataTT.timestamps.astype(np.float64)*1e-6  # in sec
         ### The following line is not needed anymore (not done when loading data)
@@ -530,7 +541,7 @@ class ClusterReportTetrode(ClusterReportFromData):
 
 def save_all_reports(animalName,ephysSession,tetrodes,outputDir):
     if not os.path.exists(outputDir):
-        print 'Creating output directory: %s'%(outputDir)
+        print('Creating output directory: %s'%(outputDir))
         os.makedirs(outputDir)
     for onetetrode in tetrodes:
         sreport = ClusterReportTetrode(animalName,ephysSession,onetetrode)
@@ -545,7 +556,7 @@ def merge_kk_clusters(animalName,ephysSession,tetrode,clustersToMerge,reportDir=
     fullFileName = os.path.join(dataDir,fileName)
     backupFileName = os.path.join(dataDir,fileName+'.orig')
     # --- Make backup of original cluster file ---
-    print 'Making backup to %s'%backupFileName
+    print('Making backup to %s'%backupFileName)
     os.system('rsync -a %s %s'%(fullFileName,backupFileName))
     # --- Load cluster data, replace and resave ---
     clusterData = np.fromfile(fullFileName,dtype='int32',sep='\n')
@@ -554,7 +565,7 @@ def merge_kk_clusters(animalName,ephysSession,tetrode,clustersToMerge,reportDir=
     clusterData[indNoiseSpike] = clustersToMerge[1]
     clusterData.tofile(fullFileName,sep='\n',format='%d')
     # -- Create report --
-    print 'Creating report in %s'%reportDir
+    print('Creating report in %s'%reportDir)
     ClusterReportTetrode(animalName,ephysSession,tetrode,reportDir)
 
 
@@ -695,7 +706,7 @@ class MultipleSessionsToCluster(TetrodeToCluster):
 
     def create_multisession_fet_files(self):
         if not os.path.exists(self.clustersDir):
-            print 'Creating clusters directory: %s'%(self.clustersDir)
+            print('Creating clusters directory: %s'%(self.clustersDir))
             os.makedirs(self.clustersDir)
         if self.samples is None:
             self.load_all_waveforms()
@@ -722,13 +733,13 @@ class MultipleSessionsToCluster(TetrodeToCluster):
             #Make the cluster file directory for this session if it does not already exist
             sessionClusterDir = os.path.join(settings.EPHYS_PATH,self.subject,session+'_kk')
             if not os.path.exists(sessionClusterDir):
-                print 'Creating clusters directory: %s'%(sessionClusterDir)
+                print('Creating clusters directory: %s'%(sessionClusterDir))
                 os.makedirs(sessionClusterDir)
             sessionClusterFile = os.path.join(sessionClusterDir,'Tetrode{}.clu.1'.format(self.tetrode))
             fid = open(sessionClusterFile,'w')
             fid.write('{0}\n'.format(nClusters))
             clusterNumsThisSession = self.clusters[self.recordingNumber == indSession]
-            print "Writing .clu.1 file for session {}".format(session)
+            print("Writing .clu.1 file for session {}".format(session))
             for cn in clusterNumsThisSession:
                 fid.write('{0}\n'.format(cn))
             fid.close()
@@ -810,7 +821,7 @@ class ClusterInforec(object):
         message = []
         for indExperiment, experiment in enumerate(self.inforec.experiments):
             message.append('[{}]: {}'.format(indExperiment, experiment.pretty_print(sites=sites, sessions=sessions)))
-        print ''.join(message)
+        print(''.join(message))
 
     def find_tetrodes_with_no_spikes(self):
         message = []
@@ -828,7 +839,7 @@ class ClusterInforec(object):
                     if oneTT.timestamps is None:
                         message.append('{}_tetrode{}'.format(clusterFolder, tetrode))
 
-        print '\n'.join(message)
+        print('\n'.join(message))
 
 def cluster_many_sessions(subject, sessions,
                           tetrode, clusterFolder,
@@ -905,7 +916,7 @@ def cluster_many_sessions(subject, sessions,
         clusterPeakTimes[indc, :] = peakTimes
         clusterPeakAmplitudes[indc, :] = peakAmplitudes
 
-    print "Saving tetrode stats to {}".format(outputFullPath)
+    print("Saving tetrode stats to {}".format(outputFullPath))
     np.savez(outputFullPath,
              ephysSessions=oneTT.ephysSessions,
              clusters=clusters,
@@ -989,28 +1000,28 @@ def rescue_clusters(celldb, isiThreshold=0.02):
     cellsToRescue = celldb.query('isiViolations>@isiThreshold')
     for indRow, dbRow in cellsToRescue.iterrows():
         cell = ephyscore.Cell(dbRow)
-        print dbRow['subject'], dbRow['date'], dbRow['depth']
+        print(dbRow['subject'], dbRow['date'], dbRow['depth'])
         timestamps, samples, recordingNumber = cell.load_all_spikedata()
         tetrode = dbRow['tetrode']
         cluster = dbRow['cluster']
 
         #isiViolations = spikesorting.calculate_ISI_violations(timestamps)
         isiViolations = dbRow['isiViolations']
-        print "isi violations: %{}".format(isiViolations*100)
-        print "nSpikes: {}".format(len(timestamps))
+        print("isi violations: %{}".format(isiViolations*100))
+        print("nSpikes: {}".format(len(timestamps)))
         featuresToUse = ['peakFirstHalf', 'valleyFirstHalf', 'energy']
         if len(timestamps)!=0:
             featuresMat = calculate_features(samples, featuresToUse)
 
             #To sort by nearest-neighbor distance
-            print "Calculating NN distance"
+            print("Calculating NN distance")
             tic = time.time()
             #This will use all the processors
             nbrs = neighbors.NearestNeighbors(n_neighbors=2, algorithm='auto', n_jobs=-1).fit(featuresMat)
             distances, indices = nbrs.kneighbors(featuresMat)
             toc = time.time()
             elapsed = toc-tic
-            print "NN done, elapsed time: {}".format(elapsed/60.)
+            print("NN done, elapsed time: {}".format(elapsed/60.))
             sortArray = np.argsort(distances[:,1]) #Take second neighbor distance because first is self (0)
 
             #To sort by mahalanobis distance to the cluster centroid
@@ -1028,8 +1039,8 @@ def rescue_clusters(celldb, isiThreshold=0.02):
                 # timestampsToInclude = sortedTimestamps[:-1*spikesToRemove]
                 timestampsToInclude = timestamps[includeBool]
                 thisISIviolation = calculate_ISI_violations(np.sort(timestampsToInclude))
-                print "Removing {} spikes, ISI violations: {}".format(spikesToRemove, thisISIviolation)
-            print "Final included spikes: {} out of {}".format(len(timestampsToInclude), len(timestamps))
+                print("Removing {} spikes, ISI violations: {}".format(spikesToRemove, thisISIviolation))
+            print("Final included spikes: {} out of {}".format(len(timestampsToInclude), len(timestamps)))
 
             #The inds of all the spikes that get to stay (have to have a low number in sort array)
             #Sort array is in chronological order, so this include bool array is also chronological
@@ -1075,7 +1086,7 @@ def rescue_clusters(celldb, isiThreshold=0.02):
                     fid = open(modifiedClusterFile,'w')
                     #We added a new garbage cluster (0)
                     fid.write('{0}\n'.format(nClusters+1))
-                    print "Writing .clu.modified file for session {}".format(ephysTimeThisRecording)
+                    print("Writing .clu.modified file for session {}".format(ephysTimeThisRecording))
                     for cn in allClustersThisTetrode:
                         fid.write('{0}\n'.format(cn))
                     fid.close()
@@ -1084,7 +1095,7 @@ def rescue_clusters(celldb, isiThreshold=0.02):
                     celldb.loc[indRow, 'modifiedISI'] = thisISIviolation
 
             except:
-                print "Could not save modified .clu files"
+                print("Could not save modified .clu files")
                 
     return celldb
 
