@@ -30,7 +30,7 @@ class Video(object):
             # If it returns False, it has reached the end of the file.
             # and nFrames needs to be fixed.
             self.nFrames = currentFrame
-            print 'WARNING: reached end of video file.'
+            print('WARNING: reached end of video file.')
         '''
         if not self.ret:
             currentFrame = int(self.cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
@@ -143,7 +143,7 @@ class ColorTracker(Video):
             self.colorRanges.append(ColorRange(theseColorLims))
     def print_colors(self):
         for oneColorRange in self.colorRanges:
-            print oneColorRange
+            print(oneColorRange)
     '''
     def OLD_process(self, minPixels=6, lastFrame=None, verboseInterval=100, showImage=False):
         colorMask = np.empty((self.nColors,self.frameSize[1],self.frameSize[0]),dtype=np.uint8)
@@ -178,7 +178,7 @@ class ColorTracker(Video):
             lastFrame = self.nFrames
         for indf in range(lastFrame):
             if indf%verboseInterval==0:
-                print 'Processing frame {0}/{1}'.format(self.get_current_frame(),self.nFrames)
+                print('Processing frame {0}/{1}'.format(self.get_current_frame(),self.nFrames))
             self.ret, self.frame = self.cap.read()
             if not self.ret:
                 break
@@ -285,12 +285,12 @@ class StimDetector(Video):
             self.regions.append(ImageRegion(theseCoords))
     def print_regions(self):
         for oneRegion in self.regions:
-            print oneRegion
+            print(oneRegion)
     def measure(self, verboseInterval=100):
         '''Measure average intensity in regions'''
         for indf in range(self.nFrames):
             if indf%verboseInterval==0:
-                print 'Processing frame {0}/{1}'.format(self.get_current_frame(),self.nFrames)
+                print('Processing frame {0}/{1}'.format(self.get_current_frame(),self.nFrames))
             self.ret, self.frame = self.read()
             if not self.ret:
                 break
