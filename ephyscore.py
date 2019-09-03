@@ -47,8 +47,8 @@ class Cell(object):
         objStr = '{} {} ({:0.0f}um) T{}c{}'.format(self.subject, self.date, self.depth,
                                             self.tetrode, self.cluster)
         return objStr
-        
-        
+
+
     def load(self, sessiontype, behavClass=None):
         '''
         Load the spikes, events, and behavior data for a single session. Loads the LAST recorded
@@ -65,7 +65,11 @@ class Cell(object):
             behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
         '''
         sessionInds = self.get_session_inds(sessiontype)
-        sessionIndToUse = sessionInds[-1] #NOTE: Taking the last session of this type!
+        try:
+            sessionIndToUse = sessionInds[-1] #NOTE: Taking the last session of this type!
+        except IndexError as ierror:
+            ierror.args += ('Session type "{}" does not exist for this cell.'.format(sessiontype),)
+            raise
         ephysData, behavData = self.load_by_index(sessionIndToUse, behavClass=behavClass)
         return ephysData, behavData
 
@@ -250,4 +254,3 @@ def load_ephys(subject, paradigm, sessionDir, tetrode, cluster=None, useModified
                     'samples':spikeData.samples,
                     'events':eventDict}
     return ephysData
-
