@@ -137,7 +137,7 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
     pRaster = []
     ax = plt.gca()
     zline = plt.axvline(0, color='0.75', zorder=-10)
-    # plt.hold(True)  # As of matplotlib 2.0, plt.hold is unecessary and was completely removed as axes are held until specified not to be
+    plt.hold(True)  # As of matplotlib 2.0, plt.hold is unecessary and was completely removed as axes are held until specified not to be
 
     for indcond in range(nCond):
         pRasterOne, = plt.plot(spikeTimesEachCond[indcond],
@@ -149,7 +149,7 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
         hcond.extend(plt.fill(xpos,ypos,ec='none',fc=colorEachCond[indcond]))
         hcond.extend(plt.fill(xpos+np.diff(timeRange)-fillWidth, ypos, ec='none',
                               fc=colorEachCond[indcond]))
-    # plt.hold(False)  # As of matplotlib 2.0, plt.hold is unecessary and was completely removed as axes are held until specified not to be
+    plt.hold(False)  # As of matplotlib 2.0, plt.hold is unecessary and was completely removed as axes are held until specified not to be
 
     plt.xlim(timeRange)
     plt.ylim(-0.5,lastTrialEachCond[-1]-0.5)
