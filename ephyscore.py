@@ -65,7 +65,11 @@ class Cell(object):
             behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
         '''
         sessionInds = self.get_session_inds(sessiontype)
-        sessionIndToUse = sessionInds[-1] #NOTE: Taking the last session of this type!
+        try:
+            sessionIndToUse = sessionInds[-1]  # NOTE: Taking the last session of this type!
+        except IndexError as ierror:
+            ierror.args += ('Session type "{}" does not exist for this cell.'.format(sessiontype),)
+            raise
         ephysData, behavData = self.load_by_index(sessionIndToUse, behavClass=behavClass)
         return ephysData, behavData
 
