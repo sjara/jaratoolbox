@@ -677,7 +677,7 @@ SVG_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 '''
 
 
-def get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank, atlasZ, outputDir=None):
+def get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank, outputDir=None):
     if outputDir is None:
         outputDir = os.path.join(settings.HISTOLOGY_PATH, '{}_processed'.format(subject))
     registrationFolder = 'registration{}'.format(brainArea)
