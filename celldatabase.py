@@ -12,6 +12,17 @@ import imp
 import h5py
 import ast  # To parse string representing a list
 
+"""
+Cell database version history:
+Version 0.0 was when we were still saving using pandas. (For example: 2018thstr project).
+Version 1.0 was the first iteration of celldatabase.save_hdf used in python 2.7. (For example: 2018acsup project)
+The above versions do not have a saved attribute in the file indicating what the version of the saved db is.
+
+Version 2.0 is the first version of celldb that has an attribute saved to the h6 file that specifies what version of 
+jaratoolbox.celldatabase was used to save it as 'celldb_version' on line 708.
+"""
+CELLDB_VERSION = '2.0'
+
 class EphysSessionInfo(object):
     def __init__(self, animalName, ephysSession, behavSession,
                  clustersEachTetrode={}, trialsToExclude=[]):
@@ -659,6 +670,7 @@ def find_cell(database, subject, date, depth, tetrode, cluster):
      '''
      Find a cell in the database.
      Returns (index, pandasSeries)
+     Returns (index, pandasSeries)
      '''
      cell = database.query('subject==@subject and date==@date and depth==@depth and tetrode==@tetrode and cluster==@cluster')
      if len(cell)>1:
@@ -693,31 +705,30 @@ def save_hdf(dframe, filename):
     '''
     h5file = h5py.File(filename,'w')
     string_dt = h5py.special_dtype(vlen=str)
-    # try:
-    if 1:
-        dbGroup = h5file.require_group('/') # database
-        for onecol in dframe.columns:
-            onevalue = dframe.iloc[0][onecol]
-            if isinstance(onevalue, np.ndarray):
-                arraydata = np.vstack(dframe[onecol].values)
-                dset = dbGroup.create_dataset(onecol, data=arraydata)
-            elif isinstance(onevalue, int) or \
-                isinstance(onevalue, float) or \
-                isinstance(onevalue, bool) or \
-                isinstance(onevalue, np.bool_):
-                arraydata=dframe[onecol].values
-                dset = dbGroup.create_dataset(onecol, data=arraydata)
-            elif isinstance(onevalue, str):
-                arraydata = dframe[onecol].values.astype(str)
-                dset = dbGroup.create_dataset(onecol, data=arraydata)
-            elif isinstance(onevalue, list):
-                # For columns like: behavSuffix, ephysTime, paradigm, sessionType
-                arraydata = dframe[onecol].values
-                dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=string_dt)
-            else:
-                raise ValueError('Trying to save items of invalid type')
-            #dset.attrs['Description'] = onecol
-        h5file.close()
+    dbGroup = h5file.require_group('/') # database
+    dbGroup.attrs['celldb_version'] = CELLDB_VERSION
+    for onecol in dframe.columns:
+        onevalue = dframe.iloc[0][onecol]
+        if isinstance(onevalue, np.ndarray):
+            arraydata = np.vstack(dframe[onecol].values)
+            dset = dbGroup.create_dataset(onecol, data=arraydata)
+        elif isinstance(onevalue, int) or \
+            isinstance(onevalue, float) or \
+            isinstance(onevalue, bool) or \
+            isinstance(onevalue, np.bool_):
+            arraydata=dframe[onecol].values
+            dset = dbGroup.create_dataset(onecol, data=arraydata)
+        elif isinstance(onevalue, str):
+            arraydata = dframe[onecol].values.astype(str)
+            dset = dbGroup.create_dataset(onecol, data=arraydata)
+        elif isinstance(onevalue, list):
+            # For columns like: behavSuffix, ephysTime, paradigm, sessionType
+            arraydata = dframe[onecol].values
+            dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=string_dt)
+        else:
+            raise ValueError('Trying to save items of invalid type')
+        #dset.attrs['Description'] = onecol
+    h5file.close()
     # except:
     #     h5file.close()
     #     # TODO: We may want to rename the incomplete h5 file
