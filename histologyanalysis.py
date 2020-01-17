@@ -800,7 +800,7 @@ def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
     if len(coordStrings) == 0:
         raise ValueError('The path does not have the correct format. You probably did not double click for this tract')
     tractCoords = coordStrings[0]
-    tractCoords = map(float, tractCoords)
+    tractCoords = list(map(float, tractCoords))
 
     tipCoords = [tractCoords[0], tractCoords[1]]
     brainSurfCoords = [tractCoords[2], tractCoords[3]]
