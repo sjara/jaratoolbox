@@ -280,7 +280,7 @@ def print_reports_clusters(subject, sessions, tetrode, printer):
         reportFilename = '{}_{}_T{}.png'.format(subject, session, tetrode)
         fullReportPath = os.path.join(reportsDir, reportFilename)
         printcommand = ['lpr', '-P {}'.format(printer), fullReportPath]
-        print ' '.join(printcommand)
+        print(' '.join(printcommand))
         # subprocess.call(printcommand)
 
 
@@ -403,10 +403,10 @@ if __name__=='__main__':
                 #NOTE: I first used np.savez, but it saved a dict and did not preserve the order of the sessions. Pickle saves the actual object.
                 #TODO: Use np.savez with the data object to save as the list of arrays
                 #TODO: Also see if we should use savez_compressed
-                print "Loading average waves for {} tetrode {}".format(subject, tetrode)
+                print("Loading average waves for {} tetrode {}".format(subject, tetrode))
                 sessionWaves = pickle.load(open(waveFile, 'rb'))
             else:
-                print "Calculating average waves for Subject {} tetrode {}".format(subject, tetrode)
+                print("Calculating average waves for Subject {} tetrode {}".format(subject, tetrode))
                 sessionWaves = waveforms_many_sessions(subject, sessions, tetrode)
                 pickle.dump(sessionWaves, open(waveFile, 'wb'))
 

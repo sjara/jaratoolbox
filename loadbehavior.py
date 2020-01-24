@@ -19,7 +19,7 @@ def dict_from_HDF5(dictGroup):
                    where h5file is an open HDF5.
     '''
     newDict={}
-    for k,v in dictGroup.iteritems():
+    for k,v in dictGroup.items():
         newDict[k]=v[()]
         newDict[v[()]]=k
     return newDict
@@ -61,7 +61,7 @@ class BehaviorData(dict):
         try:
             self.h5file = h5py.File(self.filename,'r')
         except IOError:
-            print '{0} does not exist or cannot be opened.'.format(self.filename)
+            print('{0} does not exist or cannot be opened.'.format(self.filename))
             raise
         try:
             if readmode=='summary':
@@ -71,7 +71,7 @@ class BehaviorData(dict):
             elif varlist:
                 self.read_subset(varlist)
         except IOError:
-            print 'Some error occurred while reading data.'
+            print('Some error occurred while reading data.')
             self.h5file.close()
             raise
         self.h5file.close()
@@ -101,7 +101,7 @@ class BehaviorData(dict):
             try:
                 self[thisparam] = self.h5file['/resultsData/'+thisparam][-1]
             except KeyError:
-                print "{0} has no key '{1}'".format(self.filename,thisparam)
+                print("{0} has no key '{1}'".format(self.filename,thisparam))
                 self[thisparam] = 0
     
     def read_subset(self,varlist):
@@ -114,7 +114,7 @@ class BehaviorData(dict):
             try:
                 self[thisparam] = self.h5file['/resultsData/'+thisparam][...]
             except KeyError:
-                print "{0} has no key '{1}'".format(self.filename,thisparam)
+                print("{0} has no key '{1}'".format(self.filename,thisparam))
                 self[thisparam] = 0
     
     def remove_trials(self,trialslist):
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         bdata = FlexCategBehaviorData(bfile,readmode='full')
     if CASE==3:
         bfile=path_to_behavior_data('test020','santiago','2afc','20140421a')
-        print bfile
+        print(bfile)
         bdata = FlexCategBehaviorData(bfile,readmode='full')
         from pylab import *
         hold(0)

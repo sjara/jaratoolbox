@@ -27,41 +27,43 @@ try:
 except:
     print('Warning! Some methods require the module "nrrd", but it is not installed.')
 
-    
-GRIDCOLOR = [0,0.5,0.5]
+GRIDCOLOR = [0, 0.5, 0.5]
+
 
 def define_grid(corners, nRows=3, nCols=2):
     '''
     Find coordinates of corners for each square in a grid.
     '''
-    topleft,bottomright = corners
-    xvals = np.sort(np.linspace(topleft[0],bottomright[0],nCols+1))
-    yvals = np.sort(np.linspace(topleft[1],bottomright[1],nRows+1))
-    return (xvals,yvals)
+    topleft, bottomright = corners
+    xvals = np.sort(np.linspace(topleft[0], bottomright[0], nCols + 1))
+    yvals = np.sort(np.linspace(topleft[1], bottomright[1], nRows + 1))
+    return (xvals, yvals)
 
-def draw_grid(corners,nRows=3,nCols=2):
+
+def draw_grid(corners, nRows=3, nCols=2):
     '''
     Draw a grid of nRows and nCols starting at the coordinates specified in 'corners'.
     '''
-    (xvals,yvals) = define_grid(corners,nRows,nCols)
+    (xvals, yvals) = define_grid(corners, nRows, nCols)
     holdStatus = plt.ishold()
     plt.hold(True)
     plt.autoscale(False)
     for yval in yvals:
-        plt.plot(xvals[[0,-1]],[yval,yval],color=GRIDCOLOR)
+        plt.plot(xvals[[0, -1]], [yval, yval], color=GRIDCOLOR)
     for xval in xvals:
-        plt.plot([xval,xval],yvals[[0,-1]],color=GRIDCOLOR)
+        plt.plot([xval, xval], yvals[[0, -1]], color=GRIDCOLOR)
     plt.hold(holdStatus)
     plt.draw()
 
+
 class OverlayGrid(object):
 
-    def __init__(self,nRows=3,nCols=2):
+    def __init__(self, nRows=3, nCols=2):
         '''
         This class allows defining a grid over an image using the mouse,
         and show that grid overlaid on another image.
         '''
-        self.image = np.array([]) #mpimg.imread(imgfile)
+        self.image = np.array([])  # mpimg.imread(imgfile)
         self.corners = []
         self.corners = []
         self.fig = None
@@ -74,67 +76,67 @@ class OverlayGrid(object):
         self.kpid = None
         self.cid = None
 
-    def set_shape(self,nRows,nCols):
+    def set_shape(self, nRows, nCols):
         self.nRows = nRows
         self.nCols = nCols
 
-    def show_image(self,img):
+    def show_image(self, img):
         self.fig = plt.gcf()
         self.fig.clf()
-	cLims = [0,255]  # FIXME: color values are hard-coded
-        plt.imshow(img, cmap = 'gray',vmin=cLims[0], vmax=cLims[1])
+        cLims = [0, 255]  # FIXME: color values are hard-coded
+        plt.imshow(img, cmap='gray', vmin=cLims[0], vmax=cLims[1])
         plt.gca().set_aspect('equal', 'box')
-        #plt.axis('equal')
+        # plt.axis('equal')
         plt.show()
 
-    def onclick(self,event):
-        #ix, iy = event.xdata, event.ydata
-        print '({0},{1})'.format(int(event.xdata), int(event.ydata))
-        #global corners
+    def onclick(self, event):
+        # ix, iy = event.xdata, event.ydata
+        print('({0},{1})'.format(int(event.xdata), int(event.ydata)))
+        # global corners
         self.corners.append((event.xdata, event.ydata))
         if len(self.corners) == 2:
             self.fig.canvas.mpl_disconnect(self.cid)
             self.set_grid(self.corners)
-            draw_grid(self.corners, nRows = self.nRows, nCols = self.nCols)
-            print 'Done. Now you can apply this grid to another image using apply_grid()'
-            print 'Press enter to continue'
+            draw_grid(self.corners, nRows=self.nRows, nCols=self.nCols)
+            print('Done. Now you can apply this grid to another image using apply_grid()')
+            print('Press enter to continue')
 
     def on_key_press(self, event):
         '''
         Method to listen for keypresses and change the slice
         '''
-        if event.key=='<' or event.key==',' or event.key=='left':
-            if self.sliceNumber>0:
-                self.sliceNumber-=1
+        if event.key == '<' or event.key == ',' or event.key == 'left':
+            if self.sliceNumber > 0:
+                self.sliceNumber -= 1
             else:
-                self.sliceNumber=self.maxSliceInd
+                self.sliceNumber = self.maxSliceInd
             self.apply_grid(self.stack[self.sliceNumber])
             self.title_stack_slice()
-        elif event.key=='>' or event.key=='.' or event.key=='right':
-            if self.sliceNumber<self.maxSliceInd:
-                self.sliceNumber+=1
+        elif event.key == '>' or event.key == '.' or event.key == 'right':
+            if self.sliceNumber < self.maxSliceInd:
+                self.sliceNumber += 1
             else:
-                self.sliceNumber=0
+                self.sliceNumber = 0
             self.apply_grid(self.stack[self.sliceNumber])
             self.title_stack_slice()
 
     def title_stack_slice(self):
         plt.title("Slice {}\nPress < or > to navigate".format(self.sliceNumber))
 
-    def enter_grid_corners(self,imgfile):
+    def enter_grid_corners(self, imgfile):
         self.corners = []
         self.image = mpimg.imread(imgfile)
         self.fig = plt.gcf()
         self.show_image(self.image)
-        print 'Click two points to define corners of grid.'
+        print('Click two points to define corners of grid.')
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.onclick)
         # FIXME: find if waiting for click can block execution of the rest.
 
-    def set_grid(self,corners):
+    def set_grid(self, corners):
         self.corners = corners
         self.coords = define_grid(corners, self.nRows, self.nCols)
 
-    def apply_grid(self,imgfile):
+    def apply_grid(self, imgfile):
         self.image = mpimg.imread(imgfile)
         self.show_image(self.image)
         draw_grid(self.corners, self.nRows, self.nCols)
@@ -142,18 +144,18 @@ class OverlayGrid(object):
     def apply_to_stack(self, fnList):
         self.fig = plt.gcf()
 
-        #Disconnect the event listener if one exists
+        # Disconnect the event listener if one exists
         if self.kpid:
             self.fig.canvas.mpl_disconnect(self.kpid)
 
         self.stack = fnList
-        self.maxSliceInd = len(fnList)-1
+        self.maxSliceInd = len(fnList) - 1
         self.sliceNumber = 0
         self.apply_grid(self.stack[self.sliceNumber])
-        #plt.gca().set_aspect('equal', 'box')
+        # plt.gca().set_aspect('equal', 'box')
         self.title_stack_slice()
 
-        #Connect the event listener
+        # Connect the event listener
         self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
 
     def load_corners(self, filename):
@@ -164,30 +166,30 @@ class OverlayGrid(object):
         with open(filename, 'w') as f:
             json.dump(self.corners, f)
 
-    def quantify(self,image):
+    def quantify(self, image):
         imShape = image.shape
-        assert len(imShape)<3
-        xvals,yvals = self.corners
-        measured = np.empty((self.nRows,self.nCols))
+        assert len(imShape) < 3
+        xvals, yvals = self.corners
+        measured = np.empty((self.nRows, self.nCols))
         for indr in range(self.nRows):
-            rowCoords = yvals[indr:indr+2].astype(int)
+            rowCoords = yvals[indr:indr + 2].astype(int)
             for indc in range(self.nCols):
-                colCoords = xvals[indc:indc+2].astype(int)
+                colCoords = xvals[indc:indc + 2].astype(int)
                 imChunk = image[rowCoords[0]:rowCoords[1],
                                 colCoords[0]:colCoords[1]]
-                measured[indr,indc] = imChunk.mean()
+                measured[indr, indc] = imChunk.mean()
         return measured
 
-    def load_stack(self,fnList):
+    def load_stack(self, fnList):
         stackList = []
         for imgFile in fnList:
             image = mpimg.imread(imgFile)
-            if len(image.shape)>2:
-                image = image[:,:,0]   # FIXME: I'm taking only first channel
+            if len(image.shape) > 2:
+                image = image[:, :, 0]  # FIXME: I'm taking only first channel
             stackList.append(image)
         return np.array(stackList)
 
-    def quantify_stack(self,imgStack):
+    def quantify_stack(self, imgStack):
         '''
         ARGS:
             stack: (nImages, height, width)
@@ -207,7 +209,7 @@ class BrainGrid(OverlayGrid):
     FIXME: After update, the docstrings are all wrong
     '''
 
-    def __init__(self, animalName, stackLabel, side='', nRows = 3, nCols = 2, processedDirName = 'registered'):
+    def __init__(self, animalName, stackLabel, side='', nRows=3, nCols=2, processedDirName='registered'):
         super(BrainGrid, self).__init__(nRows, nCols)
         self.animalName = animalName
         self.stackLabel = stackLabel
@@ -219,7 +221,8 @@ class BrainGrid(OverlayGrid):
         self.side = side
 
     def dir_structure(self, channelLabel):
-        return os.path.join(settings.HISTOLOGY_PATH, self.animalName, self.stackLabel, self.side, self.processedDirName, channelLabel)
+        return os.path.join(settings.HISTOLOGY_PATH, self.animalName, self.stackLabel, 
+                            self.side, self.processedDirName, channelLabel)
 
     def corners_file(self):
         '''
@@ -273,7 +276,8 @@ class BrainGrid(OverlayGrid):
             bg.apply_to_stack(stack) # Set the grid from the reference image onto all images of stack
         '''
         directory = self.dir_structure(channelLabel)
-        stack = [os.path.join(directory, f) for f in sorted(os.listdir(directory)) if os.path.isfile(os.path.join(directory, f))]
+        stack = [os.path.join(directory, f) for f in sorted(os.listdir(directory)) if
+                 os.path.isfile(os.path.join(directory, f))]
         return stack
 
     def choose_corners(self, refSliceInd):
@@ -292,16 +296,16 @@ class BrainGrid(OverlayGrid):
 
     def convert_grid_corners(self):
         coordArray = np.array(self.corners)
-        transform = np.array([ [348, -374], [146, -419] ]) # Hardcoded, determined empirically
+        transform = np.array([[348, -374], [146, -419]])  # Hardcoded, determined empirically
 
-        topright = coordArray[coordArray[:,0].argmax(), :] #Greater X
-        bottomleft = coordArray[coordArray[:,1].argmax(), :] #Greater Y
+        topright = coordArray[coordArray[:, 0].argmax(), :]  # Greater X
+        bottomleft = coordArray[coordArray[:, 1].argmax(), :]  # Greater Y
 
         if self.side == 'left':
             topright = topright - transform[0, :]
             bottomleft = bottomleft - transform[1, :]
         elif self.side == 'right':
-            pass #FIXME: implement this. Opposite sign for X? X should mirror but Y should not
+            pass  # FIXME: implement this. Opposite sign for X? X should mirror but Y should not
 
         self.corners = np.array([topright, bottomleft])
 
@@ -376,36 +380,41 @@ class BrainGrid(OverlayGrid):
         '''
         cornersFile, cornersDir = self.corners_file()
         if not os.path.exists(cornersFile):
-            print "No corners for this set of images"
+            print("No corners for this set of images")
             pass
         self.load_corners(cornersFile)
 
+
 class AllenAnnotation(object):
     def __init__(self):
-        self.structureGraphFn =  os.path.join(settings.ALLEN_ATLAS_DIR, 'structure_graph.json')
+        self.structureGraphFn = os.path.join(settings.ALLEN_ATLAS_DIR, 'structure_graph.json')
         jsonData = open(self.structureGraphFn).read()
         data = json.loads(jsonData)
         self.structureGraph = data['msg']
         structureList = []
         self.structureDF = self.process_structure_graph(self.structureGraph)
-        self.annotationFn =  os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_annotation_25.nrrd')
+        self.annotationFn = os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_annotation_25.nrrd')
         annotationData = nrrd.read(self.annotationFn)
         self.annotationVol = annotationData[0]
+
     def process_structure_graph(self, structureGraph):
         structureList = []
+
         def process_structure_graph_internal(structureGraph):
             for structure in structureGraph:
-                #Pop the children out to deal with them recursively
+                # Pop the children out to deal with them recursively
                 children = structure.pop('children', None)
                 # Add the structure info to the dataframe
                 structureList.append(pandas.Series(structure))
-                #Deal with the children
+                # Deal with the children
                 process_structure_graph_internal(children)
+
         process_structure_graph_internal(structureGraph)
         df = pandas.DataFrame(structureList)
         return df
+
     def get_structure_id(self, coords):
-        #coords needs to be a 3-TUPLE (x, y, z)
+        # coords needs to be a 3-TUPLE (x, y, z)
         structID = int(self.annotationVol[coords])
         # if structID!=0:
         #     name = self.structureDF.query('id == @structID')['name'].values[0]
@@ -413,14 +422,17 @@ class AllenAnnotation(object):
         #     name = 'Outside the brain'
         # return structID, name
         return structID
+
     def get_name(self, structID):
-            name = self.structureDF.query('id==@structID')['name'].item()
-            return name
+        name = self.structureDF.query('id==@structID')['name'].item()
+        return name
+
     def trace_parents(self, structID):
-        #TODO: I don't know if the nested function approach will work in an obj
+        # TODO: I don't know if the nested function approach will work in an obj
         '''Trace the lineage of a region back to the root of the structure graph'''
         parentTrace = []
         parentNames = []
+
         def trace_internal(structID):
             parentID = self.structureDF.query('id==@structID')['parent_structure_id']
             if not pandas.isnull(parentID.values[0]):
@@ -428,8 +440,10 @@ class AllenAnnotation(object):
                 parentTrace.append(parentID)
                 parentNames.append(self.structureDF.query('id==@parentID')['name'].item())
                 trace_internal(parentID)
+
         trace_internal(structID)
         return parentTrace, parentNames
+
     def get_structure_id_many_xy(self, xyArr, zSlice):
         names = []
         structIDs = []
@@ -442,27 +456,32 @@ class AllenAnnotation(object):
             structIDs.append(structID)
         # return structIDs, names
         return structIDs
+
     def get_structure_from_id(self, structID):
         try:
             name = self.get_name(structID)
         except:
             name = "Area {} not found".format(structID)
         return name
+
     def get_total_voxels_per_area(self, zCoord):
-        allIDsThisSlice = self.annotationVol[:,:,zCoord].ravel()
+        allIDsThisSlice = self.annotationVol[:, :, zCoord].ravel()
         voxelsPerID = collections.Counter(allIDsThisSlice)
-        voxelsPerStructure = {self.get_structure_from_id(structID):count for structID, count in voxelsPerID.iteritems()}
+        voxelsPerStructure = {self.get_structure_from_id(structID): count for structID, count in voxelsPerID.iteritems()}
         return voxelsPerStructure
+
 
 class AllenCorticalCoordinates(object):
     def __init__(self):
-        self.laplacianFn =  os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_laplacian_25.nrrd')
+        self.laplacianFn = os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_laplacian_25.nrrd')
         laplacianData = nrrd.read(self.laplacianFn)
         self.laplacianVol = laplacianData[0]
+
     def get_cortical_depth(self, coords):
-        #coords needs to be a 3-TUPLE (x, y, z)
+        # coords needs to be a 3-TUPLE (x, y, z)
         depth = self.laplacianVol[coords]
         return depth
+
     def get_cortical_depth_many_xy(self, xyArr, zSlice):
         names = []
         allDepths = []
@@ -475,23 +494,25 @@ class AllenCorticalCoordinates(object):
         allDepths = np.array(allDepths)
         return allDepths
 
+
 class AllenAtlas(object):
     def __init__(self):
         atlasPath = os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_average_template_25.nrrd')
         atlasData = nrrd.read(atlasPath)
         self.atlas = atlasData[0]
-        self.maxSlice = np.shape(self.atlas)[2]-1
-        self.sliceNum=0
-        self.fig=plt.figure()
+        self.maxSlice = np.shape(self.atlas)[2] - 1
+        self.sliceNum = 0
+        self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111)
         self.ax.hold(True)
         self.show_slice(self.sliceNum)
-        self.mpid=self.fig.canvas.mpl_connect('button_press_event', self.on_click)
-        self.mouseClickData=[]
-        #Start the key press handler
+        self.mpid = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+        self.mouseClickData = []
+        # Start the key press handler
         self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
-        #show the plot
+        # show the plot
         self.fig.show()
+
     def on_click(self, event):
         '''
         Method to record mouse clicks in the mouseClickData attribute
@@ -501,49 +522,51 @@ class AllenAtlas(object):
         ymin, ymax = self.ax.get_ylim()
         xmin, xmax = self.ax.get_xlim()
         self.ax.plot(event.xdata, event.ydata, 'r+')
-        print "[{}, {}, {}]".format(int(event.xdata), int(event.ydata), int(self.sliceNum))
+        print("[{}, {}, {}]".format(int(event.xdata), int(event.ydata), int(self.sliceNum)))
         self.ax.set_ylim([ymin, ymax])
         self.ax.set_xlim([xmin, xmax])
         self.fig.canvas.draw()
+
     def on_key_press(self, event):
         '''
         Method to listen for keypresses and take action
         '''
-        #Functions to cycle through the slices
-        if event.key==",":
-            if self.sliceNum>0:
-                self.sliceNum-=1
+        # Functions to cycle through the slices
+        if event.key == ",":
+            if self.sliceNum > 0:
+                self.sliceNum -= 1
             else:
-                self.sliceNum=self.maxSlice
+                self.sliceNum = self.maxSlice
             self.show_slice(self.sliceNum)
-        if event.key=="<":
-            if self.sliceNum>10:
-                self.sliceNum-=10
+        if event.key == "<":
+            if self.sliceNum > 10:
+                self.sliceNum -= 10
             else:
-                self.sliceNum=self.maxSlice
+                self.sliceNum = self.maxSlice
             self.show_slice(self.sliceNum)
-        elif event.key=='.':
-            if self.sliceNum<self.maxSlice:
-                self.sliceNum+=1
+        elif event.key == '.':
+            if self.sliceNum < self.maxSlice:
+                self.sliceNum += 1
             else:
-                self.sliceNum=0
+                self.sliceNum = 0
             self.show_slice(self.sliceNum)
-        elif event.key=='>':
-            if self.sliceNum<self.maxSlice-10:
-                self.sliceNum+=10
+        elif event.key == '>':
+            if self.sliceNum < self.maxSlice - 10:
+                self.sliceNum += 10
             else:
-                self.sliceNum=0
+                self.sliceNum = 0
             self.show_slice(self.sliceNum)
+
     def show_slice(self, sliceNum):
         '''
         Method to draw one slice from the atlas
         '''
-        #Clear the plot and any saved mouse click data for the old dimension
+        # Clear the plot and any saved mouse click data for the old dimension
         self.ax.cla()
-        self.mouseClickData=[]
-        #Draw the image
-        self.ax.imshow(np.rot90(self.atlas[:,:,sliceNum], -1), 'gray')
-        #Label the axes and draw
+        self.mouseClickData = []
+        # Draw the image
+        self.ax.imshow(np.rot90(self.atlas[:, :, sliceNum], -1), 'gray')
+        # Label the axes and draw
         plt.title('< or > to move through the stack\nSlice: {}'.format(sliceNum))
         self.fig.canvas.draw()
 
@@ -561,11 +584,11 @@ def get_svg_transform(filename, sliceSize=[1388, 1040]):
     https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/transform
     '''
     tree = ETree.parse(filename)
-    root=tree.getroot()
+    root = tree.getroot()
     images = root.findall('{http://www.w3.org/2000/svg}image')
-    if len(images)!=2:
+    if len(images) != 2:
         raise ValueError('The SVG file must contain exactly 2 images')
-    if (images[0].attrib['x']!='0') or (images[0].attrib['y']!='0'):
+    if (images[0].attrib['x'] != '0') or (images[0].attrib['y'] != '0'):
         raise ValueError('The first image (CCF) must be located at (0,0).')
     if images[1].attrib.has_key('transform'):
         transformString = images[1].attrib['transform']
@@ -574,36 +597,39 @@ def get_svg_transform(filename, sliceSize=[1388, 1040]):
             transformValues = [float(x) for x in transformValueStrings]
         elif transformString.startswith('rotate'):
             transformValueString = re.findall(r'-?\d+\.*\d*', transformString)[0]
-            theta = -np.pi*float(transformValueString)/180 # In radians (and negative)
+            theta = -np.pi * float(transformValueString) / 180  # In radians (and negative)
             # -- Note that this is different from the SVG documentation (b & c swapped) --
             transformValues = [np.cos(theta), -np.sin(theta), np.sin(theta), np.cos(theta)]
     else:
-        transformValues = [1,0,0,1,0,0]
-    scaleWidth = float(images[1].attrib['width'])/float(sliceSize[0])
-    scaleHeight = float(images[1].attrib['height'])/float(sliceSize[1])
+        transformValues = [1, 0, 0, 1, 0, 0]
+    scaleWidth = float(images[1].attrib['width']) / float(sliceSize[0])
+    scaleHeight = float(images[1].attrib['height']) / float(sliceSize[1])
     xPos = float(images[1].attrib['x'])
     yPos = float(images[1].attrib['y'])
-    scale = np.array([[scaleWidth],[scaleHeight]])
-    translate = np.array([[xPos],[yPos]])
-    affine = np.reshape(transformValues[:4],(2,2), order='F')
+    scale = np.array([[scaleWidth], [scaleHeight]])
+    translate = np.array([[xPos], [yPos]])
+    affine = np.reshape(transformValues[:4], (2, 2), order='F')
     return (scale, translate, affine)
+
 
 def apply_svg_transform(scale, translate, affine, coords):
     '''
     Apply transformation in the appropriate order.
     This transforms the image coordinates to atlas coordinates
     '''
-    newCoords = scale*coords + translate
+    newCoords = scale * coords + translate
     newCoords = np.dot(affine, newCoords)
     return newCoords
+
 
 def apply_svg_inverse_transform(scale, translate, affine, coords):
     '''
     This transforms the atlas coordinates into image coordinates.
     '''
     newCoords = np.dot(np.linalg.inv(affine), coords)
-    newCoords = (newCoords - translate)/scale
+    newCoords = (newCoords - translate) / scale
     return newCoords
+
 
 def get_coords_from_fiji_csv(filename, pixelSize=1):
     '''
@@ -614,8 +640,9 @@ def get_coords_from_fiji_csv(filename, pixelSize=1):
     First row of CSV file is " ,Area,Mean,Min,Max,X,Y"
     '''
     allData = np.loadtxt(filename, delimiter=',', skiprows=1)
-    coords = allData[:,5:7]/pixelSize
+    coords = allData[:, 5:7] / pixelSize
     return coords.T
+
 
 SVG_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
@@ -648,12 +675,15 @@ SVG_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 </svg>
 '''
 
-def get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank, atlasZ, outputDir=None):
+
+def get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank, outputDir=None):
     if outputDir is None:
         outputDir = os.path.join(settings.HISTOLOGY_PATH, '{}_processed'.format(subject))
     registrationFolder = 'registration{}'.format(brainArea)
-    filenameSVG = os.path.join(outputDir, registrationFolder, '{}_{}_shank{}.svg'.format(histImage,recordingTrack,shank))
+    filenameSVG = os.path.join(outputDir, registrationFolder,
+                               '{}_{}_shank{}.svg'.format(histImage, recordingTrack, shank))
     return filenameSVG
+
 
 def generate_filenames_for_registration(subject, brainArea, histImage, recordingTrack, shank, atlasZ, outputDir=None):
     '''
@@ -672,24 +702,27 @@ def generate_filenames_for_registration(subject, brainArea, histImage, recording
         filenameAtlas (str): filename of the atlas image to be used for registration
         filenameHist (str): filename of histology image to be used for registration
     '''
- 
-    filenameAtlas = os.path.join(settings.ATLAS_PATH,'JPEG/allenCCF_Z{}.jpg'.format(atlasZ))   
-    shanksFolder = 'recordingTracts{}'.format(brainArea)
+
+    filenameAtlas = os.path.join(settings.ATLAS_PATH, 'JPEG/allenCCF_Z{}.jpg'.format(atlasZ))
+    shanksFolder = 'recordingTracks{}'.format(brainArea)
     registrationFolder = 'registration{}'.format(brainArea)
-    filenameHist = os.path.join(settings.HISTOLOGY_PATH, '{}_processed'.format(subject), shanksFolder, '{}_{}_shank{}.jpg'.format(histImage,recordingTrack,shank))
-    filenameFinalSVG = get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank, atlasZ, outputDir=outputDir)
-    filenameSVG = filenameFinalSVG[:-4]+'_pre'+filenameFinalSVG[-4:]
-    
+    filenameHist = os.path.join(settings.HISTOLOGY_PATH, '{}_processed'.format(subject), shanksFolder,
+                                '{}_{}_shank{}.jpg'.format(histImage, recordingTrack, shank))
+    filenameFinalSVG = get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank, atlasZ,
+                                                   outputDir=outputDir)
+    filenameSVG = filenameFinalSVG[:-4] + '_pre' + filenameFinalSVG[-4:]
+
     return filenameSVG, filenameAtlas, filenameHist
+
 
 def save_svg_for_registration(filenameSVG, filenameAtlas, filenameSlice, verbose=True):
     '''Save SVG for manual registration
     
     Returns:'''
     atlasIm = PIL.Image.open(filenameAtlas)
-    (atlasWidth,atlasHeight) = atlasIm.size
+    (atlasWidth, atlasHeight) = atlasIm.size
     sliceIm = PIL.Image.open(filenameSlice)
-    (sliceWidth,sliceHeight) = sliceIm.size
+    (sliceWidth, sliceHeight) = sliceIm.size
     svgString = SVG_TEMPLATE.format(atlasImage=filenameAtlas, sliceImage=filenameSlice,
                                     atlasWidth=atlasWidth, atlasHeight=atlasHeight,
                                     sliceWidth=sliceWidth, sliceHeight=sliceHeight)
@@ -699,6 +732,7 @@ def save_svg_for_registration(filenameSVG, filenameAtlas, filenameSlice, verbose
     if verbose:
         print('Saved {}'.format(filenameSVG))
     return (atlasIm.size, sliceIm.size)
+
 
 def save_svg_for_registration_one_mouse(subject, **kwargs):
     '''
@@ -720,17 +754,21 @@ def save_svg_for_registration_one_mouse(subject, **kwargs):
     Returns:
         atlasSizes, histSizes (lists): 
     '''
-    fileNameInfohist = os.path.join(settings.INFOHIST_PATH,'{}_tracks.py'.format(subject))
-    tracks = imp.load_source('tracks_module',fileNameInfohist).tracks
+    fileNameInfohist = os.path.join(settings.INFOHIST_PATH, '{}_tracks.py'.format(subject))
+    tracks = imp.load_source('tracks_module', fileNameInfohist).tracks
     atlasSizes = []
     histSizes = []
     for track in tracks:
-        filenameSVG, filenameAtlas, filenameHist = generate_filenames_for_registration(track['subject'], track['brainArea'], track['histImage'], 
-                                                                                       track['recordingTrack'], track['shank'], track['atlasZ'])
+        filenameSVG, filenameAtlas, filenameHist = generate_filenames_for_registration(track['subject'],
+                                                                                       track['brainArea'],
+                                                                                       track['histImage'],
+                                                                                       track['recordingTrack'],
+                                                                                       track['shank'], track['atlasZ'])
         (atlasSize, histSize) = save_svg_for_registration(filenameSVG, filenameAtlas, filenameHist)
         atlasSizes.append(atlasSize)
         histSizes.append(histSize)
     return (atlasSizes, histSizes)
+
 
 def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
     ''' 
@@ -748,54 +786,48 @@ def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
         tipCoords (list): CCF x and y coordinates for the end of the tract
         siteCoords (list): CCF x and y coordinates for each recording site. None if no recording depths or max depth given.
     '''
-        
+
     # -- load SVG file and get coordinates for tip and brain surface --
     tree = ETree.parse(filenameSVG)
-    root=tree.getroot()
+    root = tree.getroot()
     paths = root.findall('{http://www.w3.org/2000/svg}path')
-    if len(paths)!=1:
+    if len(paths) != 1:
         raise ValueError('The SVG file must contain exactly 1 path')
     pathCoords = paths[0].attrib['d']
     reString = r'M (\d+\.*\d*),(\d+\.*\d*) (\d+\.*\d*),(\d+\.*\d*)'
     coordStrings = re.findall(reString, pathCoords)
-    if len(coordStrings)==0:
+    if len(coordStrings) == 0:
         raise ValueError('The path does not have the correct format. You probably did not double click for this tract')
     tractCoords = coordStrings[0]
-    tractCoords = map(float, tractCoords)
+    tractCoords = list(map(float, tractCoords))
 
     tipCoords = [tractCoords[0], tractCoords[1]]
     brainSurfCoords = [tractCoords[2], tractCoords[3]]
 
     if tipCoords[1] < brainSurfCoords[1]:
         raise ValueError('The brain surface is deeper than the tip!')
-    
+
     # -- extrapolate locations of recording sites from path between surface and tip --
     if recordingDepths is not None and maxDepth is not None:
-        siteFracFromSurface = np.array(recordingDepths)/float(maxDepth)
+        siteFracFromSurface = np.array(recordingDepths) / float(maxDepth)
         siteCoords = []
         for fracFromSurface in siteFracFromSurface:
-            refVec = [tipCoords[0]-brainSurfCoords[0], tipCoords[1]-brainSurfCoords[1]]
+            refVec = [tipCoords[0] - brainSurfCoords[0], tipCoords[1] - brainSurfCoords[1]]
             vecToAdd = fracFromSurface * np.array(refVec)
-            coordsAtFraction = [brainSurfCoords[0]+vecToAdd[0], brainSurfCoords[1]+vecToAdd[1]]
+            coordsAtFraction = [brainSurfCoords[0] + vecToAdd[0], brainSurfCoords[1] + vecToAdd[1]]
             siteCoords.append(coordsAtFraction)
     else:
         siteCoords = None
         if recordingDepths is not None or maxDepth is not None:
             print('WARNING: Please give both recording depths and max depth to get site coordinates.')
-    
+
     return brainSurfCoords, tipCoords, siteCoords
 
 
-
-
-
-
-
-        
-#if __name__=='__main__':
-   # imgfile = '/mnt/jarahubdata/histology/anat002_MGB_jpg/b4-C1-01tdT_mirror_correct.jpg'
-   # ogrid = OverlayGrid(nRows=3,nCols=2)
-   # ogrid.set_grid(imgfile)
+# if __name__=='__main__':
+# imgfile = '/mnt/jarahubdata/histology/anat002_MGB_jpg/b4-C1-01tdT_mirror_correct.jpg'
+# ogrid = OverlayGrid(nRows=3,nCols=2)
+# ogrid.set_grid(imgfile)
 
 
 '''

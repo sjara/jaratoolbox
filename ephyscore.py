@@ -47,8 +47,8 @@ class Cell(object):
         objStr = '{} {} ({:0.0f}um) T{}c{}'.format(self.subject, self.date, self.depth,
                                             self.tetrode, self.cluster)
         return objStr
-
-
+        
+        
     def load(self, sessiontype, behavClass=None):
         '''
         Load the spikes, events, and behavior data for a single session. Loads the LAST recorded
@@ -66,7 +66,7 @@ class Cell(object):
         '''
         sessionInds = self.get_session_inds(sessiontype)
         try:
-            sessionIndToUse = sessionInds[-1] #NOTE: Taking the last session of this type!
+            sessionIndToUse = sessionInds[-1]  # NOTE: Taking the last session of this type!
         except IndexError as ierror:
             ierror.args += ('Session type "{}" does not exist for this cell.'.format(sessiontype),)
             raise
@@ -169,8 +169,9 @@ class Cell(object):
         for sessionInd, sessionType in enumerate(self.dbRow['sessionType']):
             try:
                 ephysData = self.load_ephys_by_index(sessionInd)
-            except ValueError, errMsg: #File contains no spikes
-                print str(errMsg)
+            except ValueError as vError:
+                errMsg = 'File probably contains no spikes'
+                print('{} -- {}'.format(vError, errMsg))
                 continue
             numSpikes = len(ephysData['spikeTimes'])
             sessionVector = np.zeros(numSpikes)+sessionInd
@@ -229,10 +230,10 @@ def load_ephys(subject, paradigm, sessionDir, tetrode, cluster=None, useModified
             # Use the modified .clu file if it exists, otherwise use the original one
             clustersFileModified = os.path.join(clustersDir,'Tetrode{}.clu.modified'.format(tetrode))
             if os.path.exists(clustersFileModified):
-                print "Loading modified .clu file for session {}".format(spikesFilename)
+                print("Loading modified .clu file for session {}".format(spikesFilename))
                 spikeData.set_clusters(clustersFileModified)
             else:
-                print "Modified .clu file does not exist, loading standard .clu file for session {}".format(spikesFilename)
+                print("Modified .clu file does not exist, loading standard .clu file for session {}".format(spikesFilename))
                 clustersFile = os.path.join(clustersDir,'Tetrode{}.clu.1'.format(tetrode))
                 spikeData.set_clusters(clustersFile)
         spikeData.samples = spikeData.samples[spikeData.clusters==cluster]
@@ -245,7 +246,7 @@ def load_ephys(subject, paradigm, sessionDir, tetrode, cluster=None, useModified
     #Choose channel map based on paradigm
     channelMap = CHANNELMAPS[paradigm]
     eventDict = {}
-    for channelType, channelID in channelMap.iteritems():
+    for channelType, channelID in channelMap.items():
         thisChannelOn = eventData.get_event_onset_times(eventID=1, eventChannel=channelID)
         thisChannelOff = eventData.get_event_onset_times(eventID=0, eventChannel=channelID)
         eventDict.update({'{}On'.format(channelType):thisChannelOn,
@@ -254,3 +255,4 @@ def load_ephys(subject, paradigm, sessionDir, tetrode, cluster=None, useModified
                     'samples':spikeData.samples,
                     'events':eventDict}
     return ephysData
+
