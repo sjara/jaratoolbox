@@ -222,7 +222,7 @@ class BrainGrid(OverlayGrid):
         self.side = side
 
     def dir_structure(self, channelLabel):
-        return os.path.join(settings.HISTOLOGY_PATH, self.animalName, self.stackLabel, 
+        return os.path.join(settings.HISTOLOGY_PATH, self.animalName, self.stackLabel,
                             self.side, self.processedDirName, channelLabel)
 
     def corners_file(self):
@@ -689,7 +689,7 @@ def get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, s
 def generate_filenames_for_registration(subject, brainArea, histImage, recordingTrack, shank, atlasZ, outputDir=None):
     '''
     Generates the filenames for all the images used during registration for one recording track.
-    
+
     Args:
         subject (str): name of animal
         brainArea (str): recording area, name must match name of folder is this animal's histology folder
@@ -697,7 +697,7 @@ def generate_filenames_for_registration(subject, brainArea, histImage, recording
         recordingTrack (str): name identifying this recording (commonly by dye)
         shank (int): shank # for this track
         atlasZ (int): slice in Allen atlas that corresponds to our histology image for this recording track
-        
+
     Returns:
         filenameSVG (str): filename where output SVG will be saved
         filenameAtlas (str): filename of the atlas image to be used for registration
@@ -709,7 +709,7 @@ def generate_filenames_for_registration(subject, brainArea, histImage, recording
     registrationFolder = 'registration{}'.format(brainArea)
     filenameHist = os.path.join(settings.HISTOLOGY_PATH, '{}_processed'.format(subject), shanksFolder,
                                 '{}_{}_shank{}.jpg'.format(histImage, recordingTrack, shank))
-    filenameFinalSVG = get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank, atlasZ,
+    filenameFinalSVG = get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank,
                                                    outputDir=outputDir)
     filenameSVG = filenameFinalSVG[:-4] + '_pre' + filenameFinalSVG[-4:]
 
@@ -718,7 +718,7 @@ def generate_filenames_for_registration(subject, brainArea, histImage, recording
 
 def save_svg_for_registration(filenameSVG, filenameAtlas, filenameSlice, verbose=True):
     '''Save SVG for manual registration
-    
+
     Returns:'''
     atlasIm = PIL.Image.open(filenameAtlas)
     (atlasWidth, atlasHeight) = atlasIm.size
@@ -737,23 +737,23 @@ def save_svg_for_registration(filenameSVG, filenameAtlas, filenameSlice, verbose
 
 def save_svg_for_registration_one_mouse(subject, **kwargs):
     '''
-    Save all the svgs for manual registration for a single mouse. 
+    Save all the svgs for manual registration for a single mouse.
     The default save location is in settings.HISTOLOGY_PATH/{subject}_processed
-    This function will generate paths to the atlas image (from settings.ATLAS_PATH), 
-        histology image (from settings.HISTOLOGY_PATH/{subject}_processed), and final 
+    This function will generate paths to the atlas image (from settings.ATLAS_PATH),
+        histology image (from settings.HISTOLOGY_PATH/{subject}_processed), and final
         saving location for the pre-registration svg.
-    This function will loop through all the tracks in the subject's tracks file and 
+    This function will loop through all the tracks in the subject's tracks file and
         generate an svg for each one.
-    
+
     Args:
-        subject (str): name of animal. Animal must have a tracks file in infohistology 
-                       detailing information about each recording track, as well as 
+        subject (str): name of animal. Animal must have a tracks file in infohistology
+                       detailing information about each recording track, as well as
                        images in the histology folder corresponding to each penetration.
         outputDir (str): directory in which the registration folders for each brain area
                          are, where the svgs will be saved
-        
+
     Returns:
-        atlasSizes, histSizes (lists): 
+        atlasSizes, histSizes (lists):
     '''
     fileNameInfohist = os.path.join(settings.INFOHIST_PATH, '{}_tracks.py'.format(subject))
     tracks = imp.load_source('tracks_module', fileNameInfohist).tracks
@@ -772,16 +772,16 @@ def save_svg_for_registration_one_mouse(subject, **kwargs):
 
 
 def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
-    ''' 
+    '''
     Get the CCF coordinates of a recording tract and (optionally) any recording sites on the tract.
-    
+
     Returns the x and y coordinates. Will only return site coordinates if both the recording depths and max depth are given.
-    
+
     Args:
         filenameSVG (str): full path to the SVG containing the drawn and aligned recording tract.
         recordingDepths (list): list of ints corresponding to the site depths for this experiment (from inforec)
         maxDepth (int): final penetration depth reached for this experiment
-        
+
     Returns:
         brainSurfCoords (list): CCF x and y coordinates where the tract enters the brain
         tipCoords (list): CCF x and y coordinates for the end of the tract
