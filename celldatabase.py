@@ -721,6 +721,8 @@ def save_hdf(dframe, filename):
                 arraydata = dframe[onecol].values
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
             elif isinstance(onevalue, str):
+                #TODO Add a fix to allow this function to save unicode strings when working in python 2.7
+                # Currently this error can be geenrated by saving cell locations while workin in 2.7
 		# We used to save this astype(str) not astype(string_dt)
                 arraydata = dframe[onecol].values.astype(string_dt)
                 dset = dbGroup.create_dataset(onecol, data=arraydata, dtype = string_dt)
@@ -764,7 +766,7 @@ def load_hdf(filename, root='/'):
         if varvalue.dtype==np.object:
             try:
                 dataAsList = [ast.literal_eval("{}".format(v)) for v in varvalue]
-            except (ValueError, SyntaxError):
+            except (ValueError):
                 # If a list of strings contains a non-string (like None)
                 # we need to put it inside quotes as we use a system of double quotes to save the 
                 dataAsList = [ast.literal_eval('"{}"'.format(v)) for v in varvalue]

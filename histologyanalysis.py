@@ -708,7 +708,7 @@ def generate_filenames_for_registration(subject, brainArea, histImage, recording
     registrationFolder = 'registration{}'.format(brainArea)
     filenameHist = os.path.join(settings.HISTOLOGY_PATH, '{}_processed'.format(subject), shanksFolder,
                                 '{}_{}_shank{}.jpg'.format(histImage, recordingTrack, shank))
-    filenameFinalSVG = get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank, atlasZ,
+    filenameFinalSVG = get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank,
                                                    outputDir=outputDir)
     filenameSVG = filenameFinalSVG[:-4] + '_pre' + filenameFinalSVG[-4:]
 
