@@ -852,10 +852,10 @@ def cell_locations(dbCell):
     rsp = mcc.get_reference_space()
     rspAnnotationVolumeRotated = np.rot90(rsp.annotation, 1, axes=(2, 0))
 
-
-
     try:
-        bestCells = dbCell.query('rsquaredFit>{}'.format(studyparams.R2_CUTOFF))  # calculate depths for all the cells that we quantify as tuned
+        pass
+        # FIXME Studyparams import
+        #bestCells = dbCell.query('rsquaredFit>{}'.format(studyparams.R2_CUTOFF))  # calculate depths for all the cells that we quantify as tuned
     except pd.core.computation.ops.UndefinedVariableError:
         bestCells = dbCell
 
@@ -887,14 +887,14 @@ def cell_locations(dbCell):
             if track is not None:
                 histImage = track['histImage']
 
-                filenameSVG = ha.get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank)
+                filenameSVG = get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank)
 
                 if tetrode % 2 == 0:
                     depth = dbRow['depth']
                 else:
                     depth = dbRow['depth'] - 150.0  # odd tetrodes are higher
 
-                brainSurfCoords, tipCoords, siteCoords = ha.get_coords_from_svg(filenameSVG, [depth], dbRow['maxDepth'])
+                brainSurfCoords, tipCoords, siteCoords = get_coords_from_svg(filenameSVG, [depth], dbRow['maxDepth'])
 
                 siteCoords = siteCoords[0]
 
