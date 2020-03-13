@@ -268,12 +268,13 @@ class Experiment(object):
     TODO: Fail gracefully if the experimenter tries to add sessions without adding a site first
     TODO: Should the info attr be a dictionary?
     '''
-    def __init__(self, subject, date, brainarea, info=''):
-        self.subject=subject
-        self.date=date
-        self.brainarea=brainarea
-        self.info=info
-        self.sites=[]
+    def __init__(self, subject, date, brainarea, recordingTrack='', info=''):
+        self.subject = subject
+        self.date = date
+        self.brainarea = brainarea
+        self.recordingTrack = recordingTrack
+        self.info = info
+        self.sites = []
         self.tetrodes = [1,2,3,4,5,6,7,8]
         self.maxDepth = None
         self.shankEnds = None
@@ -368,10 +369,11 @@ class Site(object):
         comments (list of str): Comments for this site
         clusterFolder (str): The folder where clustering info will be saved for this site
     '''
-    def __init__(self, subject, date, brainarea, info, depth, tetrodes):
+    def __init__(self, subject, date, brainarea, recordingTrack, info, depth, tetrodes):
         self.subject=subject
         self.date=date
         self.brainarea=brainarea
+        self.recordingTrack = recordingTrack
         self.info=info
         self.depth=depth
         self.tetrodes = tetrodes
@@ -402,6 +404,7 @@ class Site(object):
         session = Session(self.subject,
                           date,
                           self.brainarea,
+                          self.recordingTrack,
                           self.info,
                           self.depth,
                           self.tetrodes,
@@ -709,7 +712,7 @@ def save_hdf(dframe, filename):
                 arraydata = dframe[onecol].values
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
             elif isinstance(onevalue, str):
-                #TODO Add a fix to allow this function to save unicode strings when working in python 2.7
+                # TODO: Add a fix to allow this function to save unicode strings when working in python 2.7
                 # Currently this error can be geenrated by saving cell locations while workin in 2.7
 		# We used to save this astype(str) not astype(string_dt)
                 arraydata = dframe[onecol].values.astype(string_dt)
@@ -754,9 +757,10 @@ def load_hdf(filename, root='/'):
         if varvalue.dtype==np.object:
             try:
                 dataAsList = [ast.literal_eval("{}".format(v)) for v in varvalue]
-            except (ValueError):
-                # If a list of strings contains a non-string (like None)
-                # we need to put it inside quotes as we use a system of double quotes to save the 
+            except (ValueError, SyntaxError):
+                # ValueError: If a list of strings contains a non-string (like None)
+                # Passing something like '2019-01-02' above will result in ast.parse not being able
+                # to convert it into a string, and it gives a SyntaxError. ast.parse requires it to be passed as "'2019-01-02'" to work
                 dataAsList = [ast.literal_eval('"{}"'.format(v)) for v in varvalue]
             dbDict[varname] = dataAsList
     h5file.close()
