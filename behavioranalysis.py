@@ -151,12 +151,12 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',loadingClass=None,da
 
     inds=0
     for inda,animalName in enumerate(animalNames):
-        for indsa,thisSession in enumerate(allSessions):
+        for inds,thisSession in enumerate(allSessions):
             try:
                 behavFile = loadbehavior.path_to_behavior_data(animalName,paradigm,thisSession)
                 behavData = loadingClass(behavFile,readmode=readmode)
             except IOError:
-                print thisSession+' does not exist'
+                print(thisSession+' does not exist')
                 continue
             if inds==0:
                 allBehavData = behavData  # FIXME: Should it be .copy()?
@@ -164,8 +164,8 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',loadingClass=None,da
                 allBehavData['sessionID'] = np.zeros(nTrials,dtype='i2')
                 allBehavData['animalID'] = np.zeros(nTrials,dtype='i1')
             else:
-                for key,val in behavData.iteritems():
-                    if not allBehavData.has_key(key):
+                for key,val in behavData.items():
+                    if not (key in allBehavData):
                         allBehavData[key]=val
                     else:
                         allBehavData[key] = np.concatenate((allBehavData[key],val))
@@ -205,9 +205,9 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm='2afc'
                 behavFile = loadbehavior.path_to_behavior_data(animalName,paradigm,thisSession)
                 behavData = loadingClass(behavFile,readmode='full')
             except IOError:
-                print thisSession+' does not exist'
+                print(thisSession+' does not exist')
                 continue
-            print 'Loaded %s %s'%(animalName,thisSession)
+            print('Loaded %s %s'%(animalName,thisSession))
             # -- Plot either psychometric or average performance
             thisAnimalPos = 3*inda*nSessions
             thisPlotPos = thisAnimalPos+3*inds
@@ -256,7 +256,7 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm='2afc'
         figformat = 'png' #'png' #'pdf' #'svg'
         filename = 'behavior_%s_%s.%s'%(animalStr,sessionStr,figformat)
         fullFileName = os.path.join(outputDir,filename)
-        print 'saving figure to %s'%fullFileName
+        print('saving figure to %s'%fullFileName)
         plt.gcf().savefig(fullFileName,format=figformat)
 
 
@@ -432,7 +432,7 @@ def calculate_psychometric(hitTrials,paramValueEachTrial,valid=None):
         from statsmodels.stats.proportion import proportion_confint #Used to compute confidence interval for the error bars. 
         useCI = True
     except ImportError:
-        print 'Warning: To calculate confidence intervals, please install "statsmodels" module.'
+        print('Warning: To calculate confidence intervals, please install "statsmodels" module.')
         useCI = False
     nTrials = len(hitTrials)
     if valid is None:
@@ -469,41 +469,42 @@ def OLD_calculate_psychometric(behavData,parameterName='targetFrequency'):
     nValues = len(possibleValues) 
     trialsEachValue = find_trials_each_type(paramValues,possibleValues)
 
-    nTrialsEachValue = np.empty(nValues,dtype=int)
+    nTrialsEachValue = np.empty(nValues, dtype=int)
     nRightwardEachValue = np.empty(nValues,dtype=int)
     for indv,thisValue in enumerate(possibleValues):
-        nTrialsEachValue[indv] = sum(valid & trialsEachValue[:,indv])
-        nRightwardEachValue[indv] = sum(valid & choiceRight & trialsEachValue[:,indv])
+        nTrialsEachValue[indv] = sum(valid & trialsEachValue[:, indv])
+        nRightwardEachValue[indv] = sum(valid & choiceRight & trialsEachValue[:, indv])
     
     fractionRightEachValue = nRightwardEachValue/nTrialsEachValue.astype(float)
     confintervRightEachValue = [] # TO BE IMPLEMENTED LATER
-    return (possibleValues,fractionRightEachValue,confintervRightEachValue,nTrialsEachValue,nRightwardEachValue)
+    return (possibleValues, fractionRightEachValue, confintervRightEachValue, nTrialsEachValue, nRightwardEachValue)
 
 
 def subset_trials_equalized(trialsEachCond, fraction):
-    '''
+    """
     Create a new matrix of trialsEachCond with only a subset of trials
     trying to equalize the number of trials per condition.
 
     trialsThisCond (np.array bool): nTrials x nConditions
     fraction (float): fraction of trials to extract (bewteen 0 and 1).
-    '''
+    """
     nCond = trialsEachCond.shape[1]
     nTrialsEachCondition = trialsEachCond.sum(axis=0)
-    equalizedTrialCount = equalized_trial_count(nTrialsEachCondition,fraction)
+    equalizedTrialCount = equalized_trial_count(nTrialsEachCondition, fraction)
     newTrialsEachCond = np.zeros(trialsEachCond.shape)
     for indc in range(nCond):
-        trialsThisCond = np.flatnonzero(trialsEachCond[:,indc])
+        trialsThisCond = np.flatnonzero(trialsEachCond[:, indc])
         if equalizedTrialCount[indc]>0:
             subsetInds = np.random.choice(trialsThisCond, equalizedTrialCount[indc])
-            newTrialsEachCond[subsetInds,indc] = True
+            newTrialsEachCond[subsetInds, indc] = True
     return newTrialsEachCond
-    
+
+
 def equalized_trial_count(nTrialsEachCondition, fraction):
-    '''
+    """
     Given the number of trials for each condition and a fraction of trials to take,
     find the new numbers that equalize the number of trials per condition.
-    '''
+    """
     equalizedTrialCount = np.zeros(nTrialsEachCondition.shape, dtype=int)
     nCond = len(nTrialsEachCondition)
     totalTrials = np.sum(nTrialsEachCondition)
@@ -522,8 +523,8 @@ def equalized_trial_count(nTrialsEachCondition, fraction):
 
 if __name__ == "__main__":
 
-    CASE=6
-    if CASE==1:
+    CASE = 6
+    if CASE == 1:
         from jaratoolbox import loadbehavior
         import numpy as np
         experimenter = 'santiago'
@@ -531,51 +532,51 @@ if __name__ == "__main__":
         subject = 'test020'
         session = '20140421a'
 
-        behavFile = loadbehavior.path_to_behavior_data(subject,experimenter,paradigm,session)
-        behavData = loadbehavior.FlexCategBehaviorData(behavFile,readmode='full')
+        behavFile = loadbehavior.path_to_behavior_data(subject, experimenter, paradigm, session)
+        behavData = loadbehavior.FlexCategBehaviorData(behavFile, readmode='full')
         behavData.find_trials_each_block()
  
-        #trialsEachBlock = behavData.blocks['trialsEachBlock']
-        #nValidEachBlock = np.sum(trialsEachBlock & (~behavData['valid'][:,np.newaxis]),axis=0)
-        #validEachBlock = trialsEachBlock & behavData['valid'][:,np.newaxis].astype(bool)
+        # trialsEachBlock = behavData.blocks['trialsEachBlock']
+        # nValidEachBlock = np.sum(trialsEachBlock & (~behavData['valid'][:,np.newaxis]),axis=0)
+        # validEachBlock = trialsEachBlock & behavData['valid'][:,np.newaxis].astype(bool)
 
-        #plot_dynamics(behavData,winsize=100)
+        # plot_dynamics(behavData,winsize=100)
         plot_summary(behavData)
-        #tet = find_trials_each_type(behavData['targetFrequency'],np.unique(behavData['targetFrequency']),
+        # tet = find_trials_each_type(behavData['targetFrequency'],np.unique(behavData['targetFrequency']),
         #                            behavData['currentBlock'],np.unique(behavData['currentBlock']))
 
     elif CASE==2:
         if 1:
-            subjects = ['test011','test012','test013','test014','test015',
-                        'test016','test017','test018','test019','test020']
+            subjects = ['test011', 'test012', 'test013', 'test014', 'test015',
+                        'test016', 'test017', 'test018', 'test019', 'test020']
         else:
-            subjects = ['test050','test051','test052','test053','test054',
-                        'test055','test056','test057','test058','test059']
-        #subjects = ['test019','test020']
-        #sessions = '20140321a' # No currentBlock
+            subjects = ['test050', 'test051', 'test052', 'test053', 'test054',
+                        'test055', 'test056', 'test057', 'test058', 'test059']
+        # subjects = ['test019','test020']
+        # sessions = '20140321a' # No currentBlock
         sessions = '20140616a'
-        behavior_summary(subjects,sessions,trialslim=[0,1200],outputDir='/tmp/')
+        behavior_summary(subjects,sessions,trialslim=[0, 1200], outputDir='/tmp/')
 
-    elif CASE==3:
-        fname=loadbehavior.path_to_behavior_data('test052','santiago','2afc','20140911a')
-        bdata=loadbehavior.BehaviorData(fname)
-        (possibleFreq,pRightEach,ci,nTrialsEach,nRightwardEach) = OLD_calculate_psychometric(bdata,
-                                                                                         parameterName='targetFrequency')
-        print pRightEach
-    elif CASE==4:
-        allBehavData = load_many_sessions(['test020'],sessions=['20140421a','20140422a','20140423a'])
-    elif CASE==5:
-        param = np.array([7,4,7,5,7,4,7,5,7,4,7,8,8,8])
+    elif CASE == 3:
+        fname =loadbehavior.path_to_behavior_data('test052', 'santiago', '2afc', '20140911a')
+        bdata =loadbehavior.BehaviorData(fname)
+        (possibleFreq, pRightEach, ci, nTrialsEach, nRightwardEach) = OLD_calculate_psychometric(bdata,
+                                                                                                 parameterName='targetFrequency')
+        print(pRightEach)
+    elif CASE == 4:
+        allBehavData = load_many_sessions(['test020'], sessions=['20140421a', '20140422a', '20140423a'])
+    elif CASE == 5:
+        param = np.array([7, 4, 7, 5, 7, 4, 7, 5, 7, 4, 7, 8, 8, 8])
         possibleParam = np.unique(param)
-        tet = find_trials_each_type(param,possibleParam)
-        mask = param>4
-        tet = tet & mask[:,np.newaxis]
-        print possibleParam
-        print tet
-    elif CASE==6:
-        #parameter1 = np.array([1,2,3,4,5,1,2,3,4,5])
-        #parameter2 = np.array([2,2,2,3,3,3,4,4,4,4])
-        parameter1 = np.array([1,2,1,2])
-        parameter2 = np.array([4,4,5,6])
-        tet = find_trials_each_combination(parameter1,np.unique(parameter1),parameter2,np.unique(parameter2))
-        print tet
+        tet = find_trials_each_type(param, possibleParam)
+        mask = param > 4
+        tet = tet & mask[:, np.newaxis]
+        print(possibleParam)
+        print(tet)
+    elif CASE == 6:
+        # parameter1 = np.array([1,2,3,4,5,1,2,3,4,5])
+        # parameter2 = np.array([2,2,2,3,3,3,4,4,4,4])
+        parameter1 = np.array([1, 2, 1, 2])
+        parameter2 = np.array([4, 4, 5, 6])
+        tet = find_trials_each_combination(parameter1, np.unique(parameter1), parameter2, np.unique(parameter2))
+        print(tet)

@@ -46,6 +46,9 @@ def psychometric_fit(xValues, nTrials, nHits, constraints=None, alpha=0.05):
     xValues: 1-D array of size M
     nHits:   1-D array of size M
     nTrials: 1-D array of size M
+    constraints: For logistic it will be (alpha,beta,lambda,gamma). See:
+        http://psignifit.sourceforge.net/MODELSPECIFICATION.html#logistic-function
+
     '''
     import pypsignifit as psi
 
@@ -64,8 +67,8 @@ if __name__ == "__main__":
     nRight = np.array([115,   5,  11, 689,  32,  26,  32])
     nTrials = np.array([1147,  122,   29,  944,   36,   26,   32])
     psyparams,pHit,ci = psychometric_fit(xValues,nTrials,nRight,alpha=0.05)
-    print psyparams
-    print ci
+    print(psyparams)
+    print(ci)
     
     from extracellpy import behavioranalysis
     from pylab import *

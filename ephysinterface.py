@@ -191,7 +191,7 @@ class EphysInterface(object):
             session = '_'.join([date, session])
             sessionIndex = sessionNames.index(session)
         else:
-            print "Unrecognized session format"
+            print("Unrecognized session format")
             pass
         sessionObj = sessions[sessionIndex] #Get the right session object
         return sessionObj
@@ -339,7 +339,7 @@ class EphysInterface(object):
     def avg_spikes_in_event_locked_timerange_each_cond(self, spikeTimestamps, trialsEachCond, eventOnsetTimes, timeRange):
         if len(eventOnsetTimes) != np.shape(trialsEachCond)[0]:
             eventOnsetTimes = eventOnsetTimes[:-1]
-            print "Removing last event onset time to align with behavior data"
+            print("Removing last event onset time to align with behavior data")
         spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial = spikesanalysis.eventlocked_spiketimes(
             spikeTimestamps, eventOnsetTimes, timeRange)
         spikeArray = self.avg_locked_spikes_per_condition(indexLimitsEachTrial,
@@ -634,7 +634,7 @@ class EphysInterface(object):
         '''
         from jaratoolbox import spikesorting
 
-        print 'Clustering tetrode {}'.format(tetrode)
+        print('Clustering tetrode {}'.format(tetrode))
         sessionObj = self.get_session_obj(session, experiment, site)
 
         oneTT = spikesorting.TetrodeToCluster(sessionObj.subject,

@@ -18,7 +18,7 @@ Version 0.0 was when we were still saving using pandas. (For example: 2018thstr 
 Version 1.0 was the first iteration of celldatabase.save_hdf used in python 2.7. (For example: 2018acsup project)
 The above versions do not have a saved attribute in the file indicating what the version of the saved db is.
 
-Version 2.0 is the first version of celldb that has an attribute saved to the h6 file that specifies what version of 
+Version 2.0 is the first version of celldb that has an attribute saved to the h6 file that specifies what version of
 jaratoolbox.celldatabase was used to save it as 'celldb_version' on line 708.
 """
 CELLDB_VERSION = '2.0'
@@ -118,7 +118,7 @@ class CellDatabase(list):
                     if trialset[0]==tetrode and trialset[1]==cluster:
                         oneCell.trialsToExclude = trialset[2]
                     else:
-                        print "Format of 'trialsToExclude' is not correct ({0})".format(oneCell)
+                        print("Format of 'trialsToExclude' is not correct ({0})".format(oneCell))
                 self.append(oneCell)
 
 
@@ -598,17 +598,17 @@ def generate_cell_database(inforecPath):
     tetrodeStatsFormat = 'Tetrode{}_stats.npz'
     #inforec = imp.load_source('module.name', inforecPath) # 'module.name' was meant to be an actual name
     inforec = imp.load_source('inforec_module', inforecPath)
-    print '\nGenerating database for {}'.format(inforecPath)
+    print('\nGenerating database for {}'.format(inforecPath))
     celldb = pd.DataFrame(dtype=object)
     for indExperiment, experiment in enumerate(inforec.experiments):
         #Complain if the maxDepth attr is not set for this experiment
         if experiment.maxDepth is None:
-            print "Attribute maxDepth not set for experiment with subject {} on {}".format(experiment.subject, experiment.date)
+            print("Attribute maxDepth not set for experiment with subject {} on {}".format(experiment.subject, experiment.date))
             # maxDepthThisExp = None
             raise AttributeError('You must set maxDepth for each experiment.')
         else:
             maxDepthThisExp = experiment.maxDepth
-        print 'Adding experiment from {} on {}'.format(experiment.subject, experiment.date)
+        print('Adding experiment from {} on {}'.format(experiment.subject, experiment.date))
         for indSite, site in enumerate(experiment.sites):
             #clusterDir = clusterDirFormat.format(indExperiment, indSite)
             clusterFolder = site.clusterFolder
@@ -705,30 +705,36 @@ def save_hdf(dframe, filename):
     '''
     h5file = h5py.File(filename,'w')
     string_dt = h5py.special_dtype(vlen=str)
-    dbGroup = h5file.require_group('/') # database
-    dbGroup.attrs['celldb_version'] = CELLDB_VERSION
-    for onecol in dframe.columns:
-        onevalue = dframe.iloc[0][onecol]
-        if isinstance(onevalue, np.ndarray):
-            arraydata = np.vstack(dframe[onecol].values)
-            dset = dbGroup.create_dataset(onecol, data=arraydata)
-        elif isinstance(onevalue, int) or \
-            isinstance(onevalue, float) or \
-            isinstance(onevalue, bool) or \
-            isinstance(onevalue, np.bool_):
-            arraydata=dframe[onecol].values
-            dset = dbGroup.create_dataset(onecol, data=arraydata)
-        elif isinstance(onevalue, str):
-            arraydata = dframe[onecol].values.astype(str)
-            dset = dbGroup.create_dataset(onecol, data=arraydata)
-        elif isinstance(onevalue, list):
-            # For columns like: behavSuffix, ephysTime, paradigm, sessionType
-            arraydata = dframe[onecol].values
-            dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=string_dt)
-        else:
-            raise ValueError('Trying to save items of invalid type')
-        #dset.attrs['Description'] = onecol
-    h5file.close()
+    # try:
+    if 1:
+        dbGroup = h5file.require_group('/') # database
+	dbGroup.attrs['celldb_version'] = CELLDB_VERSION
+        for onecol in dframe.columns:
+            onevalue = dframe.iloc[0][onecol]
+            if isinstance(onevalue, np.ndarray):
+                arraydata = np.vstack(dframe[onecol].values)
+                dset = dbGroup.create_dataset(onecol, data=arraydata)
+            elif isinstance(onevalue, int) or \
+                isinstance(onevalue, np.int64) or \
+                isinstance(onevalue, float) or \
+                isinstance(onevalue, bool) or \
+                isinstance(onevalue, np.bool_):
+                arraydata = dframe[onecol].values
+                dset = dbGroup.create_dataset(onecol, data=arraydata)
+            elif isinstance(onevalue, str):
+                #TODO Add a fix to allow this function to save unicode strings when working in python 2.7
+                # Currently this error can be geenrated by saving cell locations while workin in 2.7
+		# We used to save this astype(str) not astype(string_dt)
+                arraydata = dframe[onecol].values.astype(string_dt)
+                dset = dbGroup.create_dataset(onecol, data=arraydata, dtype = string_dt)
+            elif isinstance(onevalue, list):
+                # For columns like: behavSuffix, ephysTime, paradigm, sessionType
+                arraydata = dframe[onecol].values
+                dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=string_dt)
+            else:
+                raise ValueError('Trying to save items of invalid type')
+            #dset.attrs['Description'] = onecol
+        h5file.close()
     # except:
     #     h5file.close()
     #     # TODO: We may want to rename the incomplete h5 file
@@ -747,9 +753,10 @@ def load_hdf(filename, root='/'):
     try:
         h5file = h5py.File(filename,'r')
     except IOError:
-        print '{0} does not exist or cannot be opened.'.format(filename)
+        print('{0} does not exist or cannot be opened.'.format(filename))
         raise
     for varname,varvalue in h5file[root].items():
+	# If an error occurs regarding malformed strings, it is because we used to save as strings not string_dt in save_hdf()
         if varvalue.dtype==np.int or varvalue.dtype==np.float:
             if len(varvalue.shape)==1:
                 dbDict[varname] = varvalue[...]
@@ -758,7 +765,12 @@ def load_hdf(filename, root='/'):
         if varvalue.dtype.kind=='S':
             dbDict[varname] = varvalue[...]
         if varvalue.dtype==np.object:
-            dataAsList = [ast.literal_eval(v) for v in varvalue]
+            try:
+                dataAsList = [ast.literal_eval("{}".format(v)) for v in varvalue]
+            except (ValueError):
+                # If a list of strings contains a non-string (like None)
+                # we need to put it inside quotes as we use a system of double quotes to save the
+                dataAsList = [ast.literal_eval('"{}"'.format(v)) for v in varvalue]
             dbDict[varname] = dataAsList
     h5file.close()
     return pd.DataFrame(dbDict)
