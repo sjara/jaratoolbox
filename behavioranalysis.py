@@ -151,7 +151,7 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',loadingClass=None,da
 
     inds=0
     for inda,animalName in enumerate(animalNames):
-        for indsa,thisSession in enumerate(allSessions):
+        for inds,thisSession in enumerate(allSessions):
             try:
                 behavFile = loadbehavior.path_to_behavior_data(animalName,paradigm,thisSession)
                 behavData = loadingClass(behavFile,readmode=readmode)
@@ -164,8 +164,8 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',loadingClass=None,da
                 allBehavData['sessionID'] = np.zeros(nTrials,dtype='i2')
                 allBehavData['animalID'] = np.zeros(nTrials,dtype='i1')
             else:
-                for key,val in behavData.iteritems():
-                    if not allBehavData.has_key(key):
+                for key,val in behavData.items():
+                    if not (key in allBehavData):
                         allBehavData[key]=val
                     else:
                         allBehavData[key] = np.concatenate((allBehavData[key],val))

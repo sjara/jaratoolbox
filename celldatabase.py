@@ -12,6 +12,17 @@ import imp
 import h5py
 import ast  # To parse string representing a list
 
+"""
+Cell database version history:
+Version 0.0 was when we were still saving using pandas. (For example: 2018thstr project).
+Version 1.0 was the first iteration of celldatabase.save_hdf used in python 2.7. (For example: 2018acsup project)
+The above versions do not have a saved attribute in the file indicating what the version of the saved db is.
+
+Version 2.0 is the first version of celldb that has an attribute saved to the h6 file that specifies what version of
+jaratoolbox.celldatabase was used to save it as 'celldb_version' on line 708.
+"""
+CELLDB_VERSION = '2.0'
+
 class EphysSessionInfo(object):
     def __init__(self, animalName, ephysSession, behavSession,
                  clustersEachTetrode={}, trialsToExclude=[]):
@@ -700,6 +711,7 @@ def save_hdf(dframe, filename):
     # try:
     if 1:
         dbGroup = h5file.require_group('/') # database
+	dbGroup.attrs['celldb_version'] = CELLDB_VERSION
         for onecol in dframe.columns:
             onevalue = dframe.iloc[0][onecol]
             if isinstance(onevalue, np.ndarray):
