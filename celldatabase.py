@@ -293,7 +293,7 @@ class Experiment(object):
             date = self.date
         if tetrodes is None:
             tetrodes = self.tetrodes
-        site=Site(self.subject, date, self.brainarea, self.info, depth, tetrodes)
+        site=Site(self.subject, date, self.brainarea, self.recordingTrack, self.info, depth, tetrodes)
         self.sites.append(site)
         return site
     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
@@ -505,7 +505,7 @@ class Session(object):
          paradigm (str): The name of the paradigm used to collect the session
          comments (list): list of strings, comments about the session
      '''
-     def __init__(self, subject, date, brainarea, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
+     def __init__(self, subject, date, brainarea, recordingTrack, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
           self.subject = subject
           self.date = date
           self.depth = depth
