@@ -261,17 +261,18 @@ class Experiment(object):
     Attributes:
         subject(str): Name of the subject
         date (str): The date the experiment was conducted
-        brainarea (str): The area of the brain where the recording was conducted
+        brainArea (str): The area of the brain where the recording was conducted
+        recordingTrack (str):
         sites (list): A list of all recording sites for this experiment
         info (str): Extra info about the experiment
         tetrodes (list): Default tetrodes for this experiment
     TODO: Fail gracefully if the experimenter tries to add sessions without adding a site first
     TODO: Should the info attr be a dictionary?
     '''
-    def __init__(self, subject, date, brainarea, recordingTrack='', info=''):
+    def __init__(self, subject, date, brainArea, recordingTrack='', info=''):
         self.subject = subject
         self.date = date
-        self.brainarea = brainarea
+        self.brainArea = brainArea
         self.recordingTrack = recordingTrack
         self.info = info
         self.sites = []
@@ -293,7 +294,7 @@ class Experiment(object):
             date = self.date
         if tetrodes is None:
             tetrodes = self.tetrodes
-        site=Site(self.subject, date, self.brainarea, self.recordingTrack, self.info, depth, tetrodes)
+        site=Site(self.subject, date, self.brainArea, self.recordingTrack, self.info, depth, tetrodes)
         self.sites.append(site)
         return site
     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
@@ -319,7 +320,7 @@ class Experiment(object):
         return session
     def pretty_print(self, sites=True, sessions=False):
         '''
-        Print a string with date, brainarea, and optional list of sites/sessions by index
+        Print a string with date, brainArea, and optional list of sites/sessions by index
         Args:
             sites (bool): Whether to list all sites in the experiment by index
             sessions (bool): Whether to list all sessions in each site by index
@@ -327,7 +328,7 @@ class Experiment(object):
             message (str): A formatted string with the message to print
         '''
         message = []
-        message.append('Experiment on {} in {}\n'.format(self.date, self.brainarea))
+        message.append('Experiment on {} in {}\n'.format(self.date, self.brainArea))
         if sites:
             for indSite, site in enumerate(self.sites):
                 #Append the ouput of the pretty_print() func for each site
@@ -361,7 +362,7 @@ class Site(object):
     Attributes:
         subject(str): Name of the subject
         date (str): The date the experiment was conducted
-        brainarea (str): The area of the brain where the recording was conducted
+        brainArea (str): The area of the brain where the recording was conducted
         info (str): Extra info about the experiment
         depth (int): The depth in microns at which the sessions were recorded
         tetrodes (list): Tetrodes for this site
@@ -369,10 +370,10 @@ class Site(object):
         comments (list of str): Comments for this site
         clusterFolder (str): The folder where clustering info will be saved for this site
     '''
-    def __init__(self, subject, date, brainarea, recordingTrack, info, depth, tetrodes):
+    def __init__(self, subject, date, brainArea, recordingTrack, info, depth, tetrodes):
         self.subject=subject
         self.date=date
-        self.brainarea=brainarea
+        self.brainArea=brainArea
         self.recordingTrack = recordingTrack
         self.info=info
         self.depth=depth
@@ -403,7 +404,7 @@ class Site(object):
             date=self.date
         session = Session(self.subject,
                           date,
-                          self.brainarea,
+                          self.brainArea,
                           self.recordingTrack,
                           self.info,
                           self.depth,
@@ -460,7 +461,7 @@ class Site(object):
         infoDict = {
             'subject':self.subject,
             'date':self.date,
-             'brainArea': self.brainarea,
+             'brainArea': self.brainArea,
              'info': self.info,
              'depth':self.depth,
              'ephysTime':[session.timestamp for session in self.sessions],
@@ -505,7 +506,7 @@ class Session(object):
          paradigm (str): The name of the paradigm used to collect the session
          comments (list): list of strings, comments about the session
      '''
-     def __init__(self, subject, date, brainarea, recordingTrack, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
+     def __init__(self, subject, date, brainArea, recordingTrack, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
           self.subject = subject
           self.date = date
           self.depth = depth
