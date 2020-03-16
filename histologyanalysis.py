@@ -20,15 +20,23 @@ import xml.etree.ElementTree as ETree
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import collections
 from jaratoolbox import settings
+
 try:
     import nrrd
-except:
+except ModuleNotFoundError:
     print('Warning! Some methods require the module "nrrd", but it is not installed.')
 
-GRIDCOLOR = [0, 0.5, 0.5]
+try:
+    from allensdk.core.mouse_connectivity_cache import MouseConnectivityCache
+except ModuleNotFoundError:
+    # FIXME Add actual method name when it is decided for database_cell_lcoations
+    print('Warning! Some methods require the module "allensdk", but it is not installed.')
 
+GRIDCOLOR = [0, 0.5, 0.5]
+TETRODETOSHANK = {1: 1, 2: 1, 3: 2, 4: 2, 5: 3, 6: 3, 7: 4, 8: 4}  # hardcoded dictionary of tetrode to shank mapping for probe geometry used in this study
 
 def define_grid(corners, nRows=3, nCols=2):
     '''
@@ -221,7 +229,7 @@ class BrainGrid(OverlayGrid):
         self.side = side
 
     def dir_structure(self, channelLabel):
-        return os.path.join(settings.HISTOLOGY_PATH, self.animalName, self.stackLabel, 
+        return os.path.join(settings.HISTOLOGY_PATH, self.animalName, self.stackLabel,
                             self.side, self.processedDirName, channelLabel)
 
     def corners_file(self):
@@ -688,7 +696,7 @@ def get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, s
 def generate_filenames_for_registration(subject, brainArea, histImage, recordingTrack, shank, atlasZ, outputDir=None):
     '''
     Generates the filenames for all the images used during registration for one recording track.
-    
+
     Args:
         subject (str): name of animal
         brainArea (str): recording area, name must match name of folder is this animal's histology folder
@@ -696,7 +704,7 @@ def generate_filenames_for_registration(subject, brainArea, histImage, recording
         recordingTrack (str): name identifying this recording (commonly by dye)
         shank (int): shank # for this track
         atlasZ (int): slice in Allen atlas that corresponds to our histology image for this recording track
-        
+
     Returns:
         filenameSVG (str): filename where output SVG will be saved
         filenameAtlas (str): filename of the atlas image to be used for registration
@@ -717,7 +725,7 @@ def generate_filenames_for_registration(subject, brainArea, histImage, recording
 
 def save_svg_for_registration(filenameSVG, filenameAtlas, filenameSlice, verbose=True):
     '''Save SVG for manual registration
-    
+
     Returns:'''
     atlasIm = PIL.Image.open(filenameAtlas)
     (atlasWidth, atlasHeight) = atlasIm.size
@@ -736,23 +744,23 @@ def save_svg_for_registration(filenameSVG, filenameAtlas, filenameSlice, verbose
 
 def save_svg_for_registration_one_mouse(subject, **kwargs):
     '''
-    Save all the svgs for manual registration for a single mouse. 
+    Save all the svgs for manual registration for a single mouse.
     The default save location is in settings.HISTOLOGY_PATH/{subject}_processed
-    This function will generate paths to the atlas image (from settings.ATLAS_PATH), 
-        histology image (from settings.HISTOLOGY_PATH/{subject}_processed), and final 
+    This function will generate paths to the atlas image (from settings.ATLAS_PATH),
+        histology image (from settings.HISTOLOGY_PATH/{subject}_processed), and final
         saving location for the pre-registration svg.
-    This function will loop through all the tracks in the subject's tracks file and 
+    This function will loop through all the tracks in the subject's tracks file and
         generate an svg for each one.
-    
+
     Args:
-        subject (str): name of animal. Animal must have a tracks file in infohistology 
-                       detailing information about each recording track, as well as 
+        subject (str): name of animal. Animal must have a tracks file in infohistology
+                       detailing information about each recording track, as well as
                        images in the histology folder corresponding to each penetration.
         outputDir (str): directory in which the registration folders for each brain area
                          are, where the svgs will be saved
-        
+
     Returns:
-        atlasSizes, histSizes (lists): 
+        atlasSizes, histSizes (lists):
     '''
     fileNameInfohist = os.path.join(settings.INFOHIST_PATH, '{}_tracks.py'.format(subject))
     tracks = imp.load_source('tracks_module', fileNameInfohist).tracks
@@ -771,16 +779,16 @@ def save_svg_for_registration_one_mouse(subject, **kwargs):
 
 
 def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
-    ''' 
+    '''
     Get the CCF coordinates of a recording tract and (optionally) any recording sites on the tract.
-    
+
     Returns the x and y coordinates. Will only return site coordinates if both the recording depths and max depth are given.
-    
+
     Args:
         filenameSVG (str): full path to the SVG containing the drawn and aligned recording tract.
         recordingDepths (list): list of ints corresponding to the site depths for this experiment (from inforec)
         maxDepth (int): final penetration depth reached for this experiment
-        
+
     Returns:
         brainSurfCoords (list): CCF x and y coordinates where the tract enters the brain
         tipCoords (list): CCF x and y coordinates for the end of the tract
@@ -822,6 +830,91 @@ def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
             print('WARNING: Please give both recording depths and max depth to get site coordinates.')
 
     return brainSurfCoords, tipCoords, siteCoords
+
+
+def cell_locations(dbCell):
+    """
+    This function takes as argument a pandas DataFrame and adds new columns.
+    The filename should be the full path to where the database will be saved. If a filename is not specified, the database will not be saved.
+
+    This function computes the depths and cortical locations of all cells with suppression indices computed.
+    This function should be run in a virtual environment because the allensdk has weird dependencies that we don't want tainting our computers.
+    """
+
+    # lapPath = os.path.join(settings.ATLAS_PATH, 'AllenCCF_25/coronal_laplacian_25.nrrd')
+    # lapPath = '/mnt/jarahubdata/tmp/coronal_laplacian_25.nrrd'
+    # TODO Edit the lapPath to be something more descriptive of what it actually is. Also should not use laplacian for non-cortical areas
+    lapPath = settings.LAP_PATH
+    lapData = nrrd.read(lapPath)
+    lap = lapData[0]
+
+    mcc = MouseConnectivityCache(resolution=25)
+    rsp = mcc.get_reference_space()
+    rspAnnotationVolumeRotated = np.rot90(rsp.annotation, 1, axes=(2, 0))
+
+    try:
+        pass
+        # FIXME Studyparams import
+        #bestCells = dbCell.query('rsquaredFit>{}'.format(studyparams.R2_CUTOFF))  # calculate depths for all the cells that we quantify as tuned
+    except pd.core.computation.ops.UndefinedVariableError:
+        bestCells = dbCell
+
+    dbCell['recordingSiteName'] = ''  # prefill will empty strings so whole column is strings (no NaNs)
+
+    for dbIndex, dbRow in bestCells.iterrows():
+        subject = dbRow['subject']
+
+        try:
+            fileNameInfohist = os.path.join(settings.INFOHIST_PATH, '{}_tracks.py'.format(subject))
+            tracks = imp.load_source('tracks_module', fileNameInfohist).tracks
+        except IOError:
+            print("No such tracks file: {}".format(fileNameInfohist))
+        else:
+            # TODO Replace this with a more generic way of finding the brain areas for histology saving.
+            brainArea = dbRow['brainArea']
+            if brainArea == 'left_AudStr':
+                brainArea = 'LeftAstr'
+            elif brainArea == 'right_AudStr':
+                brainArea = 'RightAstr'
+            tetrode = dbRow['tetrode']
+            shank = TETRODETOSHANK[tetrode]
+            recordingTrack = dbRow['info'][0]  # This line relies on someone putting track info first in the inforec
+
+            track = next(
+                (track for track in tracks if (track['brainArea'] == brainArea) and (track['shank'] == shank) and (track['recordingTrack'] == recordingTrack)),
+                None)
+
+            if track is not None:
+                histImage = track['histImage']
+
+                filenameSVG = get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank)
+
+                if tetrode % 2 == 0:
+                    depth = dbRow['depth']
+                else:
+                    depth = dbRow['depth'] - 150.0  # odd tetrodes are higher
+
+                brainSurfCoords, tipCoords, siteCoords = get_coords_from_svg(filenameSVG, [depth], dbRow['maxDepth'])
+
+                siteCoords = siteCoords[0]
+
+                atlasZ = track['atlasZ']
+
+                # use allen annotated atlas to figure out where recording site is
+                thisCoordID = rspAnnotationVolumeRotated[int(siteCoords[0]), int(siteCoords[1]), atlasZ]
+                structDict = rsp.structure_tree.get_structures_by_id([thisCoordID])
+                print("This is {}".format(str(structDict[0]['name'])))
+                dbCell.at[dbIndex, 'recordingSiteName'] = structDict[0]['name']
+
+                # Saving the coordinates in the dataframe
+                dbCell.at[dbIndex, 'x-coord'] = siteCoords[0]
+                dbCell.at[dbIndex, 'y-coord'] = siteCoords[1]
+                dbCell.at[dbIndex, 'z-coord'] = atlasZ
+
+            else:
+                print(subject, brainArea, shank, recordingTrack)
+
+    return dbCell
 
 
 # if __name__=='__main__':

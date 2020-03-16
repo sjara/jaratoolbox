@@ -425,4 +425,3 @@ if __name__ == '__main__':
     rdata = np.random.randint(0, 9, (10, 3, 3))
     dataList = [(m,) for m in rdata]
     ft = FlipThrough(plt.imshow, dataList)
-

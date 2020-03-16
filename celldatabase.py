@@ -18,7 +18,7 @@ Version 0.0 was when we were still saving using pandas. (For example: 2018thstr 
 Version 1.0 was the first iteration of celldatabase.save_hdf used in python 2.7. (For example: 2018acsup project)
 The above versions do not have a saved attribute in the file indicating what the version of the saved db is.
 
-Version 2.0 is the first version of celldb that has an attribute saved to the h6 file that specifies what version of
+Version 2.0 is the first version of celldb that has an attribute saved to the h5 file that specifies what version of
 jaratoolbox.celldatabase was used to save it as 'celldb_version' on line 708.
 """
 CELLDB_VERSION = '2.0'
@@ -272,19 +272,21 @@ class Experiment(object):
     Attributes:
         subject(str): Name of the subject
         date (str): The date the experiment was conducted
-        brainarea (str): The area of the brain where the recording was conducted
+        brainArea (str): The area of the brain where the recording was conducted
+        recordingTrack (str): The location and dye used for a penetration. Ex: anteriorDiD
         sites (list): A list of all recording sites for this experiment
         info (str): Extra info about the experiment
         tetrodes (list): Default tetrodes for this experiment
     TODO: Fail gracefully if the experimenter tries to add sessions without adding a site first
     TODO: Should the info attr be a dictionary?
     '''
-    def __init__(self, subject, date, brainarea, info=''):
-        self.subject=subject
-        self.date=date
-        self.brainarea=brainarea
-        self.info=info
-        self.sites=[]
+    def __init__(self, subject, date, brainArea, recordingTrack='', info=''):
+        self.subject = subject
+        self.date = date
+        self.brainArea = brainArea
+        self.recordingTrack = recordingTrack
+        self.info = info
+        self.sites = []
         self.tetrodes = [1,2,3,4,5,6,7,8]
         self.maxDepth = None
         self.shankEnds = None
@@ -303,7 +305,7 @@ class Experiment(object):
             date = self.date
         if tetrodes is None:
             tetrodes = self.tetrodes
-        site=Site(self.subject, date, self.brainarea, self.info, depth, tetrodes)
+        site=Site(self.subject, date, self.brainArea, self.recordingTrack, self.info, depth, tetrodes)
         self.sites.append(site)
         return site
     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
@@ -329,7 +331,7 @@ class Experiment(object):
         return session
     def pretty_print(self, sites=True, sessions=False):
         '''
-        Print a string with date, brainarea, and optional list of sites/sessions by index
+        Print a string with date, brainArea, and optional list of sites/sessions by index
         Args:
             sites (bool): Whether to list all sites in the experiment by index
             sessions (bool): Whether to list all sessions in each site by index
@@ -337,7 +339,7 @@ class Experiment(object):
             message (str): A formatted string with the message to print
         '''
         message = []
-        message.append('Experiment on {} in {}\n'.format(self.date, self.brainarea))
+        message.append('Experiment on {} in {}\n'.format(self.date, self.brainArea))
         if sites:
             for indSite, site in enumerate(self.sites):
                 #Append the ouput of the pretty_print() func for each site
@@ -371,7 +373,7 @@ class Site(object):
     Attributes:
         subject(str): Name of the subject
         date (str): The date the experiment was conducted
-        brainarea (str): The area of the brain where the recording was conducted
+        brainArea (str): The area of the brain where the recording was conducted
         info (str): Extra info about the experiment
         depth (int): The depth in microns at which the sessions were recorded
         tetrodes (list): Tetrodes for this site
@@ -379,10 +381,11 @@ class Site(object):
         comments (list of str): Comments for this site
         clusterFolder (str): The folder where clustering info will be saved for this site
     '''
-    def __init__(self, subject, date, brainarea, info, depth, tetrodes):
+    def __init__(self, subject, date, brainArea, recordingTrack, info, depth, tetrodes):
         self.subject=subject
         self.date=date
-        self.brainarea=brainarea
+        self.brainArea=brainArea
+        self.recordingTrack = recordingTrack
         self.info=info
         self.depth=depth
         self.tetrodes = tetrodes
@@ -412,7 +415,8 @@ class Site(object):
             date=self.date
         session = Session(self.subject,
                           date,
-                          self.brainarea,
+                          self.brainArea,
+                          self.recordingTrack,
                           self.info,
                           self.depth,
                           self.tetrodes,
@@ -468,7 +472,7 @@ class Site(object):
         infoDict = {
             'subject':self.subject,
             'date':self.date,
-             'brainArea': self.brainarea,
+             'brainArea': self.brainArea,
              'info': self.info,
              'depth':self.depth,
              'ephysTime':[session.timestamp for session in self.sessions],
@@ -513,7 +517,7 @@ class Session(object):
          paradigm (str): The name of the paradigm used to collect the session
          comments (list): list of strings, comments about the session
      '''
-     def __init__(self, subject, date, brainarea, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
+     def __init__(self, subject, date, brainArea, recordingTrack, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
           self.subject = subject
           self.date = date
           self.depth = depth
@@ -670,7 +674,6 @@ def find_cell(database, subject, date, depth, tetrode, cluster):
      '''
      Find a cell in the database.
      Returns (index, pandasSeries)
-     Returns (index, pandasSeries)
      '''
      cell = database.query('subject==@subject and date==@date and depth==@depth and tetrode==@tetrode and cluster==@cluster')
      if len(cell)>1:
@@ -722,8 +725,8 @@ def save_hdf(dframe, filename):
                 arraydata = dframe[onecol].values
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
             elif isinstance(onevalue, str):
-                #TODO Add a fix to allow this function to save unicode strings when working in python 2.7
-                # Currently this error can be geenrated by saving cell locations while workin in 2.7
+                # TODO: Add a fix to allow this function to save unicode strings when working in python 2.7
+                #   Currently this error can be geenrated by saving cell locations while workin in 2.7
 		# We used to save this astype(str) not astype(string_dt)
                 arraydata = dframe[onecol].values.astype(string_dt)
                 dset = dbGroup.create_dataset(onecol, data=arraydata, dtype = string_dt)
@@ -767,9 +770,10 @@ def load_hdf(filename, root='/'):
         if varvalue.dtype==np.object:
             try:
                 dataAsList = [ast.literal_eval("{}".format(v)) for v in varvalue]
-            except (ValueError):
-                # If a list of strings contains a non-string (like None)
-                # we need to put it inside quotes as we use a system of double quotes to save the
+            except (ValueError, SyntaxError):
+                # ValueError: If a list of strings contains a non-string (like None)
+                # Passing something like '2019-01-02' above will result in ast.parse not being able
+                # to convert it into a string, and it gives a SyntaxError. ast.parse requires it to be passed as "'2019-01-02'" to work
                 dataAsList = [ast.literal_eval('"{}"'.format(v)) for v in varvalue]
             dbDict[varname] = dataAsList
     h5file.close()

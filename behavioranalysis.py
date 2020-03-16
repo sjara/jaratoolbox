@@ -520,7 +520,6 @@ def equalized_trial_count(nTrialsEachCondition, fraction):
     return equalizedTrialCount
 
 
-
 if __name__ == "__main__":
 
     CASE = 6

@@ -62,7 +62,7 @@ def calculate_avg_waveforms(subject, ephysSession, tetrode, clustersPerTetrode=1
     # DONE: loop through clusters
     allWaveforms = np.empty((clustersPerTetrode,wavesize))
     for indc in range(clustersPerTetrode):
-        print 'Estimating average waveform for {0} T{1}c{2}'.format(ephysSession,tetrode,indc+1)
+        print('Estimating average waveform for {0} T{1}c{2}'.format(ephysSession,tetrode,indc+1))
 
         # DONE: get waveforms for one cluster
         #Add 1 to the cluster index because clusters start from 1
