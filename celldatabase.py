@@ -262,7 +262,7 @@ class Experiment(object):
         subject(str): Name of the subject
         date (str): The date the experiment was conducted
         brainArea (str): The area of the brain where the recording was conducted
-        recordingTrack (str):
+        recordingTrack (str): The location and dye used for a penetration. Ex: anteriorDiD
         sites (list): A list of all recording sites for this experiment
         info (str): Extra info about the experiment
         tetrodes (list): Default tetrodes for this experiment
