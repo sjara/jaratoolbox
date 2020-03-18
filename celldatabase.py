@@ -470,15 +470,16 @@ class Site(object):
             infoDict (dict): dictionary containing info defining clusters that come from this site
         '''
         infoDict = {
-            'subject':self.subject,
-            'date':self.date,
-             'brainArea': self.brainArea,
-             'info': self.info,
-             'depth':self.depth,
-             'ephysTime':[session.timestamp for session in self.sessions],
-             'paradigm':[session.paradigm for session in self.sessions],
-             'behavSuffix':[session.behavsuffix for session in self.sessions],
-             'sessionType':[session.sessiontype for session in self.sessions]
+            'subject': self.subject,
+            'date': self.date,
+            'brainArea': self.brainArea,
+            'recordingTrack': self.recordingTrack,
+            'info': self.info,
+            'depth': self.depth,
+            'ephysTime': [session.timestamp for session in self.sessions],
+            'paradigm': [session.paradigm for session in self.sessions],
+            'behavSuffix': [session.behavsuffix for session in self.sessions],
+            'sessionType': [session.sessiontype for session in self.sessions]
         }
         return infoDict
 
@@ -711,7 +712,7 @@ def save_hdf(dframe, filename):
     # try:
     if 1:
         dbGroup = h5file.require_group('/') # database
-	dbGroup.attrs['celldb_version'] = CELLDB_VERSION
+        dbGroup.attrs['celldb_version'] = CELLDB_VERSION
         for onecol in dframe.columns:
             onevalue = dframe.iloc[0][onecol]
             if isinstance(onevalue, np.ndarray):
@@ -727,7 +728,7 @@ def save_hdf(dframe, filename):
             elif isinstance(onevalue, str):
                 # TODO: Add a fix to allow this function to save unicode strings when working in python 2.7
                 #   Currently this error can be geenrated by saving cell locations while workin in 2.7
-		# We used to save this astype(str) not astype(string_dt)
+                # We used to save this astype(str) not astype(string_dt)
                 arraydata = dframe[onecol].values.astype(string_dt)
                 dset = dbGroup.create_dataset(onecol, data=arraydata, dtype = string_dt)
             elif isinstance(onevalue, list):

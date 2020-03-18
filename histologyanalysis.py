@@ -832,7 +832,7 @@ def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
     return brainSurfCoords, tipCoords, siteCoords
 
 
-def cell_locations(dbCell):
+def cell_locations(dbCell, filterCondtions=None, brainAreaDict=None):
     """
     This function takes as argument a pandas DataFrame and adds new columns.
     The filename should be the full path to where the database will be saved. If a filename is not specified, the database will not be saved.
@@ -844,19 +844,17 @@ def cell_locations(dbCell):
     # lapPath = os.path.join(settings.ATLAS_PATH, 'AllenCCF_25/coronal_laplacian_25.nrrd')
     # lapPath = '/mnt/jarahubdata/tmp/coronal_laplacian_25.nrrd'
     # TODO Edit the lapPath to be something more descriptive of what it actually is. Also should not use laplacian for non-cortical areas
-    lapPath = settings.LAP_PATH
-    lapData = nrrd.read(lapPath)
-    lap = lapData[0]
+    # lapPath = settings.LAP_PATH
+    # lapData = nrrd.read(lapPath)
+    # lap = lapData[0]
 
     mcc = MouseConnectivityCache(resolution=25)
     rsp = mcc.get_reference_space()
     rspAnnotationVolumeRotated = np.rot90(rsp.annotation, 1, axes=(2, 0))
 
-    try:
-        pass
-        # FIXME Studyparams import
-        #bestCells = dbCell.query('rsquaredFit>{}'.format(studyparams.R2_CUTOFF))  # calculate depths for all the cells that we quantify as tuned
-    except pd.core.computation.ops.UndefinedVariableError:
+    if filterCondtions:
+        bestCells = dbCell.query(filterCondtions)
+    else:
         bestCells = dbCell
 
     dbCell['recordingSiteName'] = ''  # prefill will empty strings so whole column is strings (no NaNs)
@@ -872,13 +870,18 @@ def cell_locations(dbCell):
         else:
             # TODO Replace this with a more generic way of finding the brain areas for histology saving.
             brainArea = dbRow['brainArea']
-            if brainArea == 'left_AudStr':
-                brainArea = 'LeftAstr'
-            elif brainArea == 'right_AudStr':
-                brainArea = 'RightAstr'
+            if brainAreaDict:
+                for key in brainAreaDict:
+                    if brainArea == key:
+                        brainArea = brainAreaDict[key]
+            # brainArea = dbRow['brainArea']
+            # if brainArea == 'left_AudStr':
+            #     brainArea = 'LeftAstr'
+            # elif brainArea == 'right_AudStr':
+            #     brainArea = 'RightAstr'
             tetrode = dbRow['tetrode']
             shank = TETRODETOSHANK[tetrode]
-            recordingTrack = dbRow['info'][0]  # This line relies on someone putting track info first in the inforec
+            recordingTrack = dbRow['recordingTrack']  # This line relies on someone putting track info first in the inforec
 
             track = next(
                 (track for track in tracks if (track['brainArea'] == brainArea) and (track['shank'] == shank) and (track['recordingTrack'] == recordingTrack)),
