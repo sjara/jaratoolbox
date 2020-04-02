@@ -363,14 +363,14 @@ def plot_waveforms(waveforms,ntraces=40,fontsize=8):
         newXrange = xRange+indc*(nSamplesPerSpike+2)
         wavesToPlot = alignedWaveforms[:,indc,:].T
         wave = plt.plot(newXrange,wavesToPlot,color='k',lw=0.4,clip_on=False)
-        plt.hold(True)
+        # plt.hold(True)
         meanWave, = plt.plot(newXrange,meanWaveforms[indc,:],color='0.75',lw=1.5,clip_on=False)
         allWaves.append(wave)
         meanWaves.append(meanWave)
     scaleBar, = plt.plot(2*[-7],[0,-scalebarSize],color='0.5',lw=2)
     plt.text(-10,-scalebarSize/2,'{0:0.0f}uV'.format(np.round(scalebarSize)),
              ha='right',va='center',ma='center',fontsize=fontsize)
-    plt.hold(False)
+    # plt.hold(False)
     plt.axis('off')
 
     return allWaves, meanWaves, scaleBar
