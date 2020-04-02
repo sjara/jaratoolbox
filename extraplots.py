@@ -137,19 +137,19 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
     pRaster = []
     ax = plt.gca()
     zline = plt.axvline(0, color='0.75', zorder=-10)
-    plt.hold(True)  # As of matplotlib 2.0, plt.hold is unecessary and was completely removed as axes are held until specified not to be
+    # plt.hold(True)  # As of matplotlib 2.0, plt.hold is unecessary and was completely removed as axes are held until specified not to be
 
     for indcond in range(nCond):
         pRasterOne, = plt.plot(spikeTimesEachCond[indcond],
-                            trialIndexEachCond[indcond]+firstTrialEachCond[indcond], '.k',
-                            rasterized=True)
+                               trialIndexEachCond[indcond]+firstTrialEachCond[indcond], '.k',
+                               rasterized=True)
         pRaster.append(pRasterOne)
         ypos = np.array([firstTrialEachCond[indcond],firstTrialEachCond[indcond],
                          lastTrialEachCond[indcond],lastTrialEachCond[indcond]])-0.5
         hcond.extend(plt.fill(xpos,ypos,ec='none',fc=colorEachCond[indcond]))
         hcond.extend(plt.fill(xpos+np.diff(timeRange)-fillWidth, ypos, ec='none',
                               fc=colorEachCond[indcond]))
-    plt.hold(False)  # As of matplotlib 2.0, plt.hold is unecessary and was completely removed as axes are held until specified not to be
+    # plt.hold(False)  # As of matplotlib 2.0, plt.hold is unecessary and was completely removed as axes are held until specified not to be
 
     plt.xlim(timeRange)
     plt.ylim(-0.5,lastTrialEachCond[-1]-0.5)
@@ -159,7 +159,7 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
         ax.set_yticks(labelsPos)
         ax.set_yticklabels(labels)
 
-    return pRaster,hcond,zline
+    return pRaster, hcond, zline
 
 
 def plot_psth(spikeCountMat, smoothWinSize, binsStartTime, trialsEachCond=[],
@@ -291,7 +291,7 @@ def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSiz
     starString: if defined, use this string instead of a marker. In this case fontsize=starSize
     """
     nStars=1  # I haven't implemented plotting more than one star.
-    plt.hold(True)  # FIXME: Use holdState
+    # plt.hold(True)  # FIXME: Use holdState
     xGap = gapFactor*nStars
     xVals = [xRange[0], xRange[0],
              np.mean(xRange)-xGap*np.diff(xRange), np.nan,
@@ -309,7 +309,7 @@ def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSiz
     else:
         hs = plt.text(starsXvals, yPos, starString, fontsize=starSize,
                       va='center', ha='center', color=color, clip_on=False)
-    plt.hold(False)
+    # plt.hold(False)
     return [hs, hlines]
 
 
@@ -323,7 +323,7 @@ def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fon
     if ax == None:
         ax = plt.gca()
     nStars = 1  # I haven't implemented plotting more than one star.
-    plt.hold(True)  # FIXME: Use holdState
+    # plt.hold(True)  # FIXME: Use holdState
     xGap = gapFactor*nStars
     xVals = [xRange[0], xRange[0],
              np.mean(xRange)-xGap*np.diff(xRange), np.nan,
@@ -338,7 +338,7 @@ def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fon
     # hs, = plt.plot(starsXvals,np.tile(yPos,nStars),
     #                starMarker,mfc=color, mec='None')
     ax.text(starsXvals, yPos, starMarker, fontsize=fontSize, va='center', ha='center', clip_on=False)
-    plt.hold(False)
+    # plt.hold(False)
 
 
 def spread_plot(xVal, yVals, spacing):
