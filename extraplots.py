@@ -210,7 +210,7 @@ def plot_psychometric(possibleValues, fractionHitsEachValue, ciHitsEachValue=Non
         pbars = None
     pdots = plt.plot(possibleValues, 100*fractionHitsEachValue, 'o', mec='none', mfc='k', ms=8)
     plt.setp(pline, lw=2)
-    plt.axhline(y=50, color='0.5', ls='--')
+    #plt.axhline(y=50, color='0.5', ls='--')
     ax = plt.gca()
     ax.set_xscale(xscale)
     if xTicks is None:
@@ -370,7 +370,8 @@ def save_figure(filename, fileformat, figsize, outputDir='./', facecolor='none')
     plt.gcf().set_size_inches(figsize)
     figName = filename+'.{0}'.format(fileformat)
     fullName = os.path.join(outputDir, figName)
-    plt.gcf().set_frameon(False)
+    if facecolor is 'none':
+        plt.gcf().set_frameon(False)
     plt.savefig(fullName, format=fileformat, facecolor=facecolor)
     plt.gcf().set_frameon(True)
     print('Figure saved to {0}'.format(fullName))
