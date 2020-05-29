@@ -93,10 +93,13 @@ def find_trials_each_type_each_block(psyCurveParameter,psyCurveParameterPossible
     return trialsEachType
 
 
-def find_missing_trials(ephysEventTimes,behavEventTimes,threshold=0.5):
+def find_missing_trials(ephysEventTimes, behavEventTimes, threshold=0.05):
     '''
     Verify that the number of trials in behavior data is the same as ephys data.
-    threshold (sec): max difference between ephys time and behav time.
+    Args:
+        ephysEventTimes (list): event times from ephys data.
+        behavEventTimes (list): event times from behavior data.
+        threshold (float): max difference between ephys time and behav time (in seconds).
     '''
     evEphys = ephysEventTimes-ephysEventTimes[0]
     evBehav = behavEventTimes-behavEventTimes[0]
@@ -105,7 +108,7 @@ def find_missing_trials(ephysEventTimes,behavEventTimes,threshold=0.5):
     missingTrials = []
     while True:
         tDiff = evBehav[tRange]-evEphys[tRange]
-        firstIndex = np.flatnonzero(abs(tDiff)>0.4)  # HARDCODED!
+        firstIndex = np.flatnonzero(abs(tDiff)>threshold) 
         if len(firstIndex):
             missingTrials.append(firstIndex[0]+len(missingTrials))
             evBehav = np.delete(evBehav,firstIndex[0])
