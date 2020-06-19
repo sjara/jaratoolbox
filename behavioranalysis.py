@@ -120,17 +120,31 @@ def find_missing_trials(ephysEventTimes, behavEventTimes, threshold=0.05):
     return missingTrials
 
 
-def load_many_sessions(animalNames,sessions,paradigm='2afc',loadingClass=None,datesRange=None):
+def load_many_sessions(subjects,sessions,paradigm='2afc',loadingClass=None,datesRange=None):
     '''
-    Based on behavioranalysis.save_many_sessions_reversal()
-    loadingClass can be something like loadbehavior.FlexCategBehaviorData
+    Load multiple behavior files.
+
+    The returned dict is similar to that returned by loadbehavior.BehaviorData,
+    but with two additional keys: 'sessionID' and 'subjectID', which contain the
+    session index and subject index respectively for each trial.
+
+    Args:
+        subjects (list): List of strings containing subjects.
+        sessions (list): List of strings containing sessions to load.
+        paradigm (str): name of paradigm.
+        loadingClass (class): can be something like loadbehavior.FlexCategBehaviorData.
+        datesRange (list): 2-item list of sessions defining a range of sessions to load.
+
+    Returns:
+        allBehavData (dict): similar to the output of loadbehavior.BehaviorData() but
+                             with two additional keys: 'sessionID' and 'subjectID'.
 
     TO DO:
     - Add params='all', (it depends on loadbehavior.FlexCateg being able to load a subset of vars)
     - What to do if a parameter only exists for some sessions?
     '''
-    if isinstance(animalNames,str):
-        animalNames = [animalNames]
+    if isinstance(subjects,str):
+        subjects = [subjects]
     if datesRange:
         datesLims = [parse_isodate(dateStr) for dateStr in datesRange]
         allDates = [datesLims[0]+datetime.timedelta(n) \
@@ -138,7 +152,7 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',loadingClass=None,da
         allSessions = [oneDate.strftime('%Y%m%da') for oneDate in allDates]
     else:
         allSessions = sessions
-    nAnimals = len(animalNames)
+    nSubjects = len(subjects)
     if loadingClass==None:
         loadingClass = loadbehavior.BehaviorData
     
@@ -150,13 +164,13 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',loadingClass=None,da
 
     #allBehavData = {}
     #allBehavData['sessionID'] = np.empty(0,dtype='i2')
-    #allBehavData['animalID'] = np.empty(0,dtype='i1')
+    #allBehavData['subjectID'] = np.empty(0,dtype='i1')
 
     inds=0
-    for inda,animalName in enumerate(animalNames):
+    for inda,subjectName in enumerate(subjects):
         for inds,thisSession in enumerate(allSessions):
             try:
-                behavFile = loadbehavior.path_to_behavior_data(animalName,paradigm,thisSession)
+                behavFile = loadbehavior.path_to_behavior_data(subjectName,paradigm,thisSession)
                 behavData = loadingClass(behavFile,readmode=readmode)
             except IOError:
                 print(thisSession+' does not exist')
@@ -165,7 +179,7 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',loadingClass=None,da
                 allBehavData = behavData  # FIXME: Should it be .copy()?
                 nTrials = len(behavData['outcome']) # FIXME: what if this key does not exist?
                 allBehavData['sessionID'] = np.zeros(nTrials,dtype='i2')
-                allBehavData['animalID'] = np.zeros(nTrials,dtype='i1')
+                allBehavData['subjectID'] = np.zeros(nTrials,dtype='i1')
             else:
                 for key,val in behavData.items():
                     if not (key in allBehavData):
@@ -175,7 +189,7 @@ def load_many_sessions(animalNames,sessions,paradigm='2afc',loadingClass=None,da
                 nTrials = len(behavData['outcome']) # FIXME: what if this key does not exist?
                 allBehavData['sessionID'] = np.concatenate((allBehavData['sessionID'],
                                                             np.tile(inds,nTrials)))
-                allBehavData['animalID'] = np.concatenate((allBehavData['animalID'],
+                allBehavData['subjectID'] = np.concatenate((allBehavData['subjectID'],
                                                             np.tile(inda,nTrials)))
             inds += 1
     return allBehavData
