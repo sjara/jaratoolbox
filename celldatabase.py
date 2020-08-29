@@ -547,9 +547,9 @@ def load_hdf(filename, root='/'):
                 dbDict[varname] = varvalue[...]
             else:
                 dbDict[varname] = list(varvalue[...])  # If it is an array
-        if varvalue.dtype.kind == 'S':
+        elif varvalue.dtype.kind == 'S':
             dbDict[varname] = varvalue[...]
-        if varvalue.dtype == np.object:
+        elif varvalue.dtype == np.object:
             try:
                 dataAsList = [ast.literal_eval("{}".format(v)) for v in varvalue]
             except (ValueError, SyntaxError):
@@ -558,6 +558,9 @@ def load_hdf(filename, root='/'):
                 # to convert it into a string, and it gives a SyntaxError. ast.parse requires it to be passed as "'2019-01-02'" to work
                 dataAsList = [ast.literal_eval('"{}"'.format(v)) for v in varvalue]
             dbDict[varname] = dataAsList
+        else:
+            #raise ValueError('Data type {} for variable {} is not recognized by celldatabase.'.format(varvalue.dtype,varname))
+            print('Warning! Data type "{}" for variable "{}" is not recognized by celldatabase.'.format(varvalue.dtype,varname))
     h5file.close()
     return pd.DataFrame(dbDict)
 
