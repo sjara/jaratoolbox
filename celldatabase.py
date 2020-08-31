@@ -542,7 +542,8 @@ def load_hdf(filename, root='/'):
         raise
     for varname, varvalue in h5file[root].items():
         # If an error occurs regarding malformed strings, it is because we used to save as strings not string_dt in save_hdf()
-        if varvalue.dtype == np.int or varvalue.dtype == np.float:
+        # NOTE: It looks liek in Windows int64 is not recognized as int, so we need to check it here:
+        if varvalue.dtype == np.int or varvalue.dtype == np.int64 or varvalue.dtype == np.float:
             if len(varvalue.shape) == 1:
                 dbDict[varname] = varvalue[...]
             else:
