@@ -79,30 +79,6 @@ class SoundAnalysis(object):
         """
         Display spectrogram.
         """
-        '''
-        [sgramF, sgramT, sgramV] = scipy.signal.stft(self.wave, fs=self.samplingRate,
-                                       window=window, nperseg=nfft, noverlap=noverlap)
-        INTERP = 'nearest'
-        sgramVsq = np.abs(sgramV**2)
-        minVal =  np.min(sgramVsq[sgramVsq!=0])
-        sgramVsq[sgramVsq==0] = minVal
-        sgramVals = np.log10(sgramVsq)
-        
-        intensityRange = sgramVals.max()-sgramVals.min()
-        VMAX=None; VMIN = sgramVals.min()+0.25*intensityRange
-        #plt.clf()
-        plt.imshow(sgramVals, cmap='viridis', aspect='auto',
-                   interpolation=INTERP, vmin=VMIN, vmax=VMAX,
-                   extent=(sgramT[0],sgramT[-1],sgramF[-1],sgramF[0]))
-        #plt.ylim(np.array([200,0]))
-        plt.gca().invert_yaxis()
-        plt.xlabel('Time (s)')
-        plt.ylabel('Frequency (Hz)')
-        cbar = plt.colorbar()
-        #cbar.set_label('log(A^2)', rotation=270)
-        cbar.set_label('log(A)')
-        #plt.show()
-        '''
         (sgramF, sgramT, sgramV) = plot_spectrogram(self.wave, self.samplingRate,
                                                     window, nfft, noverlap)
         return (sgramF, sgramT, sgramV)
