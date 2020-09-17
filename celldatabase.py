@@ -500,6 +500,7 @@ def save_hdf(dframe, filename):
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
             elif isinstance(onevalue, int) or \
                 isinstance(onevalue, np.int64) or \
+                isinstance(onevalue, np.int32) or \
                 isinstance(onevalue, float) or \
                 isinstance(onevalue, bool) or \
                     isinstance(onevalue, np.bool_):
