@@ -15,9 +15,113 @@ import scipy.signal
 from matplotlib import pyplot as plt
 
 DEFAULT_COMPRESSION = 0.3
+DOWNSAMPLE_FACTOR = 50
+
+def plot_spectrum(wave, samplingRate, dc=True, maxFreq=None):
+    '''
+    dc: If False, it will not plot the DC component.
+    '''
+    signalFFT = np.fft.fft(wave)
+    fvec = np.fft.fftfreq(len(wave), 1/samplingRate)
+    if dc:
+        samplesToPlot = (fvec>=0)
+    else:
+        samplesToPlot = (fvec>0)
+    if maxFreq is not None:
+        samplesToPlot = samplesToPlot & (fvec<=maxFreq)
+    plt.plot(fvec[samplesToPlot],np.log10(np.abs(signalFFT[samplesToPlot])))
+    return (fvec, signalFFT)
+
+
+def plot_spectrogram(wave, samplingRate, window='hanning', nfft=2048, noverlap=1024):
+    """
+    Display spectrogram.
+    """
+    [sgramF, sgramT, sgramV] = scipy.signal.stft(wave, fs=samplingRate,
+                                   window=window, nperseg=nfft, noverlap=noverlap)
+    INTERP = 'nearest'
+    sgramVsq = np.abs(sgramV**2)
+    minVal =  np.min(sgramVsq[sgramVsq!=0])
+    sgramVsq[sgramVsq==0] = minVal
+    sgramVals = np.log10(sgramVsq)
+
+    intensityRange = sgramVals.max()-sgramVals.min()
+    VMAX=None; VMIN = sgramVals.min()+0.25*intensityRange
+    #plt.clf()
+    plt.imshow(sgramVals, cmap='viridis', aspect='auto',
+               interpolation=INTERP, vmin=VMIN, vmax=VMAX,
+               extent=(sgramT[0],sgramT[-1],sgramF[-1],sgramF[0]))
+    #plt.ylim(np.array([200,0]))
+    plt.gca().invert_yaxis()
+    plt.xlabel('Time (s)')
+    plt.ylabel('Frequency (Hz)')
+    cbar = plt.colorbar()
+    #cbar.set_label('log(A^2)', rotation=270)
+    cbar.set_label('log(A)')
+    #plt.show()
+    return (sgramF, sgramT, sgramV)
+        
+    
+def play_waveform(waveform, samplingRate, amp=1):
+    '''NOTE: This function is designed for Linux systems only.'''
+    tempFile = '/tmp/tempsound.wav'
+    wave16bit = (amp*waveform).astype('int16')
+    scipy.io.wavfile.write(tempFile, samplingRate, wave16bit)
+    os.system('aplay {}'.format(tempFile))
+    
+        
+def hertz_to_erbs(freqHz):
+    """
+    Return number of equivalent rectangular bandwidths below the given frequency.
+
+    Glasberg & Moore (1990) Eq.4 (with freq in Hz)
+    https://en.wikipedia.org/wiki/Equivalent_rectangular_bandwidth
+    """
+    return 21.4 * np.log10(1 + 0.00437*freqHz)
+
+
+def erbs_to_hertz(nERBs):
+    """
+    Return frequency with nERBs equivalent rectangular bandwidths below it.
+
+    Inverse of Eq.4 (with freq in Hz) from Glasberg & Moore (1990) 
+    https://en.wikipedia.org/wiki/Equivalent_rectangular_bandwidth
+    """
+    return (10**(nERBs/21.4)-1)/0.00437
+
+
+def voss(nrows, ncols=16):
+    """Generates pink noise using the Voss-McCartney algorithm.
+
+    https://github.com/AllenDowney/ThinkDSP/blob/master/code/voss.ipynb
+
+    nrows: number of values to generate
+    rcols: number of random sources to add
+    
+    returns: NumPy array
+    """
+    import pandas as pd   # FIXME: imported here during testing
+    array = np.full((nrows, ncols), np.nan)
+    array[0, :] = np.random.random(ncols)
+    array[:, 0] = np.random.random(nrows)
+    
+    # the total number of changes is nrows
+    n = nrows
+    cols = np.random.geometric(0.5, n)
+    cols[cols >= ncols] = 0
+    rows = np.random.randint(nrows, size=n)
+    array[rows, cols] = np.random.random(n)
+
+    df = pd.DataFrame(array)
+    df.fillna(method='ffill', axis=0, inplace=True)
+    total = df.sum(axis=1)
+
+    return total.values
+
 
 class StepError(Exception):
     pass
+
 
 class SoundAnalysis(object):
     """
@@ -54,9 +158,6 @@ class SoundAnalysis(object):
         self.bandsEnvelopesTimeVec = []
         #self.bandsEnvelopesCompressed = False # Will be set to True after compression
         
-        # FIXME: is this really necessary?
-        self.logBandsEnvelopes = []
-
         # -- Stats --
         #self.bandsStats = {'mean':[], 'var':[], 'skew':[]}
         self.bandsStats = {}
@@ -83,11 +184,20 @@ class SoundAnalysis(object):
                                                     window, nfft, noverlap)
         return (sgramF, sgramT, sgramV)
         
-    def play_original(self):
+    def play(self, amp=1):
         """
-        Play sound (using Linux ALSA player).
+        Play sound waveform.
         """
-        os.system('aplay {}'.format(self.filename))
+        play_waveform(self.wave, self.samplingRate, amp=amp)
+            
+    def play_from_file(self):
+        """
+        Play sound file (using Linux ALSA player).
+        """
+        if filename:
+            os.system('aplay {}'.format(self.filename))
+        else:
+            print('No sound file associated with this object')
 
     def apply_filterbank(self, fbankTF):
         """
@@ -125,11 +235,17 @@ class SoundAnalysis(object):
         if downsampleFactor!=1:
             self.bandsEnvelopes = scipy.signal.decimate(self.bandsEnvelopes, downsampleFactor,
                                                        axis=1, zero_phase=True)
+            # Decimating caould create negative numbers, but envelopes must be non-negative.
+            self.bandsEnvelopes[self.bandsEnvelopes<0]=0
         self.bandsEnvelopesTimeVec = self.timeVec[::downsampleFactor]
-        self.logBandsEnvelopes = np.log10(self.bandsEnvelopes)
         return self.get_bands_envelopes()
     
     def get_bands_envelopes(self):
+        """
+        Returns:
+            Time vector
+            Envelope for each band
+        """
         if not len(self.bandsEnvelopes):
             raise StepError('Before get_bands_envelopes(), you need to calculate_bands_envelopes().')
         return (self.bandsEnvelopesTimeVec, self.bandsEnvelopes)
@@ -177,15 +293,16 @@ class SoundAnalysis(object):
             raise StepError('Before plot_bands_distributions(), you need to calculate_bands_envelopes().')
         plt.clf()
         maxBin = np.percentile(self.bandsEnvelopes[:],99.99)
+        firstAx = plt.subplot(self.nBands,1,self.nBands)
         for indband in range(self.nBands):
-            thisAx = plt.subplot(self.nBands,1,self.nBands-indband)
+            thisAx = plt.subplot(self.nBands,1,self.nBands-indband, sharex=firstAx)
             bins = np.linspace(0,maxBin,100)
             plt.hist(self.bandsEnvelopes[indband,:],bins)
             plt.ylabel('Band {}'.format(indband))
             if indband==0:
                 plt.xlabel('Envelope value')
             else:
-                thisAx.set_xticklabels([])
+                pass#thisAx.set_xticklabels([])
         plt.show()
         
     def calculate_bands_stats(self):
@@ -232,84 +349,12 @@ class SoundAnalysis(object):
         if verbose: print('Applying filterbank...')
         self.apply_filterbank(fbank.get_transfer_function())
         if verbose: print('Calculating envelopes...')
-        self.calculate_bands_envelopes()
+        self.calculate_bands_envelopes(DOWNSAMPLE_FACTOR)
         if verbose: print('Applying compression...')
         self.apply_compression()
         if verbose: print('Calculating statistics...')
         bandStats = self.calculate_bands_stats()
         return (bandStats,fbank)
-
-def plot_spectrum(wave, samplingRate, dc=True, maxFreq=None):
-    '''
-    dc: If False, it will not plot the DC component.
-    '''
-    signalFFT = np.fft.fft(wave)
-    fvec = np.fft.fftfreq(len(wave), 1/samplingRate)
-    if dc:
-        samplesToPlot = (fvec>=0)
-    else:
-        samplesToPlot = (fvec>0)
-    if maxFreq is not None:
-        samplesToPlot = samplesToPlot & (fvec<=maxFreq)
-    plt.plot(fvec[samplesToPlot],np.log10(np.abs(signalFFT[samplesToPlot])))
-    return (fvec, signalFFT)
-
-
-def plot_spectrogram(wave, samplingRate, window='hanning', nfft=2048, noverlap=1024):
-    """
-    Display spectrogram.
-    """
-    [sgramF, sgramT, sgramV] = scipy.signal.stft(wave, fs=samplingRate,
-                                   window=window, nperseg=nfft, noverlap=noverlap)
-    INTERP = 'nearest'
-    sgramVsq = np.abs(sgramV**2)
-    minVal =  np.min(sgramVsq[sgramVsq!=0])
-    sgramVsq[sgramVsq==0] = minVal
-    sgramVals = np.log10(sgramVsq)
-
-    intensityRange = sgramVals.max()-sgramVals.min()
-    VMAX=None; VMIN = sgramVals.min()+0.25*intensityRange
-    #plt.clf()
-    plt.imshow(sgramVals, cmap='viridis', aspect='auto',
-               interpolation=INTERP, vmin=VMIN, vmax=VMAX,
-               extent=(sgramT[0],sgramT[-1],sgramF[-1],sgramF[0]))
-    #plt.ylim(np.array([200,0]))
-    plt.gca().invert_yaxis()
-    plt.xlabel('Time (s)')
-    plt.ylabel('Frequency (Hz)')
-    cbar = plt.colorbar()
-    #cbar.set_label('log(A^2)', rotation=270)
-    cbar.set_label('log(A)')
-    #plt.show()
-    return (sgramF, sgramT, sgramV)
-        
-
-    
-def play_waveform(waveform, samplingRate):
-    tempFile = '/tmp/tempsound.wav'
-    wave16bit = waveform.astype('int16')
-    scipy.io.wavfile.write(tempFile, samplingRate, wave16bit)
-    os.system('aplay {}'.format(tempFile))
-    
-        
-def hertz_to_erbs(freqHz):
-    """
-    Return number of equivalent rectangular bandwidths below the given frequency.
-
-    Glasberg & Moore (1990) Eq.4 (with freq in Hz)
-    https://en.wikipedia.org/wiki/Equivalent_rectangular_bandwidth
-    """
-    return 21.4 * np.log10(1 + 0.00437*freqHz)
-
-
-def erbs_to_hertz(nERBs):
-    """
-    Return frequency with nERBs equivalent rectangular bandwidths below it.
-
-    Inverse of Eq.4 (with freq in Hz) from Glasberg & Moore (1990) 
-    https://en.wikipedia.org/wiki/Equivalent_rectangular_bandwidth
-    """
-    return (10**(nERBs/21.4)-1)/0.00437
 
 
 
@@ -393,7 +438,7 @@ class FilterBank(object):
         plt.ylabel('Transfer function magnitude')
 
 
-class SoundSynthesis(object):
+class SoundSynthesis(SoundAnalysis):
     """
     """
     def __init__(self, nBands, freqLims, nSamples, samplingRate):
@@ -409,57 +454,107 @@ class SoundSynthesis(object):
         #self.nSamples = self.duration*self.samplingRate)
         self.nSamples = nSamples
 
-        np.random.seed(0)
-        self.seedWaveform = np.random.randn(self.nSamples)
+        #np.random.seed(0)  # FIXME: I'm fixing the random seed for testing
+        PINK = 0
+        if PINK: 
+            pinknoise = voss(self.nSamples)
+            self.seedWaveform = pinknoise-pinknoise.mean()
+        else:
+            self.seedWaveform = np.random.randn(self.nSamples)
+            
+        super().__init__(self.seedWaveform, self.samplingRate) 
+        #self.soundObj = SoundAnalysis(self.seedWaveform, self.samplingRate)
 
-        self.soundObj = SoundAnalysis(self.seedWaveform, self.samplingRate)
-
-        #self.soundObj = SoundAnalysis(soundfile='bubbles.wav'); self.nSamples=self.soundObj.nSamples; self.samplingRate = self.soundObj.samplingRate
-
-        
         self.nBands = nBands
         self.freqLims  = freqLims
         self.fbank = FilterBank(self.nBands, self.freqLims, self.nSamples,
                                 self.samplingRate)
         self.fbankTF = self.fbank.get_transfer_function()
 
-    def calculate_stats(self):
-        self.soundObj.apply_filterbank(self.fbankTF)
-        self.soundObj.calculate_bands_envelopes()
-        self.soundObj.apply_compression()
-        bandsStats = self.soundObj.calculate_bands_stats()
-        return bandsStats
+    def analyze(self, verbose=True):
+        """
+        Calculate band envelopes and statistics.
+        """
+        return super().analyze(self.nBands, self.freqLims, verbose)
     
-    def impose_stats(self, stats):
+    def impose_bands_envelopes(self, envelopes, randomize=False, compression=DEFAULT_COMPRESSION):
+        """
+        Multiply bands by specified envelopes.
+        
+        Args:
+            envelopes (2D array): as areturned by SoundAnalysis.get_bands_envelopes()
+            compression (float): exponent used for compression. Default is DEFAULT_COMPRESSION.
+        """
+        if not len(self.bandsEnvelopes):
+            raise StepError('Before get_bands_envelopes(), you need to calculate_bands_envelopes().')
+        # FIXME: it assumes compression exponent
+        #exponent = 1/DEFAULT_COMPRESSION if compressed else 1
+        tvec, bands = self.get_bands()
+        stDevs = bands.std(axis=1)
+        uncompEnvelopes = envelopes**(1/compression)
+        if randomize:
+            for indb in range(self.nBands):
+                uncompEnvelopes[indb,:] = np.random.permutation(uncompEnvelopes[indb,:])
+        if DOWNSAMPLE_FACTOR!=1:
+            uncompEnvelopes = scipy.signal.resample_poly(uncompEnvelopes, DOWNSAMPLE_FACTOR, 1, axis=1)
+        newBands = bands * uncompEnvelopes / stDevs[:,np.newaxis]
+        #newBands = bands * (envelopes**(1/compressionExponent))
+        self.bands = newBands
+    
+    def impose_bands_marginals(self, stats):
+        """
+        Multiply bands by specified envelopes.
+        
+        Args:
+            envelopes (np.ndarray): as areturned by SoundAnalysis.get_bands_envelopes()
+            compressed (boolean): True is envelopes have already been compressed
+        """
+        if not len(self.bandsEnvelopes):
+            raise StepError('Before get_bands_envelopes(), you need to calculate_bands_envelopes().')
+        # FIXME: it assumes compression exponent
+        exponent = 1/DEFAULT_COMPRESSION if compressed else 1
+        tvec, bands = self.get_bands()
+        newBands = bands * (envelopes**exponent)
+        self.bands = newBands
         #self.calculate_stats()
         #self.soundStats = stats
         pass
        
     def impose_oneband(self, indband, newMean=None, newVar=None):
+        """ Testing imposing statistics """
         compressionExp = DEFAULT_COMPRESSION
         stats = self.calculate_stats()
         if newVar is not None:
             oldVar = stats['var'][indband]
             scaleFactor = (np.sqrt(newVar)/np.sqrt(oldVar))**(1/compressionExp)
-            #print(np.var(self.soundObj.bands[indband,:]))
-            self.soundObj.bands[indband,:] = scaleFactor*self.soundObj.bands[indband,:]
-            #print(np.var(self.soundObj.bands[indband,:]))
+            #print(np.var(self.bands[indband,:]))
+            self.bands[indband,:] = scaleFactor*self.bands[indband,:]
+            #print(np.var(self.bands[indband,:]))
         if newMean is not None:
             oldMean = stats['mean'][indband]
             scaleFactor = 2*newMean/oldMean
-            self.soundObj.bands[indband,:] = scaleFactor*self.soundObj.bands[indband,:]
+            self.bands[indband,:] = scaleFactor*self.bands[indband,:]
         
     def reconstruct_waveform(self):
         """
         Apply filterbank and add bands to recontruct waveform.
         """
-        tvec, bands = self.soundObj.get_bands()
+        tvec, bands = self.get_bands()
         bandsFFT = np.fft.fft(bands, axis=1)
         componentFFT = self.fbankTF * bandsFFT
         components = np.fft.ifft(componentFFT, axis=1)
         newWave = np.real(np.sum(components, axis=0))
+        print('Max imag: {}'.format(np.max(np.abs(np.imag(np.sum(components, axis=0))))))
+        self.wave = newWave
         return (tvec, newWave)
-        
+
+    '''
+    def play(self):
+        """
+        Play sound waveform.
+        """
+        self.soundObj.play()
+    ''' 
         
 if __name__=='__main__':
 
