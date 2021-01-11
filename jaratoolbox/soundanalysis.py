@@ -15,7 +15,6 @@ import scipy.signal
 from matplotlib import pyplot as plt
 
 DEFAULT_COMPRESSION = 0.3
-DOWNSAMPLE_FACTOR = 50
 
 def plot_spectrum(wave, samplingRate, dc=True, maxFreq=None):
     '''
@@ -61,7 +60,7 @@ def plot_spectrogram(wave, samplingRate, window='hanning', nfft=2048, noverlap=1
     #plt.show()
     return (sgramF, sgramT, sgramV)
         
-    
+
 def play_waveform(waveform, samplingRate, amp=1):
     '''NOTE: This function is designed for Linux systems only.'''
     tempFile = '/tmp/tempsound.wav'
@@ -130,7 +129,7 @@ class SoundAnalysis(object):
     Calculate frequency bands using a filterbank and estimates
     marginal statistics and cross-correlations for each band.
     """
-    def __init__(self, waveform=[], fs=None, soundfile=None):
+    def __init__(self, waveform=[], fs=None, soundfile=None, downsample=1):
         """
         If soundfile is specified, the sound file is used instead of waveform.
         Args:
@@ -138,12 +137,14 @@ class SoundAnalysis(object):
             fs (float): sampling rate
             soundfile (string): full path to file to load.
                 If soundfile is specified, you don't need the other arguments.
+            downsample: downsampling factor for bands envelopes.
         """
         if soundfile is not None:
             self.samplingRate, self.wave = scipy.io.wavfile.read(soundfile)
         else:
             self.samplingRate = fs
             self.wave = waveform
+        self.downsampleFactor = downsample
         self.nSamples = len(self.wave)
         self.timeVec = np.arange(0, len(self.wave)/self.samplingRate, 1/self.samplingRate)
         self.filename = soundfile
@@ -189,7 +190,7 @@ class SoundAnalysis(object):
         Play sound waveform.
         """
         play_waveform(self.wave, self.samplingRate, amp=amp)
-            
+
     def play_from_file(self):
         """
         Play sound file (using Linux ALSA player).
@@ -224,7 +225,7 @@ class SoundAnalysis(object):
             raise StepError('Before get_bands(), you need to apply_filterbank().')
         return (self.timeVec, self.bands)
     
-    def calculate_bands_envelopes(self, downsampleFactor=1):
+    def calculate_bands_envelopes(self):
         """
         Calculate envelope of each band.
 
@@ -232,12 +233,12 @@ class SoundAnalysis(object):
                should we set those to zero?
         """
         self.bandsEnvelopes = np.abs(scipy.signal.hilbert(self.bands,axis=1))
-        if downsampleFactor!=1:
-            self.bandsEnvelopes = scipy.signal.decimate(self.bandsEnvelopes, downsampleFactor,
-                                                       axis=1, zero_phase=True)
+        if self.downsampleFactor!=1:
+            self.bandsEnvelopes = scipy.signal.decimate(self.bandsEnvelopes, self.downsampleFactor,
+                                                        axis=1, zero_phase=True)
             # Decimating caould create negative numbers, but envelopes must be non-negative.
             self.bandsEnvelopes[self.bandsEnvelopes<0]=0
-        self.bandsEnvelopesTimeVec = self.timeVec[::downsampleFactor]
+        self.bandsEnvelopesTimeVec = self.timeVec[::self.downsampleFactor]
         return self.get_bands_envelopes()
     
     def get_bands_envelopes(self):
@@ -314,6 +315,7 @@ class SoundAnalysis(object):
         self.bandsStats['var/meanSq'] = np.var(self.bandsEnvelopes, axis=1)/self.bandsStats['mean']**2
         self.bandsStats['skew'] = scipy.stats.skew(self.bandsEnvelopes, axis=1)
         self.bandsStats['kurt'] = scipy.stats.kurtosis(self.bandsEnvelopes, axis=1, fisher=False)
+        self.bandsStats['corr'] = np.corrcoef(self.bandsEnvelopes)
         return (self.bandsStats)
     
     def plot_bands_stats(self):
@@ -349,7 +351,7 @@ class SoundAnalysis(object):
         if verbose: print('Applying filterbank...')
         self.apply_filterbank(fbank.get_transfer_function())
         if verbose: print('Calculating envelopes...')
-        self.calculate_bands_envelopes(DOWNSAMPLE_FACTOR)
+        self.calculate_bands_envelopes()
         if verbose: print('Applying compression...')
         self.apply_compression()
         if verbose: print('Calculating statistics...')
@@ -441,7 +443,7 @@ class FilterBank(object):
 class SoundSynthesis(SoundAnalysis):
     """
     """
-    def __init__(self, nBands, freqLims, nSamples, samplingRate):
+    def __init__(self, nBands, freqLims, nSamples, samplingRate, downsample=1):
         """
         Args:
             nBands (int): number of filters.
@@ -462,7 +464,7 @@ class SoundSynthesis(SoundAnalysis):
         else:
             self.seedWaveform = np.random.randn(self.nSamples)
             
-        super().__init__(self.seedWaveform, self.samplingRate) 
+        super().__init__(self.seedWaveform, self.samplingRate, downsample=downsample)
         #self.soundObj = SoundAnalysis(self.seedWaveform, self.samplingRate)
 
         self.nBands = nBands
@@ -477,13 +479,16 @@ class SoundSynthesis(SoundAnalysis):
         """
         return super().analyze(self.nBands, self.freqLims, verbose)
     
-    def impose_bands_envelopes(self, envelopes, randomize=False, compression=DEFAULT_COMPRESSION):
+    def impose_bands_envelopes(self, envelopes, randomize=False, decorrelate=False,
+                               compression=DEFAULT_COMPRESSION):
         """
         Multiply bands by specified envelopes.
         
         Args:
             envelopes (2D array): as areturned by SoundAnalysis.get_bands_envelopes()
             compression (float): exponent used for compression. Default is DEFAULT_COMPRESSION.
+            randomize (bool): if True samples of each envelope will be randomized.
+            decorrelate (bool): if True, each envelope will be shifted randomly.
         """
         if not len(self.bandsEnvelopes):
             raise StepError('Before get_bands_envelopes(), you need to calculate_bands_envelopes().')
@@ -495,8 +500,13 @@ class SoundSynthesis(SoundAnalysis):
         if randomize:
             for indb in range(self.nBands):
                 uncompEnvelopes[indb,:] = np.random.permutation(uncompEnvelopes[indb,:])
-        if DOWNSAMPLE_FACTOR!=1:
-            uncompEnvelopes = scipy.signal.resample_poly(uncompEnvelopes, DOWNSAMPLE_FACTOR, 1, axis=1)
+        if decorrelate:
+            for indb in range(self.nBands):
+                rollAmount = np.random.randint(self.bandsEnvelopes.shape[1])
+                #indb*int(self.nSamples/self.nBands)
+                uncompEnvelopes[indb,:] = np.roll(uncompEnvelopes[indb,:], rollAmount)
+        if self.downsampleFactor!=1:
+            uncompEnvelopes = scipy.signal.resample_poly(uncompEnvelopes, self.downsampleFactor, 1, axis=1)
         newBands = bands * uncompEnvelopes / stDevs[:,np.newaxis]
         #newBands = bands * (envelopes**(1/compressionExponent))
         self.bands = newBands
@@ -548,14 +558,12 @@ class SoundSynthesis(SoundAnalysis):
         self.wave = newWave
         return (tvec, newWave)
 
-    '''
-    def play(self):
-        """
-        Play sound waveform.
-        """
-        self.soundObj.play()
-    ''' 
-        
+    def save(self, filename):
+        wave16bit = self.wave.astype('int16')
+        scipy.io.wavfile.write(filename, self.samplingRate, wave16bit)
+        print('Saved waveform as {}'.format(filename))
+
+
 if __name__=='__main__':
 
     #filename = './Example_Textures/Bubbling_water.wav'
