@@ -3,20 +3,21 @@ jaratoolbox
 
 Data analysis toolbox for JaraLab
 
-INSTALLATION (Ubuntu 14.04)
+INSTALLATION (Ubuntu 20.04)
 ---------------------------
 * Install dependencies and useful tools: 
-  * `sudo apt-get install python-numpy python-h5py python-matplotlib`
-  * The following packages are not necessary, but recommended: `python-statsmodels python-scipy ipython`
-* Clone the repository:
+  * `sudo apt-get install python3-numpy python3-h5py python3-matplotlib`
+  * The following packages are not necessary, but recommended: `sudo apt-get python3-statsmodels python3-scipy ipython3`
+* Clone the repository (we generally place it in ~/src/):
+  * `cd ~/src/`
   * `git clone https://github.com/sjara/jaratoolbox.git`
   * `cd jaratoolbox`
-* Prepare settings:
+* Create a settings file:
   * `cp settings_EXAMPLE.py settings.py`
 * Modify your `settings.py` file to define your data paths.
-* Add the toolbox to the Python path. For example, if your folder is `~/src/jaratoolbox/`, add the following line to the file `~/.bashrc`:
-  * `export PYTHONPATH=$PYTHONPATH:~/src`
+* From `~/src/jaratoolbox` you can install the package (in development mode) with:
+  * `pip3 install -e ./`
 * Test the installation:
   * Re-login or open a new terminal (to make sure the Python path is updated).
-  * Run: `ipython --pylab`
+  * Run: `ipython3 --pylab`
   * Within iPython, run: `import jaratoolbox`
