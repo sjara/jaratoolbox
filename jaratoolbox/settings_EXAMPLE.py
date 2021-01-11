@@ -1,17 +1,12 @@
-#!/usr/bin/env python
-
-'''
+"""
 General settings for jaratoolbox.
-'''
+"""
 
 import os
 
 BEHAVIOR_PATH = '/data/behavior'
-EPHYS_PATH = '/data/ephys'
 
-# -- Not used anymore. You can set those above to mounted folders. --
-# EPHYS_PATH_REMOTE = '/mnt/jarahubdata/ephys'
-# BEHAVIOR_PATH_REMOTE = '/mnt/jarahubdata/behavior' # Is this really needed?
+EPHYS_PATH = '/data/ephys'
 
 KK_PATH = '/home/jarauser/src/klustakwik/KK2/KlustaKwik'
 
@@ -29,6 +24,4 @@ DATABASE_PATH = '/mnt/jarahubdata/figuresdata'
 
 ALLEN_ATLAS_DIR = '/mnt/jarahubdata/atlas/AllenCCF_25/'
 
-# -- Old --
-# DEFAULT_EXPERIMENTER = 'santiago'  # Not used anymore
 
