@@ -197,7 +197,7 @@ def response_latency(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, 
         raise ValueError('The data needs to include a period before the stimulus.')
     avBaseline = np.mean(smoothPSTH[baselineBins])
     maxResp = np.max(smoothPSTH)
-    thresholdSpikeCount = avBaseline + 0.5*(maxResp-avBaseline)
+    thresholdSpikeCount = avBaseline + threshold*(maxResp-avBaseline)
     respLatencyInd = np.flatnonzero(smoothPSTH>thresholdSpikeCount)[0]
     yDiff = (smoothPSTH[respLatencyInd]-smoothPSTH[respLatencyInd-1])
     yFraction = (thresholdSpikeCount-smoothPSTH[respLatencyInd-1])/ yDiff
