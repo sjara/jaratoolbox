@@ -535,7 +535,7 @@ def save_hdf(dframe, filename):
         raise
 
 
-def load_hdf(filename, root='/'):
+def load_hdf(filename, root='/', columns=[]):
     """
     Load database into a pandas dataframe from an HDF5 file
     saved by celldatabase.save_hdf()
@@ -543,6 +543,8 @@ def load_hdf(filename, root='/'):
     Args:
         filename: full path to HDF5 file.
         root: the HDF5 group containing the database.
+        columns: list of columns to load. Default: loads all columns.
+                 You need to include 'index' to load the original indices.
     """
     dbDict = {}
     indexArray = None
@@ -556,6 +558,10 @@ def load_hdf(filename, root='/'):
         # to save as strings not string_dt in save_hdf()
         # NOTE: It looks liek in Windows int64 is not recognized as int,
         #       so we need to check it here.
+        if columns:
+            # Check if argument columns is specified and skip variables not listed
+            if varname not in columns:
+                continue
         if varname=='index':
             indexArray = varvalue[...]
         elif varvalue.dtype == np.int or varvalue.dtype == np.int64 or varvalue.dtype == np.float:
