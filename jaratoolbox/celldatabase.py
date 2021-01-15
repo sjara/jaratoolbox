@@ -1,7 +1,17 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Objects and methods for keeping information about isolated cells.
 
-'''Objects and methods for keeping information about isolated cells'''
+Cell database version history:
+- v3.0 we now savae the index of the dataframe, so we can keep track of the
+  cells as we save subsets of the database.
+- v2.0 is the first version of celldb that has an attribute saved to the
+  h5 file that specifies what version of jaratoolbox.celldatabase was used to
+  save it as 'celldb_version'.
+- v1.0 was the first iteration of celldatabase.save_hdf used in python 2.7.
+  (For example: 2018acsup project) The above versions do not have a saved
+  attribute in the file indicating what the version of the saved db is.
+- v0.0 was when we were still saving using pandas (e.g., for 2018thstr project).
+"""
 
 import numpy as np
 import os
@@ -12,16 +22,8 @@ import imp
 import h5py
 import ast  # To parse string representing a list
 
-"""
-Cell database version history:
-Version 0.0 was when we were still saving using pandas. (For example: 2018thstr project).
-Version 1.0 was the first iteration of celldatabase.save_hdf used in python 2.7. (For example: 2018acsup project)
-The above versions do not have a saved attribute in the file indicating what the version of the saved db is.
 
-Version 2.0 is the first version of celldb that has an attribute saved to the h5 file that specifies what version of
-jaratoolbox.celldatabase was used to save it as 'celldb_version' on line 708.
-"""
-CELLDB_VERSION = '2.0'
+CELLDB_VERSION = '3.0'
 
 
 class Experiment(object):
@@ -49,7 +51,8 @@ class Experiment(object):
         self.tetrodes = [1, 2, 3, 4, 5, 6, 7, 8]
         self.maxDepth = None
         self.shankEnds = None
-        # self.probeGeometryFile = '/tmp/A4x2tet_5mm_150_200_121.py' #TODO: Implement something for probe geometry long-term storage?
+        # self.probeGeometryFile = '/tmp/A4x2tet_5mm_150_200_121.py'
+        #TODO: Implement something for probe geometry long-term storage?
         
     def add_site(self, depth, date=None, tetrodes=None):
         """
@@ -65,7 +68,8 @@ class Experiment(object):
             date = self.date
         if tetrodes is None:
             tetrodes = self.tetrodes
-        site = Site(self.subject, date, self.brainArea, self.recordingTrack, self.info, depth, tetrodes)
+        site = Site(self.subject, date, self.brainArea, self.recordingTrack,
+                    self.info, depth, tetrodes)
         self.sites.append(site)
         return site
     
@@ -236,9 +240,11 @@ class Site(object):
     
     def cluster_info(self):
         """
-        Returns a dictionary with the information needed to identify clusters that come from this site.
+        Returns a dictionary with the information needed to identify clusters that
+        come from this site.
+
         Returns:
-            infoDict (dict): dictionary containing info defining clusters that come from this site
+            infoDict (dict): dictionary that defines clusters that come from this site.
         """
         infoDict = {
             'subject': self.subject,
@@ -256,7 +262,8 @@ class Site(object):
 
     def pretty_print(self, sessions=False):
         """
-        Print a string with depth, number of sessions, and optional list of sessions by index
+        Print a string with depth, number of sessions, and optional list of sessions by index.
+
         Args:
             sessions (bool): Whether to list all sessions by index
         Returns:
@@ -291,7 +298,8 @@ class Session(object):
         paradigm (str): The name of the paradigm used to collect the session
         comments (list): list of strings, comments about the session
     """
-    def __init__(self, subject, date, brainArea, recordingTrack, info, depth, tetrodes, timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
+    def __init__(self, subject, date, brainArea, recordingTrack, info, depth, tetrodes,
+                 timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
         self.subject = subject
         self.date = date
         self.depth = depth
@@ -370,7 +378,9 @@ class Session(object):
 
 def generate_cell_database(inforecPath):
     """
-    Iterates over all sites in an inforec and builds a cell database. This function requires that the data is already clustered.
+    Iterates over all sites in an inforec and builds a cell database. 
+    This function requires that the data is already clustered.
+
     Args:
         inforecPath (str): absolute path to the inforec file
     Returns:
@@ -485,14 +495,17 @@ def save_hdf(dframe, filename):
         dframe: pandas dataframe containing database.
         filename: full path to output file.
 
-    TODO: save index
+    Note: the name 'index' is reserved to store the cell index, so your dataframe
+          should not have a column named 'index'.
     """
     h5file = h5py.File(filename, 'w')
     string_dt = h5py.special_dtype(vlen=str)
-    # try:
-    if 1:
+    try:
         dbGroup = h5file.require_group('/')  # database
         dbGroup.attrs['celldb_version'] = CELLDB_VERSION
+        # -- Save index --
+        dset = dbGroup.create_dataset('index', data=dframe.index)
+        # -- Save each column --
         for onecol in dframe.columns:
             onevalue = dframe.iloc[0][onecol]
             if isinstance(onevalue, np.ndarray):
@@ -507,9 +520,6 @@ def save_hdf(dframe, filename):
                 arraydata = dframe[onecol].values
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
             elif isinstance(onevalue, str):
-                # TODO: Add a fix to allow this function to save unicode strings when working in python 2.7
-                #   Currently this error can be geenrated by saving cell locations while workin in 2.7
-                # We used to save this astype(str) not astype(string_dt)
                 arraydata = dframe[onecol].values.astype(string_dt)
                 dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=string_dt)
             elif isinstance(onevalue, list):
@@ -520,10 +530,9 @@ def save_hdf(dframe, filename):
                 raise ValueError('Trying to save items of invalid type')
             # dset.attrs['Description'] = onecol
         h5file.close()
-    # except:
-    #     h5file.close()
-    #     # TODO: We may want to rename the incomplete h5 file
-    #     raise
+    except OSError:
+        h5file.close()
+        raise
 
 
 def load_hdf(filename, root='/'):
@@ -536,15 +545,20 @@ def load_hdf(filename, root='/'):
         root: the HDF5 group containing the database.
     """
     dbDict = {}
+    indexArray = None
     try:
         h5file = h5py.File(filename, 'r')
     except IOError:
         print('{0} does not exist or cannot be opened.'.format(filename))
         raise
     for varname, varvalue in h5file[root].items():
-        # If an error occurs regarding malformed strings, it is because we used to save as strings not string_dt in save_hdf()
-        # NOTE: It looks liek in Windows int64 is not recognized as int, so we need to check it here:
-        if varvalue.dtype == np.int or varvalue.dtype == np.int64 or varvalue.dtype == np.float:
+        # If an error occurs regarding malformed strings, it is because we used
+        # to save as strings not string_dt in save_hdf()
+        # NOTE: It looks liek in Windows int64 is not recognized as int,
+        #       so we need to check it here.
+        if varname=='index':
+            indexArray = varvalue[...]
+        elif varvalue.dtype == np.int or varvalue.dtype == np.int64 or varvalue.dtype == np.float:
             if len(varvalue.shape) == 1:
                 dbDict[varname] = varvalue[...]
             else:
@@ -556,15 +570,23 @@ def load_hdf(filename, root='/'):
                 dataAsList = [ast.literal_eval("{}".format(v)) for v in varvalue]
             except (ValueError, SyntaxError):
                 # ValueError: If a list of strings contains a non-string (like None)
-                # Passing something like '2019-01-02' above will result in ast.parse not being able
-                # to convert it into a string, and it gives a SyntaxError. ast.parse requires it to be passed as "'2019-01-02'" to work
+                # Passing something like '2019-01-02' above will result in ast.parse not
+                # being able to convert it into a string, and it gives a SyntaxError.
+                # ast.parse requires it to be passed as "'2019-01-02'" to work.
                 dataAsList = [ast.literal_eval('"{}"'.format(v)) for v in varvalue]
             dbDict[varname] = dataAsList
         else:
-            #raise ValueError('Data type {} for variable {} is not recognized by celldatabase.'.format(varvalue.dtype,varname))
-            print('Warning! Data type "{}" for variable "{}" is not recognized by celldatabase.'.format(varvalue.dtype,varname))
+            raise ValueError('Data type {} for variable {} is not recognized '+\
+                             'by celldatabase.'.format(varvalue.dtype,varname))
+            #print('Warning! Data type "{}" for variable "{}" is not recognized '+\
+            #      'by celldatabase.'.format(varvalue.dtype,varname))
     h5file.close()
-    return pd.DataFrame(dbDict)
+    dframe = pd.DataFrame(dbDict)
+    if indexArray is not None:
+        dframe.index = indexArray
+    else:
+        print('Warning! the database file did not contain an index array. Indices have been reset.')
+    return dframe
 
 
 class NotClusteredError(Exception):
