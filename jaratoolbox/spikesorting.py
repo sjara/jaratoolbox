@@ -552,21 +552,31 @@ def merge_kk_clusters(animalName,ephysSession,tetrode,clustersToMerge,reportDir=
     #reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_reportkk/'%(animalName,ephysSession))
     if reportDir is None:
         reportDir = os.path.join(settings.PROCESSED_REVERSAL_PATH,settings.CLUSTERS_REPORTS_DIR)
-    fileName = 'TT%d.clu.1'%(tetrode)
+    fileName = 'Tetrode%d.clu.1'%(tetrode)
     fullFileName = os.path.join(dataDir,fileName)
     backupFileName = os.path.join(dataDir,fileName+'.orig')
-    # --- Make backup of original cluster file ---
-    print('Making backup to %s'%backupFileName)
-    os.system('rsync -a %s %s'%(fullFileName,backupFileName))
+    if os.path.isfile(backupFileName):
+        print(f'\nThe backup file already exists: {backupFileName}')
+        answer = input('Are you sure you want to continue (no new backup will be created) [y/n]? ')
+        if answer != 'y':
+            return
+    else:
+        # --- Make backup of original cluster file ---
+        print('Making backup to %s'%backupFileName)
+        os.system('rsync -a %s %s'%(fullFileName,backupFileName))
     # --- Load cluster data, replace and resave ---
     clusterData = np.fromfile(fullFileName,dtype='int32',sep='\n')
-    indNoiseSpike = np.flatnonzero(clusterData==1)[0]
+    #indNoiseSpike = np.flatnonzero(clusterData==1)[0]
+    indFirstSpike = np.flatnonzero(clusterData==clustersToMerge[1])[0]
     clusterData[clusterData==clustersToMerge[1]] = clustersToMerge[0]
-    clusterData[indNoiseSpike] = clustersToMerge[1]
+    #clusterData[indNoiseSpike] = clustersToMerge[1]
+    clusterData[indFirstSpike] = clustersToMerge[1] # Keep the first spike so it's not empty
     clusterData.tofile(fullFileName,sep='\n',format='%d')
+    print('Clusters {} and {} are now merged replacing cluster {}'.format(clustersToMerge[0],
+        clustersToMerge[1],clustersToMerge[0]))
     # -- Create report --
-    print('Creating report in %s'%reportDir)
-    ClusterReportTetrode(animalName,ephysSession,tetrode,reportDir)
+    #print('Creating report in %s'%reportDir)
+    #ClusterReportTetrode(animalName,ephysSession,tetrode,reportDir)
 
 
 def estimate_spike_peaks(waveforms, srate, align=True, ninterp=200):
