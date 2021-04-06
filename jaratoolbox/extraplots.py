@@ -1,5 +1,5 @@
 """
-Additional function for modifying plots.
+Additional function for modifying plots and tabular bdata.
 """
 
 
@@ -370,7 +370,7 @@ def save_figure(filename, fileformat, figsize, outputDir='./', facecolor='none')
     plt.gcf().set_size_inches(figsize)
     figName = filename+'.{0}'.format(fileformat)
     fullName = os.path.join(outputDir, figName)
-    if facecolor is 'none':
+    if facecolor == 'none':
         plt.gcf().set_frameon(False)
     plt.savefig(fullName, format=fileformat, facecolor=facecolor)
     plt.gcf().set_frameon(True)
@@ -422,6 +422,60 @@ class FlipThrough(object):
             self.redraw()
 
 
+def dataframe_to_html(dframe, outputfile):
+    """
+    Save an HTML file (with CSS) given a pandas dataframe.
+
+    Args:
+        dframe (pandas DataFrame): dataframe to display as HTML.
+        outputfile (string): full path to the output HTML file (including extension).
+    
+    Note: if you want to reverse the datafram, use dframe.iloc[::-1]
+    """
+
+    title = os.path.splitext(os.path.basename(outputfile))[0]
+        
+    htmlString = '''
+    <html>
+      <head><title>{title}</title></head>
+      <style>
+        {css}
+      </style>
+      <body>
+        {table}
+      </body>
+    </html>
+    '''
+
+    cssString = '''
+    table {
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-family: sans-serif;
+        border: thin solid #cccccc;
+    }
+    thead {
+        background-color: #2980b9;
+        color: #ffffff;
+    }
+    tr, th, td {
+        padding: 10px 15px;
+        border: none;
+        text-align: center;
+    }
+    tbody tr:nth-of-type(even) {
+        background-color: #f3f3f3;
+    }
+    tbody tr:hover {
+        background-color: #ffffdd;
+    }
+    '''    
+
+    htmlTable = dframe.to_html()
+    with open(outputfile, 'w') as fobj:
+        fobj.write(htmlString.format(title=title, css=cssString, table=htmlTable))
+
+            
 if __name__ == '__main__':
     rdata = np.random.randint(0, 9, (10, 3, 3))
     dataList = [(m,) for m in rdata]
