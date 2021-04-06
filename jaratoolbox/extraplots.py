@@ -431,6 +431,7 @@ def dataframe_to_html(dframe, outputfile):
         outputfile (string): full path to the output HTML file (including extension).
     
     Note: if you want to reverse the datafram, use dframe.iloc[::-1]
+    Note: indentation in the HTML file will be messy, but it won't affect rendering.
     """
 
     title = os.path.splitext(os.path.basename(outputfile))[0]
