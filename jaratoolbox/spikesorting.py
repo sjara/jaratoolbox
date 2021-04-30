@@ -16,6 +16,7 @@ import os
 import subprocess
 import time
 import imp
+import shutil
 #import paramiko
 
 __author__ = 'Santiago Jaramillo'
@@ -547,7 +548,38 @@ def save_all_reports(animalName,ephysSession,tetrodes,outputDir):
         sreport = ClusterReportTetrode(animalName,ephysSession,onetetrode)
         sreport.save_report(outputDir)
 
-def merge_kk_clusters(animalName,ephysSession,tetrode,clustersToMerge,reportDir=None):
+def merge_kk_clusters(animalName, ephysSession, tetrode, clustersToMerge):
+    """
+    Merge two clusters from a single ephys session.
+    Args:
+        clustersToMerge (list): list of integers indicating the two clusters to merge.
+    NOTES:
+    - This function creates a backup of the original .clu file.
+    - This function does not regenerate the cluster report.
+    """
+    dataDir = os.path.join(settings.EPHYS_PATH, animalName, f'{ephysSession}_kk')
+    fileName = f'Tetrode{tetrode}.clu.1'
+    fullFileName = os.path.join(dataDir, fileName)
+    backupFileName = os.path.join(dataDir, fileName+'.orig')
+    if os.path.isfile(backupFileName):
+        print(f'\nThe backup file already exists: {backupFileName}')
+        answer = input('Are you sure you want to continue (no new backup will be created) [y/n]? ')
+        if answer != 'y':
+            return
+    else:
+        # --- Make backup of original cluster file ---
+        print(f'Making backup to {backupFileName}')
+        shutil.copy2(fullFileName,backupFileName)
+    # --- Load cluster data, replace and resave ---
+    clusterData = np.fromfile(fullFileName, dtype='int32', sep='\n')
+    indFirstSpike = np.flatnonzero(clusterData==clustersToMerge[1])[0]
+    clusterData[clusterData==clustersToMerge[1]] = clustersToMerge[0]
+    clusterData[indFirstSpike] = clustersToMerge[1] # Keep the first spike so it's not empty
+    clusterData.tofile(fullFileName, sep='\n', format='%d')
+    print('Clusters {} and {} are now merged replacing cluster {}'.format(clustersToMerge[0],
+        clustersToMerge[1],clustersToMerge[0]))
+
+def OLD_merge_kk_clusters(animalName,ephysSession,tetrode,clustersToMerge,reportDir=None):
     dataDir = os.path.join(settings.EPHYS_PATH,'%s/%s_kk/'%(animalName,ephysSession))
     #reportDir = os.path.join(settings.EPHYS_PATH,'%s/%s_reportkk/'%(animalName,ephysSession))
     if reportDir is None:
