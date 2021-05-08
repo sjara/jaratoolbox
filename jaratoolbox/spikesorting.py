@@ -398,10 +398,10 @@ def plot_projections(waveforms,npoints=200):
     #peaks = np.max(waveforms[spikesToPlot,:,:],axis=2)
     peaks = -np.min(waveforms[spikesToPlot,:,:],axis=2)
     plt.plot(peaks[:,0],peaks[:,1],'.k',ms=0.5)
-    plt.hold(True)
+    #plt.hold(True)
     plt.plot(-peaks[:,2],peaks[:,3],'.k',ms=0.5)
     plt.plot(0,0,'+',color='0.5')
-    plt.hold(False)
+    #plt.hold(False)
     plt.axis('off')
 
 
