@@ -7,7 +7,7 @@ INSTALLATION (Ubuntu 20.04)
 ---------------------------
 * Install dependencies and useful tools: 
   * `sudo apt-get install python3-numpy python3-h5py python3-matplotlib`
-  * The following packages are not necessary, but recommended: `sudo apt-get python3-statsmodels python3-scipy ipython3`
+  * The following packages are not required, but recommended: `sudo apt-get python3-statsmodels python3-scipy ipython3`
 * Clone the repository (we generally place it in ~/src/):
   * `cd ~/src/`
   * `git clone https://github.com/sjara/jaratoolbox.git`
@@ -18,6 +18,5 @@ INSTALLATION (Ubuntu 20.04)
 * From `~/src/jaratoolbox` you can install the package (in development mode) with:
   * `pip3 install -e ./`
 * Test the installation:
-  * Re-login or open a new terminal (to make sure the Python path is updated).
   * Run: `ipython3 --pylab`
-  * Within iPython, run: `import jaratoolbox`
+  * Within ipython, run: `import jaratoolbox`
