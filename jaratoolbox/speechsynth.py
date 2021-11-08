@@ -100,6 +100,21 @@ class SyllableRange():
                                               percentVOT[indvot], percentFT[indft])
                 fullFilename = os.path.join(outputDir,fileName)
                 self.syllables[indvot][indft].save(fullFilename)
+    def spectrograms(self, maxf=5000):
+        plt.clf()
+        for indft in range(self.nFT):
+            for indvot in range(self.nVOT):
+                plt.subplot2grid([self.nVOT, self.nFT], [indvot, indft])
+                self.syllables[indvot][indft].spectrogram()
+                if indft != 0:
+                    plt.gca().set_yticklabels([])
+                    plt.gca().set_ylabel('')
+                if indvot != self.nVOT-1:
+                    plt.gca().set_xticklabels([])
+                    plt.gca().set_xlabel('')
+                plt.ylim([0, maxf])
+        plt.tight_layout()
+        plt.show()
 
 '''
         infoStr = ''
@@ -371,10 +386,11 @@ class Syllable():
         if verbose:
             print('Saving {}'.format(filepath))
         self.sound.save(filepath, 'WAV')
-        infofilePath = os.path.splitext(filepath)[0]+'.info'
-        infoStr = self.info()
-        with open(infofilePath, 'w') as infofile:
-            infofile.write(infoStr)
+        if saveInfo:
+            infofilePath = os.path.splitext(filepath)[0]+'.info'
+            infoStr = self.info()
+            with open(infofilePath, 'w') as infofile:
+                infofile.write(infoStr)
             
 
 if __name__=='__main__':
