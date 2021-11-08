@@ -14,6 +14,16 @@ cameraParams['IR_webcam_640x480_30fps_VP9'] = {
     'approx_file_size':'2.4 MB/min'
 }
 
+cameraParams['IR_webcam_640x480_30fps_MP4'] = {
+    'camera':'USB webcam with 10 IR LED',
+    'camera_URL':'https://www.amazon.com/dp/B07PPN7TXQ',
+    'framerate':30,
+    'resolution':[640,480],
+    'pixel_format':'YUYV',
+    'codec':'MPEG4-ASP',
+    'approx_file_size':'50 MB/min'
+}
+
 
 class VideoParameters:
     """
