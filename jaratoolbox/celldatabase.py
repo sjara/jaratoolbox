@@ -2,7 +2,10 @@
 Objects and methods for keeping information about isolated cells.
 
 Cell database version history:
-- v3.0 we now savae the index of the dataframe, so we can keep track of the
+- v4.0 uses name egroup instead of tetrode (so it works with any probe) and 
+  changed depth to pdepth (since this is the depth of the probe, not the cell)
+  This version should work with both NeuroNexus and Neuropixels.
+- v3.0 we now save the index of the dataframe, so we can keep track of the
   cells as we save subsets of the database.
 - v2.0 is the first version of celldb that has an attribute saved to the
   h5 file that specifies what version of jaratoolbox.celldatabase was used to
@@ -18,58 +21,67 @@ import os
 import sys
 from jaratoolbox import settings
 import pandas as pd
-import imp
+import importlib
 import h5py
 import ast  # To parse string representing a list
 
 
-CELLDB_VERSION = '3.0'
+CELLDB_VERSION = '4.0'
 
 
-class Experiment(object):
+class Experiment():
     """
     Experiment is a container of sites.
-    One per day.
-    Attributes:
-        subject(str): Name of the subject
-        date (str): The date the experiment was conducted
-        brainArea (str): The area of the brain where the recording was conducted
-        recordingTrack (str): The location and dye used for a penetration. Ex: anteriorDiD
-        sites (list): A list of all recording sites for this experiment
-        info (str): Extra info about the experiment
-        tetrodes (list): Default tetrodes for this experiment
-    TODO: Fail gracefully if the experimenter tries to add sessions without adding a site first
-    TODO: Should the info attr be a dictionary?
     """
-    def __init__(self, subject, date, brainArea, recordingTrack='', info=''):
+    # TODO: Fail gracefully if the experimenter tries to add sessions without adding a site first
+    # TODO: Should the info attr be a dictionary?
+    def __init__(self, subject, date, brainArea, recordingTrack='', egroups=None, probe=None, info=''):
+        """
+        Args:
+            subject(str): Name of the subject.
+            date (str): The date the experiment was conducted.
+            brainArea (str): The area of the brain where the recording was conducted.
+            recordingTrack (str): The location and dye used for a penetration. Ex: anteriorDiD.
+            egroups (list): Default list of electrode groups (e.g., tetrodes) clustered separately.
+            probe (str): Type of probe and probe ID. Ex: NPv1-1234.
+            info (str): Additional information about the experiment.
+        """
         self.subject = subject
         self.date = date
         self.brainArea = brainArea
         self.recordingTrack = recordingTrack
         self.info = info
         self.sites = []
-        self.tetrodes = [1, 2, 3, 4, 5, 6, 7, 8]
         self.maxDepth = None
-        self.shankEnds = None
+        self.probe = probe
+        if egroups is None:
+            if self.probe == 'A4x2-tet':
+                self.egroups = [1, 2, 3, 4, 5, 6, 7, 8]
+            elif self.probe[:4] == 'NPv1':
+                self.egroups = [0]
+            else:
+                self.egroups = [1, 2, 3, 4, 5, 6, 7, 8]  # Assume tetrodes
+        else:
+            self.egroups = egroups
         # self.probeGeometryFile = '/tmp/A4x2tet_5mm_150_200_121.py'
         #TODO: Implement something for probe geometry long-term storage?
-        
-    def add_site(self, depth, date=None, tetrodes=None):
+    
+    def add_site(self, pdepth, date=None, egroups=None):
         """
         Append a new Site object to the list of sites.
         Args:
-            depth (int): The depth of the tip of the electrode array for this site
+            pdepth (int): The depth of the tip of the electrode array for this site
             date (str): The date of recording for this site
-            tetrodes (list): Tetrodes to analyze for this site
+            egroups (list): Groups of electrodes to analyze for this site
         Returns:
             site (celldatabase.Site object): Handle to site object
         """
         if date is None:
             date = self.date
-        if tetrodes is None:
-            tetrodes = self.tetrodes
+        if egroups is None:
+            egroups = self.egroups
         site = Site(self.subject, date, self.brainArea, self.recordingTrack,
-                    self.info, depth, tetrodes)
+                    egroups, self.probe, self.info, pdepth)
         self.sites.append(site)
         return site
     
@@ -94,6 +106,9 @@ class Experiment(object):
                                          paradigm,
                                          date)
         return session
+
+    def __str__(self):
+        return self.pretty_print()
     
     def pretty_print(self, sites=True, sessions=False):
         """
@@ -136,41 +151,43 @@ class Experiment(object):
         activeSession.comment(message)
 
 
-class Site(object):
+class Site():
     """
     Site is a container of sessions.
-    One per group of sessions which contain the same neurons and should be clustered together
-    Attributes:
-        subject(str): Name of the subject
-        date (str): The date the experiment was conducted
-        brainArea (str): The area of the brain where the recording was conducted
-        info (str): Extra info about the experiment
-        depth (int): The depth in microns at which the sessions were recorded
-        tetrodes (list): Tetrodes for this site
-        sessions (list): A list of all the sessions recorded at this site
-        comments (list of str): Comments for this site
-        clusterFolder (str): The folder where clustering info will be saved for this site
+    Spike sorting (clustering) should be done together for all sessions in a site.
     """
-    def __init__(self, subject, date, brainArea, recordingTrack, info, depth, tetrodes):
+    def __init__(self, subject, date, brainArea, recordingTrack, egroups, probe, info, pdepth):
+        """
+        Args:
+            subject(str): Name of the subject.
+            date (str): The date the experiment was conducted.
+            brainArea (str): The area of the brain where the recording was conducted.
+            recordingTrack (str): The location and dye used for a penetration. Ex: anteriorDiD.
+            egroups (list): Default list of electrode groups (e.g., tetrodes) clustered separately.
+            probe (str): Type of probe and probe ID. Ex: NPv1-1234.
+            info (str): Additional information about the experiment.
+            pdepth (int): The depth of the probe (in microns) at which the sessions were recorded
+        """
         self.subject = subject
         self.date = date
         self.brainArea = brainArea
         self.recordingTrack = recordingTrack
+        self.egroups = egroups
+        self.probe = probe
         self.info = info
-        self.depth = depth
-        self.tetrodes = tetrodes
+        self.pdepth = pdepth
         self.sessions = []
         self.comments = []
-        self.clusterFolder = 'multisession_{}_{}um'.format(self.date, self.depth)
+        self.clusterFolder = 'multisession_{}_{}um'.format(self.date, self.pdepth)
         
-    def remove_tetrodes(self, tetrodesToRemove):
+    def remove_egroups(self, egroupsToRemove):
         """
-        Remove tetrodes from a site's list of tetrodes
+        Remove egroups from a site's list of egroups
         """
-        if not isinstance(tetrodesToRemove, list):
-            tetrodesToRemove = [tetrodesToRemove]
-        for tetrode in tetrodesToRemove:
-            self.tetrodes.remove(tetrode)
+        if not isinstance(egroupsToRemove, list):
+            egroupsToRemove = [egroupsToRemove]
+        for egroup in egroupsToRemove:
+            self.egroups.remove(egroup)
             
     def add_session(self, timestamp, behavsuffix, sessiontype, paradigm, date=None):
         """
@@ -185,17 +202,9 @@ class Site(object):
         """
         if date is None:
             date = self.date
-        session = Session(self.subject,
-                          date,
-                          self.brainArea,
-                          self.recordingTrack,
-                          self.info,
-                          self.depth,
-                          self.tetrodes,
-                          timestamp,
-                          behavsuffix,
-                          sessiontype,
-                          paradigm)
+        session = Session(self.subject, date, self.brainArea, self.recordingTrack,
+                          self.egroups, self.probe, self.info, self.pdepth,
+                          timestamp, behavsuffix, sessiontype, paradigm)
         self.sessions.append(session)
         return session
     
@@ -207,38 +216,8 @@ class Site(object):
         """
         dirs = [session.ephys_dir() for session in self.sessions]
         return dirs
-    # def session_behav_filenames(self):
-    #      '''
-    #      Returns a list of the behavior filenames for all sessions recorded at this site.
-    #      Returns:
-    #          fns (list): list of behavior filenames for each session in self.sessions
-    #      DEPRECATED (2017-10-30): session function no longer implemented
-    #      '''
-    #      fns = [session.behav_filename() for session in self.sessions]
-    #      return fns
     
-    def session_types(self):
-        """
-        Returns a list of the session type strings for all sessions recorded at this site.
-        Returns:
-            types (list): List of the sessiontype strings for each session in self.sessions
-        DEPRECATED (2017-10-30): We just have the generator in the cluster_info method to be clear
-        about what is returned per session and what is a site attr.
-        """
-        types = [session.sessiontype for session in self.sessions]
-        return types
-    # def find_session(self, sessiontype):
-    #      '''
-    #      Return indexes of sessions of type sessiontype.
-    #      Args:
-    #          sessiontype (str): The sessiontype string to search for.
-    #      Returns:
-    #          inds (list): List of indices of sessions of type sessiontype.
-    #      '''
-    #      inds = [i for i, st in enumerate(self.session_types()) if st==sessiontype]
-    #      return inds
-    
-    def cluster_info(self):
+    def get_info(self):
         """
         Returns a dictionary with the information needed to identify clusters that
         come from this site.
@@ -251,8 +230,10 @@ class Site(object):
             'date': self.date,
             'brainArea': self.brainArea,
             'recordingTrack': self.recordingTrack,
+            'egroups': self.egroups,
+            'probe': self.probe,
             'info': self.info,
-            'depth': self.depth,
+            'pdepth': self.pdepth,
             'ephysTime': [session.timestamp for session in self.sessions],
             'paradigm': [session.paradigm for session in self.sessions],
             'behavSuffix': [session.behavsuffix for session in self.sessions],
@@ -260,6 +241,9 @@ class Site(object):
         }
         return infoDict
 
+    def __str__(self):
+        return self.pretty_print(sessions=True)
+        
     def pretty_print(self, sessions=False):
         """
         Print a string with depth, number of sessions, and optional list of sessions by index.
@@ -270,7 +254,7 @@ class Site(object):
             message (str): A formatted string with the message to print
         """
         message = []
-        message.append('Site at {}um with {} sessions\n'.format(self.depth, len(self.sessions)))
+        message.append('Site at {}um with {} sessions\n'.format(self.pdepth, len(self.sessions)))
         if sessions:
             for session in self.sessions:
                 message.append('        {}\n'.format(session.pretty_print()))
@@ -285,25 +269,32 @@ class Site(object):
         self.comments.append(message)
 
 
-class Session(object):
+class Session():
     """
     Session is a single recorded ephys file and the associated behavior file.
-    Attributes:
-        subject(str): Name of the subject
-        date (str): The date the experiment was conducted
-        depth (int): The depth in microns at which the sessions were recorded
-        timestamp (str): The timestamp used by openEphys GUI to name the session
-        behavsuffix (str): The suffix of the behavior file
-        sessiontype (str): A string describing what kind of session this is.
-        paradigm (str): The name of the paradigm used to collect the session
-        comments (list): list of strings, comments about the session
     """
-    def __init__(self, subject, date, brainArea, recordingTrack, info, depth, tetrodes,
+    def __init__(self, subject, date, brainArea, recordingTrack, egroups, probe, info, pdepth, 
                  timestamp, behavsuffix, sessiontype, paradigm, comments=[]):
+        """
+        Args:
+            subject(str): Name of the subject.
+            date (str): The date the experiment was conducted.
+            brainArea (str): The area of the brain where the recording was conducted.
+            recordingTrack (str): The location and dye used for a penetration. Ex: anteriorDiD.
+            egroups (list): Default list of electrode groups (e.g., tetrodes) clustered separately.
+            probe (str): Type of probe and probe ID. Ex: NPv1-1234.
+            info (str): Additional information about the experiment.
+            pdepth (int): The depth of the probe (in microns) at which the sessions were recorded
+            timestamp (str): The timestamp used by openEphys GUI to name the session
+            behavsuffix (str): The suffix of the behavior file
+            sessiontype (str): A string describing what kind of session this is.
+            paradigm (str): The name of the paradigm used to collect the session
+            comments (list): list of strings, comments about the session
+        """
         self.subject = subject
         self.date = date
-        self.depth = depth
-        self.tetrodes = tetrodes
+        self.pdepth = pdepth
+        self.egroups = egroups
         self.timestamp = timestamp
         self.behavsuffix = behavsuffix
         self.sessiontype = sessiontype
@@ -319,21 +310,6 @@ class Session(object):
         """
         path = os.path.join('{}_{}'.format(self.date, self.timestamp))
         return path
-        # def behav_filename(self):
-        #      '''
-        #      Generate the behavior filename from session attributes and the beahvior suffix.
-        #      Returns:
-        #          fn (str): The full behavior filename
-        #      DEPRECATED (2017-10-30) We are going to return the suffix and paradigm, not the full path for each session
-        #      '''
-        #      fn=None
-        #      if self.behavsuffix:
-        #           bdate = ''.join(self.date.split('-'))
-        #           fn = '{}_{}_{}{}.h5'.format(self.subject,
-        #                                    self.paradigm,
-        #                                    bdate,
-        #                                    self.behavsuffix)
-        #      return fn
     
     def pretty_print(self):
         """
@@ -355,30 +331,111 @@ class Session(object):
         """
         self.comments.append(message)
 
-# Use the pandas dataframe functions directly
-# def save_dataframe_as_HDF5(path, dataframe):
-#     '''
-#     Saves a dataframe to HDF5 format.
 
-#     Args:
-#         path (str): /path/to/file.h5
-#         dataframe (pandas.DataFrame): dataframe object
-#     '''
-#     dataframe.to_hdf(path, 'dataframe')
+def make_db_neuronexus_tetrodes(experiment):
+    """
+    Create a database of cells given an Experiment object associated with
+    recordings using NeuroNexus probes with tetrodes.
 
-# def load_dataframe_from_HDF5(path, **kwargs):
-#     '''
-#     See pandas.read_hdf docs for useful kwargs (loading only certain rows, cols, etc)
-#     Args:
-#         path (str): /path/to/file.h5
-#     '''
-#     dataframe = pd.read_hdf(path, key='dataframe', **kwargs)
-#     return dataframe
+    Args:
+        experiment (celldatabase.Experiment): object defining experiment and sites.
+    Returns:
+        celldb (pandas.DataFrame): the cell database
+    """
+    egroupStatsFormat = 'Tetrode{}_stats.npz'
+    celldb = pd.DataFrame()
+    for indSite, site in enumerate(experiment.sites):
+        # -- Add site info to database
+        siteInfoDict = site.get_info()
+        for egroup in site.egroups:
+            tempdb = pd.DataFrame()
+            clusterStatsFn = egroupStatsFormat.format(egroup)
+            clusterStatsFullPath = os.path.join(settings.EPHYS_PATH,
+                                                experiment.subject,
+                                                site.clusterFolder,
+                                                clusterStatsFn)
+            if not os.path.isfile(clusterStatsFullPath):
+                raise NotClusteredError('Experiment {} Site {} eGroup {} is not clustered.\n' +
+                                        'No file {}'.format(indExperiment, indSite, egroup,
+                                                            clusterStatsFullPath))
+            clusterStats = np.load(clusterStatsFullPath)
+            nClusters, nTimePoints = clusterStats['clusterSpikeShape'].shape
+            dtypeSpikeShape = clusterStats['clusterSpikeShape'].dtype
+            tempdb['probe'] = np.tile(experiment.probe, nClusters)
+            tempdb['maxDepth'] = np.tile(experiment.maxDepth, nClusters)
+            tempdb['egroup'] = np.tile(egroup, nClusters)
+            tempdb['cluster'] = clusterStats['clusters']
+            tempdb['nSpikes'] = clusterStats['nSpikes']
+            tempdb['isiViolations'] = clusterStats['isiViolations']
+            tempdb['spikeShape'] = list(clusterStats['clusterSpikeShape'])
+            tempdb['spikeShapeSD'] = list(clusterStats['clusterSpikeSD'])
+            tempdb['spikePeakAmplitudes'] = list(clusterStats['clusterPeakAmplitudes'])
+            tempdb['spikePeakTimes'] = list(clusterStats['clusterPeakTimes'])
+            mainPeak = clusterStats['clusterPeakAmplitudes'][:,1]
+            avgSD = clusterStats['clusterSpikeSD'].mean(axis=1)
+            tempdb['spikeShapeQuality'] = abs(mainPeak/avgSD)
+            for key, val in siteInfoDict.items():
+                tempdb[key] = len(tempdb)*[val]
+            celldb = pd.concat((celldb, tempdb), axis=0, ignore_index=True)
+    return celldb
+
+
+def make_db_neuropixels_v1(experiment):
+    """
+    Create a database of cells given an Experiment object associated with
+    recordings using Neuropixels probes version 1.
+
+    Args:
+        experiment (celldatabase.Experiment): object defining experiment and sites.
+    Returns:
+        celldb (pandas.DataFrame): the cell database
+    """
+    celldb = pd.DataFrame()
+    for indSite, site in enumerate(experiment.sites):
+        for indEletrodeGroup, egroup in enumerate(experiment.egroups):
+            # FIXME: how to define the clustered data for different egroups?
+            clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
+                                         experiment.subject, site.clusterFolder)
+            spikeClustersFile = os.path.join(clusterFolder, 'spike_clusters.npy')
+            clusterGroupFile = os.path.join(clusterFolder, 'cluster_group.tsv')
+            spikeClusters = np.load(spikeClustersFile).squeeze()
+            clusterGroup = pd.read_csv(clusterGroupFile, sep='\t')
+
+            tempdb = clusterGroup.query("KSLabel=='good'").reset_index(drop=True)
+            templates = np.load(os.path.join(clusterFolder,'templates.npy'))
+            (nOrigClusters, nTimePoints, nChannels) = templates.shape
+            nGoodClusters = len(tempdb)
+
+            # -- Get nspikes, best channel, spikeshape, etc --
+            spikeShapes = np.empty([nGoodClusters, nTimePoints], dtype=templates.dtype)
+            nSpikes = np.empty(nGoodClusters, dtype=int)
+            bestChannel = np.empty(nGoodClusters, dtype=int)
+            for indc, clusterID in enumerate(tempdb['cluster_id']):
+                oneTemplate = templates[clusterID]
+                indMax = np.argmax(np.abs(oneTemplate))
+                (rowMax, colMax) = np.unravel_index(indMax, oneTemplate.shape)
+                spikeShapes[indc,:] = oneTemplate[:,colMax]
+                bestChannel[indc] = colMax
+                nSpikes[indc] = np.sum(spikeClusters==clusterID)
+            # -- Add site info to database
+            siteInfoDict = site.get_info()
+            for key, val in siteInfoDict.items():
+                tempdb[key] = len(tempdb)*[val]
+            # -- Add cluster-specific info --
+            tempdb['nSpikes'] = nSpikes
+            tempdb['bestChannel'] = bestChannel
+            tempdb['maxDepth'] = experiment.maxDepth
+            tempdb['egroup'] = egroup
+            #tempdb['probe'] = np.tile(experiment.probe, nClusters)
+            tempdb['spikeShape'] = list(spikeShapes)
+            tempdb.rename(columns={'cluster_id': 'cluster'}, inplace=True)
+            celldb = celldb.append(tempdb, ignore_index=True)
+    return celldb
 
 
 def generate_cell_database(inforecPath):
     """
-    Iterates over all sites in an inforec and builds a cell database. 
+    Iterates over all experiments in an inforec and builds a cell database.
     This function requires that the data is already clustered.
 
     Args:
@@ -386,56 +443,24 @@ def generate_cell_database(inforecPath):
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
-
-    # clusterDirFormat = 'multisession_exp{}site{}'
-    tetrodeStatsFormat = 'Tetrode{}_stats.npz'
-    # inforec = imp.load_source('module.name', inforecPath) # 'module.name' was meant to be an actual name
-    inforec = imp.load_source('inforec_module', inforecPath)
+    # -- Load inforec --
+    spec = importlib.util.spec_from_file_location('inforec_module', inforecPath)
+    inforec = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(inforec)
+    
     print('\nGenerating database for {}'.format(inforecPath))
-    celldb = pd.DataFrame(dtype=object)
+    celldb = pd.DataFrame() #dtype=object
     for indExperiment, experiment in enumerate(inforec.experiments):
-        # Complain if the maxDepth attr is not set for this experiment
         if experiment.maxDepth is None:
-            print("Attribute maxDepth not set for experiment with subject {} on {}".format(experiment.subject, experiment.date))
-            # maxDepthThisExp = None
+            print(f'Attribute maxDepth not set for experiment with subject '+
+                  f'{experiment.subject} on {experiment.date}')
             raise AttributeError('You must set maxDepth for each experiment.')
-        else:
-            maxDepthThisExp = experiment.maxDepth
-        print('Adding experiment from {} on {}'.format(experiment.subject, experiment.date))
-        for indSite, site in enumerate(experiment.sites):
-            # clusterDir = clusterDirFormat.format(indExperiment, indSite)
-            clusterFolder = site.clusterFolder
-            for tetrode in site.tetrodes:
-                clusterStatsFn = tetrodeStatsFormat.format(tetrode)
-                clusterStatsFullPath = os.path.join(settings.EPHYS_PATH,
-                                                    inforec.subject,
-                                                    clusterFolder,
-                                                    clusterStatsFn)
-                if not os.path.isfile(clusterStatsFullPath):
-                    raise NotClusteredError("Experiment {} Site {} Tetrode {} is not clustered.\nNo file {}".format(indExperiment, indSite, tetrode, clusterStatsFullPath))
-                clusterStats = np.load(clusterStatsFullPath)
-
-                for indc, cluster in enumerate(clusterStats['clusters']):
-                    # Calculate cluster shape quality
-                    clusterPeakAmps = clusterStats['clusterPeakAmplitudes'][indc]
-                    clusterSpikeSD = clusterStats['clusterSpikeSD'][indc]
-                    clusterShapeQuality = abs(clusterPeakAmps[1]/clusterSpikeSD.mean())
-                    clusterDict = {'maxDepth': maxDepthThisExp,
-                                   'tetrode': tetrode,
-                                   'cluster': cluster,
-                                   'nSpikes': clusterStats['nSpikes'][indc],
-                                   'isiViolations': clusterStats['isiViolations'][indc],
-                                   'spikeShape': clusterStats['clusterSpikeShape'][indc],
-                                   'spikeShapeSD': clusterSpikeSD,
-                                   'spikePeakAmplitudes': clusterPeakAmps,
-                                   'spikePeakTimes': clusterStats['clusterPeakTimes'][indc],
-                                   'spikeShapeQuality': clusterShapeQuality}
-                    clusterDict.update(site.cluster_info())
-                    celldb = celldb.append(clusterDict, ignore_index=True)
-    # NOTE: This is an ugly way to force these columns to be int. Will fix in future if possible
-    celldb['tetrode'] = celldb['tetrode'].astype(int)
-    celldb['cluster'] = celldb['cluster'].astype(int)
-    celldb['nSpikes'] = celldb['nSpikes'].astype(int)
+        print(f'Adding experiment from {experiment.subject} on {experiment.date}')
+        if experiment.probe == 'A4x2-tet':
+            extraRows = make_db_neuronexus_tetrodes(experiment)
+        elif experiment.probe[:4] == 'NPv1':
+            extraRows = make_db_neuropixels_v1(experiment)
+        celldb = pd.concat((celldb, extraRows), ignore_index=True)
     return celldb
 
 
@@ -453,24 +478,27 @@ def generate_cell_database_from_subjects(subjects, removeBadCells=True, isi=0.05
     for subject in subjects:
         inforec = os.path.join(settings.INFOREC_PATH, '{0}_inforec.py'.format(subject))
         onedb = generate_cell_database(inforec)
+        # FIXME: this is specific to NeuroNexus probes
         if removeBadCells:
             onedb = onedb[(onedb['isiViolations'] < isi) & (onedb['spikeShapeQuality'] > quality)]
         fulldb = fulldb.append(onedb, ignore_index=True)
     return fulldb
 
 
-def find_cell(database, subject, date, depth, tetrode, cluster):
+def find_cell(database, subject, date, pdepth, egroup, cluster):
     """
     Find a cell in the database.
     Returns (index, pandasSeries)
     """
-    cell = database.query('subject==@subject and date==@date and depth==@depth and tetrode==@tetrode and cluster==@cluster')
+    cell = database.query('subject==@subject and date==@date and pdepth==@pdepth and ' +
+                          'egroup==@egroup and cluster==@cluster')
     if len(cell) > 1:
         raise AssertionError('This information somehow defines more than 1 cell in the database.')
     elif len(cell) == 0:
         raise AssertionError('No cells fit these search criteria.')
     elif len(cell) == 1:
-        return cell.index[0], cell.iloc[0]  # Return the index and the series: once you convert to series the index is lost
+        # Return the index and the series: once you convert to series the index is lost
+        return cell.index[0], cell.iloc[0]
 
 
 def get_cell_info(database, index):
@@ -480,8 +508,8 @@ def get_cell_info(database, index):
     cell = database.loc[index]
     cellDict = {'subject': cell['subject'],
                 'date': cell['date'],
-                'depth': cell['depth'],
-                'tetrode': cell['tetrode'],
+                'pdepth': cell['pdepth'],
+                'egroup': cell['egroup'],
                 'cluster': cell['cluster']}
     return cellDict
 
@@ -598,13 +626,6 @@ def load_hdf(filename, root='/', columns=[]):
 class NotClusteredError(Exception):
     pass
 
-# def find_cell(db, subject, date, depth, tetrode, cluster):
-#     cell = db.query('subject==@subject and date==@date and depth==@depth\
-#                        and tetrode==@tetrode and cluster==@cluster')
-#     if len(result)!=1:
-#         #Does not exist or not unique
-#         raise
-#     return cell[0]
 
 
 '''
