@@ -1,6 +1,6 @@
 """
-This script copies the events data and OpenEphys info files to the
-processed data folder for each session on a given date.
+This script copies the events data and OpenEphys info files to the processed
+data folder associated with each session for a given subject and date.
 
 Example usage:
 python copy_neuropix_info.py test000 2020-01-31
