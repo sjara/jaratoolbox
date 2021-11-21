@@ -25,7 +25,6 @@ import importlib
 import h5py
 import ast  # To parse string representing a list
 
-
 CELLDB_VERSION = '4.0'
 
 
@@ -380,13 +379,14 @@ def make_db_neuronexus_tetrodes(experiment):
     return celldb
 
 
-def make_db_neuropixels_v1(experiment):
+def make_db_neuropixels_v1(experiment, singleSessionIndex=None):
     """
     Create a database of cells given an Experiment object associated with
     recordings using Neuropixels probes version 1.
 
     Args:
         experiment (celldatabase.Experiment): object defining experiment and sites.
+        singleSessionIndex (int): use clustered data from specified single session.
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
@@ -394,8 +394,14 @@ def make_db_neuropixels_v1(experiment):
     for indSite, site in enumerate(experiment.sites):
         for indEletrodeGroup, egroup in enumerate(experiment.egroups):
             # FIXME: how to define the clustered data for different egroups?
-            clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
-                                         experiment.subject, site.clusterFolder)
+            if singleSessionIndex is None:
+                clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
+                                             experiment.subject, site.clusterFolder)
+            else:
+                ephysTime = site.sessions[singleSessionIndex].timestamp
+                oneSessionFolder = f'{site.date}_{ephysTime}_processed'
+                clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
+                                             experiment.subject, oneSessionFolder)
             spikeClustersFile = os.path.join(clusterFolder, 'spike_clusters.npy')
             clusterGroupFile = os.path.join(clusterFolder, 'cluster_group.tsv')
             spikeClusters = np.load(spikeClustersFile).squeeze()
@@ -433,13 +439,14 @@ def make_db_neuropixels_v1(experiment):
     return celldb
 
 
-def generate_cell_database(inforecPath):
+def generate_cell_database(inforecPath, singleSessionIndex=None):
     """
     Iterates over all experiments in an inforec and builds a cell database.
     This function requires that the data is already clustered.
 
     Args:
         inforecPath (str): absolute path to the inforec file
+        singleSessionIndex (int): use clustered data from specified single session.
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
@@ -459,7 +466,7 @@ def generate_cell_database(inforecPath):
         if experiment.probe == 'A4x2-tet':
             extraRows = make_db_neuronexus_tetrodes(experiment)
         elif experiment.probe[:4] == 'NPv1':
-            extraRows = make_db_neuropixels_v1(experiment)
+            extraRows = make_db_neuropixels_v1(experiment, singleSessionIndex)
         celldb = pd.concat((celldb, extraRows), ignore_index=True)
     return celldb
 
