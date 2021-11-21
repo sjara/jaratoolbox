@@ -264,12 +264,16 @@ def load_ephys_neuronexus_tetrodes(subject, paradigm, sessionDir, tetrode, clust
 
 def load_ephys_neuropixels_v1(subject, paradigm, sessionDir, egroup, cluster=None):
     ephysBaseDir = os.path.join(settings.EPHYS_NEUROPIX_PATH, subject)
-    eventsDir = os.path.join(ephysBaseDir, sessionDir)
-    spikesDir = os.path.join(ephysBaseDir, sessionDir+'_processed') # This may fail if ends in /
-
+    sessionDir = sessionDir[:-1] if sessionDir.endswith(os.sep) else sessionDir # Remove last sep
+    spikesDir = os.path.join(ephysBaseDir, sessionDir+'_processed')
+    #eventsDir = os.path.join(ephysBaseDir, sessionDir)
+    if not os.path.isdir(spikesDir):
+        print(f'{spikesDir} does not exist.')
+        raise IOError(f'{spikesDir} does not exist.\n' +
+                      'This session has not been spike sorted yet.')
     # -- Load spikes and events --
     spikesData = loadneuropix.Spikes(spikesDir, convert=True)
-    eventsData = loadneuropix.Events(eventsDir, convert=True)
+    eventsData = loadneuropix.Events(spikesDir, convert=True)
     eventOnsetTimes = eventsData.get_onset_times()
 
     # -- Find events on each channel of the channel map for this paradigm --
@@ -284,4 +288,4 @@ def load_ephys_neuropixels_v1(subject, paradigm, sessionDir, egroup, cluster=Non
     ephysData = {'spikeTimes': spikesData.get_timestamps(cluster),
                  'events': eventDict}
     return ephysData
- 
+

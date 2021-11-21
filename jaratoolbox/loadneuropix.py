@@ -6,10 +6,11 @@ import os
 import numpy as np
 import pandas as pd
 import re
+import shutil
 
 
-def read_processor_info(dataDir, subProcessorIndex=0):
-    syncFile = os.path.join(dataDir, 'sync_messages.txt')
+def read_processor_info(infoDir, subProcessorIndex=0):
+    syncFile = os.path.join(infoDir, 'sync_messages.txt')
     pattern = (f'Processor: Neuropix-PXI Id: 100 subProcessor: {subProcessorIndex} ' +
                'start time: (\d*)@(\d*)Hz')
     with open(syncFile) as sfile:
@@ -92,21 +93,23 @@ class Events():
     Note that timestamps for events are stored relative to the start of acquisition (play button),
     not recording. This class can make the right conversion to match spike data from kilosort.
     """
-    def __init__(self, dataDir, convert=True):
+    def __init__(self, processedDataDir, convert=True):
         """
         Args:
-            dataDir (str): path to root of neuropixels raw data for a given session.
+            processedDataDir (str): path to root of neuropixels raw data for a given session.
             convert(bool): if True, convert timestamps to seconds.
         """
         self.convertUnits = convert
-        self.recordingDir = os.path.join(dataDir, 'Record Node 101/experiment1/recording1/')
-        self.eventsDir = os.path.join(self.recordingDir, 'events/Neuropix-PXI-100.0/TTL_1/')
+        #self.recordingDir = os.path.join(dataDir, 'Record Node 101/experiment1/recording1/')
+        #self.eventsDir = os.path.join(self.recordingDir, 'events/Neuropix-PXI-100.0/TTL_1/')
+        self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.0/TTL_1/')
+        self.infoDir = os.path.join(processedDataDir,'info')
         channelsFile = 'channels.npy'
         channelStatesFile = 'channel_states.npy'
         fullWordsFile = 'full_words.npy'
         timestampsFile = 'timestamps.npy'
-        
-        (self.processorStartTime, self.samplingRate) = read_processor_info(self.recordingDir)
+
+        (self.processorStartTime, self.samplingRate) = read_processor_info(self.infoDir)
         self.channels = np.load(os.path.join(self.eventsDir, channelsFile))
         self.channelStates = np.load(os.path.join(self.eventsDir, channelStatesFile))
         self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
@@ -127,3 +130,40 @@ class Events():
         eventOnsetTimes=self.timestamps[(self.channelStates==channelState)&(self.channels==eventChannel)]
         return eventOnsetTimes
         
+
+def copy_events_and_info(dataDir):
+    """
+    Copy events data and OpenEphys info files to the processed data folder for a session.
+    """
+    dataDir = dataDir[:-1] if dataDir.endswith(os.sep) else dataDir  # Remove last sep
+
+    relativePathToRecording = 'Record Node 101/experiment1/recording1/'
+    eventsDir = os.path.join(dataDir, relativePathToRecording, 'events')
+    structFile = os.path.join(dataDir, relativePathToRecording, 'structure.oebin')
+    syncFile = os.path.join(dataDir, relativePathToRecording, 'sync_messages.txt')
+
+    processedDir = dataDir+'_processed'
+    if not os.path.isdir(processedDir):
+        print(f'{processedDir} does not exist.')
+        print('WARNING! This session has not been processed. No files will be copied.')
+        return
+    newEventsDir = os.path.join(processedDir, 'events')
+    infoDir = os.path.join(processedDir, 'info')
+    try:
+        shutil.copytree(eventsDir, newEventsDir)
+    except FileExistsError:
+        print(f'WARNING! {newEventsDir} already exists. It was not modified.')
+    else:
+        print(f'Copied {eventsDir} to {newEventsDir}')
+    try:
+        os.mkdir(infoDir)
+    except FileExistsError:
+        print(f'WARNING! {infoDir} already exists. It was not modified.')
+        return
+    else:
+        print(f'Created {infoDir}')
+    shutil.copy2(structFile, infoDir)
+    print(f'Copied {structFile} to {infoDir+os.sep}')
+    shutil.copy2(syncFile, infoDir)
+    print(f'Copied {syncFile} to {infoDir+os.sep}')
+
