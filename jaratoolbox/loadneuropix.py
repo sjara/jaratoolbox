@@ -167,3 +167,97 @@ def copy_events_and_info(dataDir):
     shutil.copy2(syncFile, infoDir)
     print(f'Copied {syncFile} to {infoDir+os.sep}')
 
+
+def progress_bar(sofar, total, size=60):
+    nBoxes = int(size*sofar/total)
+    nWhites = size-nBoxes
+    sys.stdout.write('[{}{}]'.format('-'*nBoxes, ' '*nWhites))
+    sys.stdout.flush()
+    sys.stdout.write('\b'*(size+2)) # return to start of line, after '['
+
+
+def concatenate_sessions(sessionsRootPath, sessions, outputDir, debug=False):
+    """
+    Save file with concatenated neurpixels data, ready for spike sorting.
+
+    Args:
+        sessionsRootPath (str): path to where session directories are located.
+        sessionDirs (list): list of full paths to sessions to concatenate.
+        outputDir (bool): directory where concatenated files will be saved.
+        debug (bool): if False, don't create directories or save anything.
+    Returns:
+        sessionsInfo (pandas.DataFrame): information about each session.
+    """
+    import pandas as pd  # Imported here to avoid dependency if using other functions
+    blockSize = 4096  # Typical size in Bytes
+    nBlocks = 2048
+    chunkSize = nBlocks * blockSize
+
+    recordingPath = 'Record Node 101/experiment1/recording1/continuous/Neuropix-PXI-100.0/'
+
+    dataPath = os.path.join(sessionsRootPath, '{}', recordingPath)
+    dataFile = 'continuous.dat'
+    timestampsFile = 'timestamps.npy'
+
+    tmpDataFile = 'multisession_continuous.dat'
+    sessionsInfoFile = 'multisession_info.csv'
+    outputDataFile = os.path.join(outputDir, tmpDataFile)
+    outputInfoFile = os.path.join(outputDir, sessionsInfoFile)
+
+    if not os.path.isdir(outputDir):
+        if debug:
+            print(f'DEBUG MESSAGE: this step would create {outputDir}')
+        else:
+            os.mkdir(outputDir)
+            print(f'Created {outputDir}')
+
+    if os.path.isfile(outputDataFile):
+        overwrite = 'y' #input(f'File {outputFile} exists. Overwrite? (Y/n): ')
+        if overwrite.lower() != 'y':
+            sys.exit()
+        print(f'Overwriting {outputDataFile}')
+
+    if debug:
+        print(f'DEBUG MESSAGE: this step would open {outputDataFile}')
+    else:
+        ofile = open(outputDataFile, 'wb')
+
+    sessionsInfo = [] #pd.DataFrame()
+
+    for oneSession in sessions:
+        oneSessionDataFile = os.path.join(dataPath.format(oneSession), dataFile)
+        oneSessionTimestampsFile = os.path.join(dataPath.format(oneSession), timestampsFile)
+
+        tsThisSession = np.load(oneSessionTimestampsFile, mmap_mode='r')
+        with open(oneSessionDataFile, 'rb') as dfile:
+            fileSize = dfile.seek(0, os.SEEK_END)
+            dfile.seek(0, 0)  # Back to the beginning
+            nChunks = fileSize//chunkSize + 1  # Plus one to include a partial chunk
+            print(oneSessionDataFile)
+            print(f'Size: {fileSize/(2**30):0.2f} GB')
+            if debug:
+                print(f'DEBUG MESSAGE: this step would concatenate the file.')
+            else:
+                for oneChunk in range(nChunks):
+                    dataChunk = dfile.read(chunkSize)
+                    ofile.write(dataChunk)
+                    progress_bar(oneChunk, nChunks)
+                print('\n')
+        sessionsInfo.append({'session':oneSession,
+                             'firstTimestamp':tsThisSession[0],
+                             'lastTimestamp': tsThisSession[-1],
+                             'fileSize':fileSize })
+
+    if debug:
+        print(f'DEBUG MESSAGE: this step would close {outputDataFile}')
+    else:
+        ofile.close()
+
+    sessionsInfo = pd.DataFrame(sessionsInfo)
+    print(sessionsInfo)
+    if debug:
+        print(f'DEBUG MESSAGE: this step would save {outputInfoFile}')
+    else:
+        sessionsInfo.to_csv(outputInfoFile)
+        print(f'Saved {outputInfoFile}')
+    return sessionsInfo
