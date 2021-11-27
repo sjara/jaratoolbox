@@ -22,8 +22,34 @@ CHANNELMAPS = {'threetones_sequence': {'stim':0, 'trialStart':1, 'laser':2, 'sou
                '2afc':{'stim':0, 'trialStart':1},
                '2afc_speech':{'stim':0, 'trialStart':1} }
 
+
+class SessionData():
+    """
+    Container of ephys and behavior data for a session.
+
+    These objects can be used when creating a Cell object to make loading more efficient,
+    since the files containing spikes, events and behavior are common across cells in a session.
+    """
+    def __init__(self, dbRow, sessiontype):
+        if not isinstance(dbRow, pd.core.series.Series):
+            raise TypeError('This object must be initialized with a pandas Series object.')
+        tempCell = Cell(dbRow)
+        tempCell.cluster = None
+        self.ephysData, self.behavData = tempCell.load(sessiontype)
+    def get_ephys(self, cluster=None):
+        if cluster is None:
+            return self.ephysData
+        else:
+            spikesThisCluster = self.ephysData['clusterEachSpike']==cluster
+            ephysDataOneCluster = {k:v for k,v in self.ephysData.items() if k!='spikeTimes'}
+            ephysDataOneCluster['spikeTimes'] = self.ephysData['spikeTimes'][spikesThisCluster]
+            return ephysDataOneCluster
+    def get_behavior(self):
+        return self.behavData
+
+
 class Cell():
-    def __init__(self, dbRow, useModifiedClusters=False):
+    def __init__(self, dbRow, sessionData=None, useModifiedClusters=False):
         '''
         Args:
             dbRow (pandas.core.series.Series): A row from a dataframe created by celldatabase.
@@ -35,6 +61,7 @@ class Cell():
         if not isinstance(dbRow, pd.core.series.Series):
             raise TypeError('This object must be initialized with a pandas Series object.')
         self.dbRow = dbRow
+        self.sessionData = sessionData
         self.useModifiedClusters = useModifiedClusters
 
         self.subject = dbRow['subject']
@@ -51,8 +78,8 @@ class Cell():
         self.ephysBaseDir = os.path.join(settings.EPHYS_PATH, self.subject)
 
     def __str__(self):
-        objStr = '{} {} ({:0.0f}um) g{}c{}'.format(self.subject, self.date, self.pdepth,
-                                                   self.egroup, self.cluster)
+        objStr = '{} {} {:0.0f}um g{}c{}'.format(self.subject, self.date, self.pdepth,
+                                                 self.egroup, self.cluster)
         return objStr
         
     def load(self, sessiontype, behavClass=None):
@@ -103,8 +130,12 @@ class Cell():
             ephysData (list): Spiketimes (array), samples (array) and events (dict)
             behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
         '''
-        ephysData = self.load_ephys_by_index(sessionInd)
-        behavData = self.load_behavior_by_index(sessionInd, behavClass=behavClass)
+        if self.sessionData is None:
+            ephysData = self.load_ephys_by_index(sessionInd)
+            behavData = self.load_behavior_by_index(sessionInd, behavClass=behavClass)
+        else:
+            ephysData = self.sessionData.get_ephys(self.cluster)
+            behavData = self.sessionData.get_behavior()
         return ephysData, behavData
 
     def load_ephys_by_index(self, sessionInd):
@@ -286,6 +317,7 @@ def load_ephys_neuropixels_v1(subject, paradigm, sessionDir, egroup, cluster=Non
         eventDict.update({'{}On'.format(channelType):thisChannelOn,
                           '{}Off'.format(channelType):thisChannelOff})
     ephysData = {'spikeTimes': spikesData.get_timestamps(cluster),
-                 'events': eventDict}
+                 'events': eventDict,
+                 'clusterEachSpike': spikesData.clusters}
     return ephysData
 
