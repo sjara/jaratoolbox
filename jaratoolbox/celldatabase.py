@@ -240,6 +240,13 @@ class Site():
         }
         return infoDict
 
+    def get_session_index(self, sessiontype):
+        """
+        Returns the index of the last sessions of a particular type.
+        """
+        sessionsDict = {oneSession.sessiontype:ind for ind,oneSession in enumerate(self.sessions)}
+        return sessionsDict[sessiontype]
+
     def __str__(self):
         return self.pretty_print(sessions=True)
         
@@ -379,14 +386,15 @@ def make_db_neuronexus_tetrodes(experiment):
     return celldb
 
 
-def make_db_neuropixels_v1(experiment, singleSessionIndex=None):
+def make_db_neuropixels_v1(experiment, singleSession=None):
     """
     Create a database of cells given an Experiment object associated with
     recordings using Neuropixels probes version 1.
 
     Args:
         experiment (celldatabase.Experiment): object defining experiment and sites.
-        singleSessionIndex (int): use clustered data from specified single session.
+        singleSession (dict): specifies a single session to process, with format:
+            {'date': YYYY-MM-DD, 'pdepth': int, 'sessiontype': str}
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
@@ -394,14 +402,18 @@ def make_db_neuropixels_v1(experiment, singleSessionIndex=None):
     for indSite, site in enumerate(experiment.sites):
         for indEletrodeGroup, egroup in enumerate(experiment.egroups):
             # FIXME: how to define the clustered data for different egroups?
-            if singleSessionIndex is None:
+            if singleSession is None:
                 clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
                                              experiment.subject, site.clusterFolder)
             else:
-                ephysTime = site.sessions[singleSessionIndex].timestamp
-                oneSessionFolder = f'{site.date}_{ephysTime}_processed'
-                clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
-                                             experiment.subject, oneSessionFolder)
+                if site.date==singleSession['date'] and site.pdepth==singleSession['pdepth']:
+                    sessionIndex = site.get_session_index(singleSession['sessiontype'])
+                    ephysTime = site.sessions[sessionIndex].timestamp
+                    oneSessionFolder = f'{site.date}_{ephysTime}_processed'
+                    clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
+                                                 experiment.subject, oneSessionFolder)
+                else:
+                    break
             spikeClustersFile = os.path.join(clusterFolder, 'spike_clusters.npy')
             clusterGroupFile = os.path.join(clusterFolder, 'cluster_group.tsv')
             spikeClusters = np.load(spikeClustersFile).squeeze()
@@ -439,23 +451,27 @@ def make_db_neuropixels_v1(experiment, singleSessionIndex=None):
     return celldb
 
 
-def generate_cell_database(inforecPath, singleSessionIndex=None):
+def generate_cell_database(inforecFile, singleSession=None):
     """
     Iterates over all experiments in an inforec and builds a cell database.
     This function requires that the data is already clustered.
 
     Args:
-        inforecPath (str): absolute path to the inforec file
-        singleSessionIndex (int): use clustered data from specified single session.
+        inforecFile (str): full path to the inforec file
+        singleSession (dict): specifies a single session to process, with format:
+            {'date': YYYY-MM-DD, 'pdepth': int, 'sessiontype': str}
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
+    '''
     # -- Load inforec --
-    spec = importlib.util.spec_from_file_location('inforec_module', inforecPath)
+    spec = importlib.util.spec_from_file_location('inforec_module', inforecFile)
     inforec = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(inforec)
+    '''
+    inforec = read_inforec(inforecFile)
     
-    print('\nGenerating database for {}'.format(inforecPath))
+    print('\nGenerating database for {}'.format(inforecFile))
     celldb = pd.DataFrame() #dtype=object
     for indExperiment, experiment in enumerate(inforec.experiments):
         if experiment.maxDepth is None:
@@ -466,9 +482,16 @@ def generate_cell_database(inforecPath, singleSessionIndex=None):
         if experiment.probe == 'A4x2-tet':
             extraRows = make_db_neuronexus_tetrodes(experiment)
         elif experiment.probe[:4] == 'NPv1':
-            extraRows = make_db_neuropixels_v1(experiment, singleSessionIndex)
+            extraRows = make_db_neuropixels_v1(experiment, singleSession)
         celldb = pd.concat((celldb, extraRows), ignore_index=True)
     return celldb
+
+
+def read_inforec(inforecFile):
+    spec = importlib.util.spec_from_file_location('inforec_module', inforecFile)
+    inforec = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(inforec)
+    return inforec
 
 
 def generate_cell_database_from_subjects(subjects, removeBadCells=True, isi=0.05, quality=2):
