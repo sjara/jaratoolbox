@@ -1,29 +1,29 @@
-#!/usr/bin/env python
-
-'''
+"""
 Functions and classes for analysis of spikes.
-'''
-
+"""
 
 import numpy as np
 
-def eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange,spikeindex=False):
-    '''Create a vector with the spike timestamps w.r.t. events onset.
+def eventlocked_spiketimes(timeStamps, eventOnsetTimes, timeRange, spikeindex=False):
+    """
+    Create a vector with the spike timestamps w.r.t. events onset.
 
     (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial) =
         eventlocked_spiketimes(timeStamps,eventOnsetTimes,timeRange)
 
-    timeStamps: (np.array) the time of each spike.
-    eventOnsetTimes: (np.array) the time of each instance of the event to lock to.
-    timeRange: (list or np.array) two-element array specifying time-range to extract around event.
+    Args:
+        timeStamps: (np.array) the time of each spike.
+        eventOnsetTimes: (np.array) the time of each instance of the event to lock to.
+        timeRange: (list) two-element list specifying time-range to extract around event.
 
-    spikeTimesFromEventOnset: 1D array with time of spikes locked to event.
-    trialIndexForEachSpike: 1D array with the trial corresponding to each spike.
-       The first spike index is 0.
-    indexLimitsEachTrial: [2,nTrials] range of spikes for each trial. Note that
-       the range is from firstSpike to lastSpike+1 (like in python slices)
-    spikeIndices
-    '''
+    Returns:
+        spikeTimesFromEventOnset: 1D array with time of spikes locked to event.
+        trialIndexForEachSpike: 1D array with the trial corresponding to each spike.
+           The first spike index is 0.
+        indexLimitsEachTrial: [2,nTrials] range of spikes for each trial. Note that
+           the range is from firstSpike to lastSpike+1 (like in python slices)
+        spikeIndices
+    """
     nTrials = len(eventOnsetTimes)
     # FIXME: check if timestamps are sorted. We will use searchsorted() later.
 
@@ -70,7 +70,7 @@ def minimum_event_onset_diff(eventOnsetTimes, minEventOnsetDiff):
     eventOnsetTimes = eventOnsetTimes[evdiff>minEventOnsetDiff]
     return eventOnsetTimes
 
-def spiketimes_to_spikecounts(spikeTimesFromEventOnset,indexLimitsEachTrial,binEdges):
+def spiketimes_to_spikecounts(spikeTimesFromEventOnset, indexLimitsEachTrial, binEdges):
     '''
     Create a matrix with spike counts given the times of the spikes.
 
