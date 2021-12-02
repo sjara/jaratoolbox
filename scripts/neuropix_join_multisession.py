@@ -4,6 +4,9 @@ Prepare neuropixels data for multisession spike-sorting.
 Example usage:
 python neuropix_join_multisession.py test000 2020-01-31 3440
                                      SUBJECT   DATE    pDEPTH
+
+To debug (without saving anything), use:
+python neuropix_join_multisession.py test000 2020-01-31 3440 debug
 """
 
 import os
@@ -23,6 +26,8 @@ if len(sys.argv)<4:
 subject = sys.argv[1]
 dateStr = sys.argv[2]
 pdepth = int(sys.argv[3])
+debug = True if (len(sys.argv)==5 and sys.argv[4]=='debug') else False
+
 
 sessionsRootPath = os.path.join(settings.EPHYS_NEUROPIX_PATH, subject)
 multisessionRawDir = os.path.join(sessionsRootPath, f'multisession_{dateStr}_{pdepth}um_raw')
@@ -49,19 +54,25 @@ sessions = site.session_ephys_dirs()
 
 # -- Create multisession_folders --
 if not os.path.isdir(multisessionRawDir):
-    os.mkdir(multisessionRawDir)
+    if not debug:
+        os.mkdir(multisessionRawDir)
     print(f'Created {multisessionRawDir}')
 if not os.path.isdir(multisessionTempDir):
-    os.mkdir(multisessionTempDir)
+    if not debug:
+        os.mkdir(multisessionTempDir)
     print(f'Created {multisessionTempDir}')
 if not os.path.isdir(multisessionProcessedDir):
-    os.mkdir(multisessionProcessedDir)
+    if not debug:
+        os.mkdir(multisessionProcessedDir)
     print(f'Created {multisessionProcessedDir}')
 
-sinfo = loadneuropix.concatenate_sessions(sessionsRootPath, sessions, multisessionRawDir, debug=False)
+sinfo = loadneuropix.concatenate_sessions(sessionsRootPath, sessions, multisessionRawDir, debug=debug)
 
 # -- Save a copy of multisession_info.csv to processed folder --
 multisessionInfoFilepath = os.path.join(multisessionProcessedDir,'multisession_info.csv')
-sinfo.to_csv(multisessionInfoFilepath)
+if not debug:
+    sinfo.to_csv(multisessionInfoFilepath)
+else:
+    print(sinfo)
 print(f'Saved {multisessionInfoFilepath}')
 
