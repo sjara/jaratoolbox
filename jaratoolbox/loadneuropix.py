@@ -132,9 +132,12 @@ class Events():
         return eventOnsetTimes
         
 
-def copy_events_and_info(dataDir):
+def copy_events_and_info(dataDir, suffix='_processed_multi'):
     """
     Copy events data and OpenEphys info files to the processed data folder for a session.
+    
+    Args:
+        dataDir (str): neuropixels session data folder. Usually in format YYYY-MM-DD_HH-MM-SS
     """
     dataDir = dataDir[:-1] if dataDir.endswith(os.sep) else dataDir  # Remove last sep
 
@@ -143,7 +146,7 @@ def copy_events_and_info(dataDir):
     structFile = os.path.join(dataDir, relativePathToRecording, 'structure.oebin')
     syncFile = os.path.join(dataDir, relativePathToRecording, 'sync_messages.txt')
 
-    processedDir = dataDir+'_processed'
+    processedDir = dataDir+suffix
     if not os.path.isdir(processedDir):
         print(f'{processedDir} does not exist.')
         print('WARNING! This session has not been processed. No files will be copied.')
@@ -167,7 +170,7 @@ def copy_events_and_info(dataDir):
     print(f'Copied {structFile} to {infoDir+os.sep}')
     shutil.copy2(syncFile, infoDir)
     print(f'Copied {syncFile} to {infoDir+os.sep}')
-
+    return processedDir
 
 def progress_bar(sofar, total, size=60):
     nBoxes = int(size*sofar/total)
@@ -262,3 +265,107 @@ def concatenate_sessions(sessionsRootPath, sessions, outputDir, debug=False):
         sessionsInfo.to_csv(outputInfoFile)
         print(f'Saved {outputInfoFile}')
     return sessionsInfo
+
+
+def split_sessions(multisessionPath, debug=False):
+    """
+    Split results of multisession spike-sorting back to individual sessions.
+
+    Args:
+        multisessionPath (str): path to multisession processed directory.
+        debug (bool): if False, don't create directories or save anything.
+    Returns:
+        sessionsInfo (pandas.DataFrame): information about each session.
+    """
+    import pandas as pd  # Imported here to avoid dependency if using other functions
+    rootDir = os.path.dirname(multisessionPath)
+    sessionsInfoFile = 'multisession_info.csv'
+    multiSpikeTimesFile = 'spike_times.npy'
+    multiSpikeClustersFile = 'spike_clusters.npy'
+    firstTimestampFile = 'first_timestamp.csv'
+    #filesToCopy = ['params.py', 'templates.npy', 'multisession_info.csv']
+    filesToCopy = ['params.py', 'multisession_info.csv']
+    
+    sessionsInfo = pd.read_csv(os.path.join(multisessionPath, sessionsInfoFile), index_col=0)
+    multiSpikeTimes = np.load(os.path.join(multisessionPath, multiSpikeTimesFile))
+    multiSpikeClusters = np.load(os.path.join(multisessionPath, multiSpikeClustersFile))
+
+    nSamplesEachSession = sessionsInfo.lastTimestamp - sessionsInfo.firstTimestamp + 1
+    lastSampleEachSession = np.cumsum(nSamplesEachSession)
+    firstSampleEachSession = np.r_[0, lastSampleEachSession[:-1]]
+
+    for inds, oneRow in sessionsInfo.iterrows():
+        sessionDir = os.path.join(rootDir, f'{oneRow.session}_processed_multi')
+        spikeIndsThisSession = ( (multiSpikeTimes>=firstSampleEachSession[inds]) & 
+                                 (multiSpikeTimes<lastSampleEachSession[inds]) )
+        spikeTimesThisSession = multiSpikeTimes[spikeIndsThisSession]-firstSampleEachSession[inds]
+        spikeClustersThisSession = multiSpikeClusters[spikeIndsThisSession]
+
+        if os.path.isdir(sessionDir):
+            print(f'WARNING! {sessionDir} exists. Data will be overwritten.')
+        else:
+            if not debug:
+                os.mkdir(sessionDir)
+            print(f'Created {sessionDir}')
+        thisSessionSpikeTimesFile = os.path.join(sessionDir, multiSpikeTimesFile)
+        thisSessionSpikeClustersFile = os.path.join(sessionDir, multiSpikeClustersFile)
+        thisSessionFirstTimestampFile = os.path.join(sessionDir, firstTimestampFile)
+
+        if not debug:
+            np.save(thisSessionSpikeTimesFile, spikeTimesThisSession)
+        print(f'Saved {thisSessionSpikeTimesFile}')
+        if not debug:
+            np.save(thisSessionSpikeClustersFile, spikeClustersThisSession)
+        print(f'Saved {thisSessionSpikeClustersFile}')
+        for oneFile in filesToCopy:
+            if not debug:
+                shutil.copy2(os.path.join(multisessionPath, oneFile), sessionDir)
+            print(f'Copied {oneFile} to {sessionDir}{os.sep}')
+        if not debug:
+            with open(thisSessionFirstTimestampFile, 'w') as firstTSfile:
+                firstTSfile.write(f'{sessionsInfo.firstTimestamp[inds]}')
+        print(f'Saved {sessionsInfo.firstTimestamp[inds]} to {thisSessionFirstTimestampFile}')
+        print('')
+
+    sessionList = list(sessionsInfo.session)
+    return sessionList
+    
+
+def spikeshapes_from_templates(clusterFolder, save=False, ignorezero=True):
+    """
+    Extract a spike shape from each template.
+    """
+    templates = np.load(os.path.join(clusterFolder,'templates.npy'))
+    (nOrigClusters, nTimePoints, nChannels) = templates.shape
+    spikeShapes = np.empty([nOrigClusters, nTimePoints], dtype=templates.dtype)
+    bestChannel = np.empty(nOrigClusters, dtype=int)
+    for indt, oneTemplate in enumerate(templates):
+        indMax = np.argmax(np.abs(oneTemplate))
+        (rowMax, colMax) = np.unravel_index(indMax, oneTemplate.shape)
+        spikeShapes[indt,:] = oneTemplate[:,colMax]
+        bestChannel[indt] = colMax
+    if ignorezero:
+        nonzerosamples = (spikeShapes.sum(axis=0)!=0)
+        firstnonzero = np.flatnonzero(nonzerosamples)[0]
+        spikeShapes = spikeShapes[:,firstnonzero:]
+    if save:
+        spikeShapesFile = os.path.join(clusterFolder, 'spike_shapes.npy')
+        bestChannelFile = os.path.join(clusterFolder, 'cluster_bestChannel.npy')
+        np.save(spikeShapesFile, spikeShapes)
+        print(f'Saved {spikeShapesFile}')
+        np.save(bestChannelFile, bestChannel)
+        print(f'Saved {bestChannelFile}\n')
+    return (spikeShapes, bestChannel)
+
+
+def spikes_per_cluster(datadir, nClusters):
+    """
+    Calculate the number of spikes for each cluster.
+    """
+    spikeClustersFile = os.path.join(datadir, 'spike_clusters.npy')
+    nSpikes = np.empty(nClusters, dtype=int)
+    for indc in range(nClusters):
+        nSpikes[indc] = np.count_nonzero(spikeClusters==clusterID)
+    return nSpikes
+
+    
