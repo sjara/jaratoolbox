@@ -49,7 +49,8 @@ class SessionData():
 
 
 class Cell():
-    def __init__(self, dbRow, sessionData=None, useModifiedClusters=False):
+    def __init__(self, dbRow, sessionData=None, dirsuffix='_processed_multi',
+                 useModifiedClusters=False):
         '''
         Args:
             dbRow (pandas.core.series.Series): A row from a dataframe created by celldatabase.
@@ -76,7 +77,8 @@ class Cell():
             self.egrouptetrode = dbRow['tetrode']  # Legacy option for celldatabase v3.0
         self.cluster = dbRow['cluster']
         self.ephysBaseDir = os.path.join(settings.EPHYS_PATH, self.subject)
-
+        self.dirsuffix = dirsuffix
+        
     def __str__(self):
         objStr = '{} {} {:0.0f}um g{}c{}'.format(self.subject, self.date, self.pdepth,
                                                  self.egroup, self.cluster)
@@ -154,7 +156,8 @@ class Cell():
                                                        useModifiedClusters=self.useModifiedClusters)
         elif self.dbRow['probe'][:4] == 'NPv1':
             ephysData = load_ephys_neuropixels_v1(self.subject, paradigm, sessionDir,
-                                                  self.egroup, self.cluster)
+                                                  self.egroup, self.cluster,
+                                                  self.dirsuffix)
         return ephysData
 
     def get_ephys_dir(self, sessionInd):
@@ -293,10 +296,11 @@ def load_ephys_neuronexus_tetrodes(subject, paradigm, sessionDir, tetrode, clust
     return ephysData
 
 
-def load_ephys_neuropixels_v1(subject, paradigm, sessionDir, egroup, cluster=None):
+def load_ephys_neuropixels_v1(subject, paradigm, sessionDir, egroup, cluster=None,
+                              dirsuffix='_processed_multi'):
     ephysBaseDir = os.path.join(settings.EPHYS_NEUROPIX_PATH, subject)
     sessionDir = sessionDir[:-1] if sessionDir.endswith(os.sep) else sessionDir # Remove last sep
-    spikesDir = os.path.join(ephysBaseDir, sessionDir+'_processed')
+    spikesDir = os.path.join(ephysBaseDir, sessionDir+dirsuffix)
     #eventsDir = os.path.join(ephysBaseDir, sessionDir)
     if not os.path.isdir(spikesDir):
         print(f'{spikesDir} does not exist.')
