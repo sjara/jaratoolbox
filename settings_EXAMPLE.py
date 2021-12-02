@@ -6,7 +6,8 @@ import os
 
 BEHAVIOR_PATH = '/data/behavior'
 
-EPHYS_PATH = '/data/ephys'
+EPHYS_PATH = '/data/ephys'  # For Intan data
+EPHYS_NEUROPIX_PATH = '/data/neuropixels' # For Neuropixels data
 
 KK_PATH = '/home/jarauser/src/klustakwik/KK2/KlustaKwik'
 
@@ -22,6 +23,6 @@ INFOHIST_PATH = '/home/jarauser/src/jaratest/common/infohistology/'
 
 DATABASE_PATH = '/mnt/jarahubdata/figuresdata'
 
-ALLEN_ATLAS_DIR = '/mnt/jarahubdata/atlas/AllenCCF_25/'
+ALLEN_ATLAS_PATH = '/mnt/jarahubdata/atlas/AllenCCF_25/'
 
 
