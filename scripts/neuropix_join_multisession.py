@@ -50,9 +50,11 @@ for experiment in inforec.experiments:
 if siteToProcess is None:
     print(f'Recording for {subject} on {dateStr} at {pdepth}um not found.')
     sys.exit()
-sessions = site.session_ephys_dirs()
+sessions = siteToProcess.session_ephys_dirs()
 
 # -- Create multisession_folders --
+if debug:
+    print('Running in DEBUG mode. Messages will appear, not nothing will be created/saved.')
 if not os.path.isdir(multisessionRawDir):
     if not debug:
         os.mkdir(multisessionRawDir)
@@ -72,7 +74,5 @@ sinfo = loadneuropix.concatenate_sessions(sessionsRootPath, sessions, multisessi
 multisessionInfoFilepath = os.path.join(multisessionProcessedDir,'multisession_info.csv')
 if not debug:
     sinfo.to_csv(multisessionInfoFilepath)
-else:
-    print(sinfo)
 print(f'Saved {multisessionInfoFilepath}')
 
