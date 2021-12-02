@@ -1,13 +1,12 @@
-'''
+"""
 Tools for analyzing anatomical/histological data.
-'''
+"""
 
 '''
 ==  TO DO ==
 * Fix hardcoded transform! (it should either be entered as a param, or just have more squares in grid)
 * Maybe change the dir structure of images to have stackLabel_R and stackLabel_L as opposed to deeper directory levels.
 * There should be two separate objects. One that holds the grid, one that provides a graphical interface.
-
 '''
 
 import os
@@ -15,7 +14,7 @@ import pandas
 import json
 import re
 import PIL
-import imp
+import importlib
 import xml.etree.ElementTree as ETree
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
@@ -582,7 +581,7 @@ class AllenAtlas(object):
 # ----- Coordinate transformations from Inkscape-assisted manual registration -----
 
 def get_svg_transform(filename, sliceSize=[1388, 1040]):
-    '''
+    """
     Get the transform of the second image from an SVG file with two images.
 
     filename: SVG file containing two images.
@@ -590,7 +589,7 @@ def get_svg_transform(filename, sliceSize=[1388, 1040]):
 
     Attribute 'transform' has format 'matrix(0.9,-0.1,0.3,0.9,0,0)'
     https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/transform
-    '''
+    """
     tree = ETree.parse(filename)
     root = tree.getroot()
     images = root.findall('{http://www.w3.org/2000/svg}image')
@@ -621,32 +620,32 @@ def get_svg_transform(filename, sliceSize=[1388, 1040]):
 
 
 def apply_svg_transform(scale, translate, affine, coords):
-    '''
+    """
     Apply transformation in the appropriate order.
     This transforms the image coordinates to atlas coordinates
-    '''
+    """
     newCoords = scale * coords + translate
     newCoords = np.dot(affine, newCoords)
     return newCoords
 
 
 def apply_svg_inverse_transform(scale, translate, affine, coords):
-    '''
+    """
     This transforms the atlas coordinates into image coordinates.
-    '''
+    """
     newCoords = np.dot(np.linalg.inv(affine), coords)
     newCoords = (newCoords - translate) / scale
     return newCoords
 
 
 def get_coords_from_fiji_csv(filename, pixelSize=1):
-    '''
+    """
     Read the location of cells from a CSV file created with Fiji.
     Returns coordinates as float in an array of shape (2,nCells)
     Note that values are in Image coordinates (inverted Y), not Cartesian.
 
     First row of CSV file is " ,Area,Mean,Min,Max,X,Y"
-    '''
+    """
     allData = np.loadtxt(filename, delimiter=',', skiprows=1)
     coords = allData[:, 5:7] / pixelSize
     return coords.T
@@ -683,7 +682,6 @@ SVG_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 </svg>
 '''
 
-
 def get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank, outputDir=None):
     if outputDir is None:
         outputDir = os.path.join(settings.HISTOLOGY_PATH, '{}_processed'.format(subject))
@@ -693,8 +691,9 @@ def get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, s
     return filenameSVG
 
 
-def generate_filenames_for_registration(subject, brainArea, histImage, recordingTrack, shank, atlasZ, outputDir=None):
-    '''
+def generate_filenames_for_registration(subject, brainArea, histImage, recordingTrack, shank,
+                                        atlasZ, outputDir=None):
+    """
     Generates the filenames for all the images used during registration for one recording track.
 
     Args:
@@ -709,13 +708,13 @@ def generate_filenames_for_registration(subject, brainArea, histImage, recording
         filenameSVG (str): filename where output SVG will be saved
         filenameAtlas (str): filename of the atlas image to be used for registration
         filenameHist (str): filename of histology image to be used for registration
-    '''
+    """
 
-    filenameAtlas = os.path.join(settings.ATLAS_PATH, 'JPEG/allenCCF_Z{}.jpg'.format(atlasZ))
-    shanksFolder = 'recordingTracks{}'.format(brainArea)
-    registrationFolder = 'registration{}'.format(brainArea)
-    filenameHist = os.path.join(settings.HISTOLOGY_PATH, '{}_processed'.format(subject), shanksFolder,
-                                '{}_{}_shank{}.jpg'.format(histImage, recordingTrack, shank))
+    filenameAtlas = os.path.join(settings.ALLEN_ATLAS_PATH, f'JPEG/allenCCF_Z{atlasZ}.jpg')
+    shanksFolder = f'recordingTracks{brainArea}'
+    registrationFolder = f'registration{brainArea}'
+    filenameHist = os.path.join(settings.HISTOLOGY_PATH, f'{subject}_processed', shanksFolder,
+                                f'{histImage}_{recordingTrack}_shank{shank}.jpg')
     filenameFinalSVG = get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank,
                                                    outputDir=outputDir)
     filenameSVG = filenameFinalSVG[:-4] + '_pre' + filenameFinalSVG[-4:]
@@ -724,9 +723,9 @@ def generate_filenames_for_registration(subject, brainArea, histImage, recording
 
 
 def save_svg_for_registration(filenameSVG, filenameAtlas, filenameSlice, verbose=True):
-    '''Save SVG for manual registration
-
-    Returns:'''
+    """
+    Save SVG for manual registration
+    """
     atlasIm = PIL.Image.open(filenameAtlas)
     (atlasWidth, atlasHeight) = atlasIm.size
     sliceIm = PIL.Image.open(filenameSlice)
@@ -742,11 +741,22 @@ def save_svg_for_registration(filenameSVG, filenameAtlas, filenameSlice, verbose
     return atlasIm.size, sliceIm.size
 
 
+def read_tracks_file(tracksFile):
+    """
+    Read tracks file, usually stored in infohistology folder.
+    """
+    spec = importlib.util.spec_from_file_location('tracks_module', tracksFile)
+    tracksinfo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tracksinfo)
+    return tracksinfo
+
+
 def save_svg_for_registration_one_mouse(subject, **kwargs):
-    '''
+    """
     Save all the svgs for manual registration for a single mouse.
+
     The default save location is in settings.HISTOLOGY_PATH/{subject}_processed
-    This function will generate paths to the atlas image (from settings.ATLAS_PATH),
+    This function will generate paths to the atlas image (from settings.ALLEN_ATLAS_PATH),
         histology image (from settings.HISTOLOGY_PATH/{subject}_processed), and final
         saving location for the pre-registration svg.
     This function will loop through all the tracks in the subject's tracks file and
@@ -761,17 +771,19 @@ def save_svg_for_registration_one_mouse(subject, **kwargs):
 
     Returns:
         atlasSizes, histSizes (lists):
-    '''
+    """
     fileNameInfohist = os.path.join(settings.INFOHIST_PATH, '{}_tracks.py'.format(subject))
-    tracks = imp.load_source('tracks_module', fileNameInfohist).tracks
+    #tracks = imp.load_source('tracks_module', fileNameInfohist).tracks
+    tracks = read_tracks_file(fileNameInfohist).tracks
     atlasSizes = []
     histSizes = []
     for track in tracks:
-        filenameSVG, filenameAtlas, filenameHist = generate_filenames_for_registration(track['subject'],
-                                                                                       track['brainArea'],
-                                                                                       track['histImage'],
-                                                                                       track['recordingTrack'],
-                                                                                       track['shank'], track['atlasZ'])
+        filenameSVG, filenameAtlas, filenameHist = \
+            generate_filenames_for_registration(track['subject'],
+                                                track['brainArea'],
+                                                track['histImage'],
+                                                track['recordingTrack'],
+                                                track['shank'], track['atlasZ'])
         (atlasSize, histSize) = save_svg_for_registration(filenameSVG, filenameAtlas, filenameHist)
         atlasSizes.append(atlasSize)
         histSizes.append(histSize)
@@ -779,23 +791,25 @@ def save_svg_for_registration_one_mouse(subject, **kwargs):
 
 
 def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
-    '''
+    """
     Get the CCF coordinates of a recording tract and (optionally) any recording sites on the tract.
 
-    Returns the x and y coordinates. Will only return site coordinates if both the recording depths and max depth are given.
+    Returns the x and y coordinates. Will only return site coordinates if both the recording depths
+    and max depth are given.
 
     Args:
         filenameSVG (str): full path to the SVG containing the drawn and aligned recording tract.
-        recordingDepths (list): list of ints corresponding to the site depths for this experiment (from inforec)
-        maxDepth (int): final penetration depth reached for this experiment
+        recordingDepths (list): list of integers (in microns) corresponding to the site depths
+                                for this experiment, defined in the inforec file.
+        maxDepth (int): final penetration depth reached for this experiment.
 
     Returns:
         brainSurfCoords (list): CCF x and y coordinates where the tract enters the brain
         tipCoords (list): CCF x and y coordinates for the end of the tract
-        siteCoords (list): CCF x and y coordinates for each recording site. None if no recording depths or max depth given.
-    '''
-
-    # -- load SVG file and get coordinates for tip and brain surface --
+        siteCoords (list): CCF x and y coordinates for each recording site. None if no recording
+                           depths or max depth given.
+    """
+    # -- Load SVG file and get coordinates for tip and brain surface --
     tree = ETree.parse(filenameSVG)
     root = tree.getroot()
     paths = root.findall('{http://www.w3.org/2000/svg}path')
@@ -805,7 +819,8 @@ def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
     reString = r'M (\d+\.*\d*),(\d+\.*\d*) (\d+\.*\d*),(\d+\.*\d*)'
     coordStrings = re.findall(reString, pathCoords)
     if len(coordStrings) == 0:
-        raise ValueError('The path does not have the correct format. You probably did not double click for this tract')
+        raise ValueError('The path does not have the correct format. ' +
+                         'You probably did not double click for this tract')
     tractCoords = coordStrings[0]
     tractCoords = list(map(float, tractCoords))
 
@@ -815,7 +830,7 @@ def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
     if tipCoords[1] < brainSurfCoords[1]:
         raise ValueError('The brain surface is deeper than the tip!')
 
-    # -- extrapolate locations of recording sites from path between surface and tip --
+    # -- Extrapolate locations of recording sites from path between surface and tip --
     if recordingDepths is not None and maxDepth is not None:
         siteFracFromSurface = np.array(recordingDepths) / float(maxDepth)
         siteCoords = []
@@ -828,32 +843,29 @@ def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
         siteCoords = None
         if recordingDepths is not None or maxDepth is not None:
             print('WARNING: Please give both recording depths and max depth to get site coordinates.')
-
     return brainSurfCoords, tipCoords, siteCoords
 
 
 def cell_locations(dbCell, filterCondtions=None, brainAreaDict=None):
     """
-     This function takes as argument a pandas DataFrame and appends new columns to it.
+    Estimate coordinates of recorded cells.
 
-    This function computes the depths and cortical locations of all cells with
-    suppression indices computed.
-    This function should be run in a virtual environment because the allensdk
-    has weird dependencies that we don't want tainting our computers.
+    This function takes as argument a pandas DataFrame and appends new columns to it. The function relies
+    on the Allen SDK, so it is generally run in a Python virtual environment with the SDK installed.
     
-    Also requires having a tracks file for the mice in the database beings passed as well as svgs with drawn penetrations
-    which can be generated by histologyanalysis.save_svg_for_registration_one_mouse()
+    The function also requires having a tracks file (in the infohistology folder) for each mouse as well
+    as the svgs with drawn penetrations which are generated by save_svg_for_registration_one_mouse()
     
     Args:
         dbCell (pandas.DataFrame): The dataframe can be generated by celldatabase.generate_cell_database().
-        filterConditions (str): Optional string that can be passed to a DataFrame.query() function to select a subset of cells
-        instead of all the cells
+        filterConditions (str): Optional string that can be passed to a DataFrame.query() function
+                                to select a subset of cells.
         brainAreaDict (dict): A dictionary to correct if the inforecordings files has the brain areas
-        called something different than the folders the svgs are located in. The key matches what the 
-        inforecording file has and the value is what the tracks file has
-
+                              called something different than the folders the svgs are located in.
+                              The keys should match the inforec and the value match the tracks file.
     Returns:
-        Modified version of dbCell that has four new columns added: x_coord, y_coord, z_coord, and recordingSiteName
+        Modified version of dbCell that has four new columns added: 
+            x_coord, y_coord, z_coord, and recordingSiteName
     
     """
 
@@ -880,7 +892,8 @@ def cell_locations(dbCell, filterCondtions=None, brainAreaDict=None):
 
         try:
             fileNameInfohist = os.path.join(settings.INFOHIST_PATH, '{}_tracks.py'.format(subject))
-            tracks = imp.load_source('tracks_module', fileNameInfohist).tracks
+            #tracks = imp.load_source('tracks_module', fileNameInfohist).tracks
+            tracks = read_tracks_file(fileNameInfohist).tracks
         except IOError:
             print("No such tracks file: {}".format(fileNameInfohist))
         else:
