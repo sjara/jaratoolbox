@@ -27,6 +27,7 @@ pdepth = int(sys.argv[3])
 sessionsRootPath = os.path.join(settings.EPHYS_NEUROPIX_PATH, subject)
 multisessionRawDir = os.path.join(sessionsRootPath, f'multisession_{dateStr}_{pdepth}um_raw')
 multisessionProcessedDir = os.path.join(sessionsRootPath, f'multisession_{dateStr}_{pdepth}um_processed')
+multisessionTempDir = os.path.join(sessionsRootPath, f'multisession_{dateStr}_{pdepth}um_tmp')
 
 # -- Load inforec file --
 inforecFile = os.path.join(settings.INFOREC_PATH, f'{subject}_inforec.py')
@@ -50,11 +51,17 @@ sessions = site.session_ephys_dirs()
 if not os.path.isdir(multisessionRawDir):
     os.mkdir(multisessionRawDir)
     print(f'Created {multisessionRawDir}')
+if not os.path.isdir(multisessionTempDir):
+    os.mkdir(multisessionTempDir)
+    print(f'Created {multisessionTempDir}')
 if not os.path.isdir(multisessionProcessedDir):
     os.mkdir(multisessionProcessedDir)
     print(f'Created {multisessionProcessedDir}')
 
 sinfo = loadneuropix.concatenate_sessions(sessionsRootPath, sessions, multisessionRawDir, debug=False)
 
-
+# -- Save a copy of multisession_info.csv to processed folder --
+multisessionInfoFilepath = os.path.join(multisessionProcessedDir,'multisession_info.csv')
+sinfo.to_csv(multisessionInfoFilepath)
+print(f'Saved {multisessionInfoFilepath}')
 
