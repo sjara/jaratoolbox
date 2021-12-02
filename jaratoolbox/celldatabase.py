@@ -177,7 +177,7 @@ class Site():
         self.pdepth = pdepth
         self.sessions = []
         self.comments = []
-        self.clusterFolder = 'multisession_{}_{}um'.format(self.date, self.pdepth)
+        self.clusterFolder = 'multisession_{}_{}um_processed'.format(self.date, self.pdepth)
         
     def remove_egroups(self, egroupsToRemove):
         """
@@ -386,7 +386,7 @@ def make_db_neuronexus_tetrodes(experiment):
     return celldb
 
 
-def make_db_neuropixels_v1(experiment, singleSession=None):
+def OLD_make_db_neuropixels_v1(experiment, singleSession=None):
     """
     Create a database of cells given an Experiment object associated with
     recordings using Neuropixels probes version 1.
@@ -398,6 +398,7 @@ def make_db_neuropixels_v1(experiment, singleSession=None):
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
+    singleSuffix='_processed_single'
     celldb = pd.DataFrame()
     for indSite, site in enumerate(experiment.sites):
         for indEletrodeGroup, egroup in enumerate(experiment.egroups):
@@ -409,7 +410,7 @@ def make_db_neuropixels_v1(experiment, singleSession=None):
                 if site.date==singleSession['date'] and site.pdepth==singleSession['pdepth']:
                     sessionIndex = site.get_session_index(singleSession['sessiontype'])
                     ephysTime = site.sessions[sessionIndex].timestamp
-                    oneSessionFolder = f'{site.date}_{ephysTime}_processed'
+                    oneSessionFolder = f'{site.date}_{ephysTime}' + singleSuffix
                     clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
                                                  experiment.subject, oneSessionFolder)
                 else:
@@ -434,7 +435,7 @@ def make_db_neuropixels_v1(experiment, singleSession=None):
                 (rowMax, colMax) = np.unravel_index(indMax, oneTemplate.shape)
                 spikeShapes[indc,:] = oneTemplate[:,colMax]
                 bestChannel[indc] = colMax
-                nSpikes[indc] = np.sum(spikeClusters==clusterID)
+                nSpikes[indc] = np.count_nonzero(spikeClusters==clusterID)
             # -- Add site info to database
             siteInfoDict = site.get_info()
             for key, val in siteInfoDict.items():
@@ -446,6 +447,57 @@ def make_db_neuropixels_v1(experiment, singleSession=None):
             tempdb['egroup'] = egroup
             #tempdb['probe'] = np.tile(experiment.probe, nClusters)
             tempdb['spikeShape'] = list(spikeShapes)
+            tempdb.rename(columns={'cluster_id': 'cluster'}, inplace=True)
+            celldb = celldb.append(tempdb, ignore_index=True)
+    return celldb
+
+
+def make_db_neuropixels_v1(experiment, singleSession=None):
+    """
+    Create a database of cells given an Experiment object associated with
+    recordings using Neuropixels probes version 1.
+
+    Args:
+        experiment (celldatabase.Experiment): object defining experiment and sites.
+        singleSession (dict): specifies a single session to process, with format:
+            {'date': YYYY-MM-DD, 'pdepth': int, 'sessiontype': str}
+    Returns:
+        celldb (pandas.DataFrame): the cell database
+    """
+    singleSuffix='_processed_single'
+    celldb = pd.DataFrame()
+    for indSite, site in enumerate(experiment.sites):
+        for indEletrodeGroup, egroup in enumerate(experiment.egroups):
+            # FIXME: how to define the clustered data for different egroups?
+            if singleSession is None:
+                clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
+                                             experiment.subject, site.clusterFolder)
+            else:
+                if site.date==singleSession['date'] and site.pdepth==singleSession['pdepth']:
+                    sessionIndex = site.get_session_index(singleSession['sessiontype'])
+                    ephysTime = site.sessions[sessionIndex].timestamp
+                    oneSessionFolder = f'{site.date}_{ephysTime}' + singleSuffix
+                    clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
+                                                 experiment.subject, oneSessionFolder)
+                else:
+                    break
+            #spikeClustersFile = os.path.join(clusterFolder, 'spike_clusters.npy')
+            #clusterGroupFile = os.path.join(clusterFolder, 'cluster_group.tsv')
+            #spikeClusters = np.load(spikeClustersFile).squeeze()
+            bestChannel = np.load(os.path.join(clusterFolder, 'cluster_bestChannel.npy'))
+            spikeShapes = np.load(os.path.join(clusterFolder, 'spike_shapes.npy'))
+            clusterGroup = pd.read_csv(os.path.join(clusterFolder, 'cluster_group.tsv'), sep='\t')
+
+            tempdb = clusterGroup.query("KSLabel=='good'").reset_index(drop=True)
+            # -- Add site info to database
+            siteInfoDict = site.get_info()
+            for key, val in siteInfoDict.items():
+                tempdb[key] = len(tempdb)*[val]
+            # -- Add cluster-specific info --
+            tempdb['bestChannel'] = bestChannel[tempdb.cluster_id]
+            tempdb['maxDepth'] = experiment.maxDepth
+            tempdb['egroup'] = egroup
+            tempdb['spikeShape'] = list(spikeShapes[tempdb.cluster_id,:])
             tempdb.rename(columns={'cluster_id': 'cluster'}, inplace=True)
             celldb = celldb.append(tempdb, ignore_index=True)
     return celldb
