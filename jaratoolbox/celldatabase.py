@@ -481,9 +481,6 @@ def make_db_neuropixels_v1(experiment, singleSession=None):
                                                  experiment.subject, oneSessionFolder)
                 else:
                     break
-            #spikeClustersFile = os.path.join(clusterFolder, 'spike_clusters.npy')
-            #clusterGroupFile = os.path.join(clusterFolder, 'cluster_group.tsv')
-            #spikeClusters = np.load(spikeClustersFile).squeeze()
             bestChannel = np.load(os.path.join(clusterFolder, 'cluster_bestChannel.npy'))
             spikeShapes = np.load(os.path.join(clusterFolder, 'spike_shapes.npy'))
             clusterGroup = pd.read_csv(os.path.join(clusterFolder, 'cluster_group.tsv'), sep='\t')
@@ -515,12 +512,6 @@ def generate_cell_database(inforecFile, singleSession=None):
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
-    '''
-    # -- Load inforec --
-    spec = importlib.util.spec_from_file_location('inforec_module', inforecFile)
-    inforec = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(inforec)
-    '''
     inforec = read_inforec(inforecFile)
     
     print('\nGenerating database for {}'.format(inforecFile))
@@ -708,13 +699,3 @@ def load_hdf(filename, root='/', columns=[]):
 class NotClusteredError(Exception):
     pass
 
-
-
-'''
-import h5py
-h5file = h5py.File('/tmp/test.h5','w')
-dbGroup = h5file.require_group('/')
-
-dset = dbGroup.create_dataset('mykey', data=x)
-h5file.close()
-'''

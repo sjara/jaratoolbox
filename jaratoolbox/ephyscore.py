@@ -142,7 +142,7 @@ class Cell():
 
     def load_ephys_by_index(self, sessionInd):
         '''
-        Load the ephys data for a session using the absolute index in the list of sessions for the cell.
+        Load ephys data for a session using the absolute index in the list of sessions for the cell.
         Args:
             sessionInd (int): The index of the session in the list of sessions recorded for the cell.
         Returns:
@@ -195,8 +195,9 @@ class Cell():
         if self.dbRow['behavSuffix'][sessionInd] is not None:
             dateStr = ''.join(self.date.split('-'))
             fullSessionStr = '{}{}'.format(dateStr, self.dbRow['behavSuffix'][sessionInd])
+            thisParadigm = self.dbRow['paradigm'][sessionInd]
             behavDataFilePath = loadbehavior.path_to_behavior_data(self.subject,
-                                                                   self.dbRow['paradigm'][sessionInd],
+                                                                   thisParadigm,
                                                                    fullSessionStr)
             bdata = behavClass(behavDataFilePath,readmode='full')
         else:
@@ -266,7 +267,7 @@ def load_ephys_neuronexus_tetrodes(subject, paradigm, sessionDir, tetrode, clust
             spikeData.set_clusters(clustersFile)
         elif useModifiedClusters is True:
             # Use the modified .clu file if it exists, otherwise use the original one
-            clustersFileModified = os.path.join(clustersDir,'Tetrode{}.clu.modified'.format(tetrode))
+            clustersFileModified = os.path.join(clustersDir, f'Tetrode{tetrode}.clu.modified')
             if os.path.exists(clustersFileModified):
                 print("Loading modified .clu file for session {}".format(spikesFilename))
                 spikeData.set_clusters(clustersFileModified)
