@@ -48,7 +48,7 @@ class Spikes():
         self.convertUnits = convert
         self.timestamps = None
         self.clusters = None
-        self.clusterGroup = None
+        #self.clusterGroup = None
         self.samplingRate = None
         
         self.load_data()
@@ -56,11 +56,11 @@ class Spikes():
     def load_data(self):
         spikeTimesFile = os.path.join(self.dataDir, 'spike_times.npy')
         spikeClustersFile = os.path.join(self.dataDir, 'spike_clusters.npy')
-        clusterGroupFile = os.path.join(self.dataDir, 'cluster_group.tsv')
+        #clusterGroupFile = os.path.join(self.dataDir, 'cluster_group.tsv')
 
         self.samplingRate = self.read_sampling_rate()
         self.clusters = np.load(spikeClustersFile).squeeze()
-        self.clusterGroup = pd.read_csv(clusterGroupFile, sep='\t')
+        #self.clusterGroup = pd.read_csv(clusterGroupFile, sep='\t')
         self.timestamps = np.load(spikeTimesFile).squeeze()
         if self.convertUnits:
             self.timestamps = self.timestamps/self.samplingRate
@@ -132,27 +132,28 @@ class Events():
         return eventOnsetTimes
         
 
-def copy_events_and_info(dataDir, suffix='_processed_multi'):
+def copy_events_and_info(dataDir, outputDir=None):
     """
     Copy events data and OpenEphys info files to the processed data folder for a session.
     
     Args:
         dataDir (str): neuropixels session data folder. Usually in format YYYY-MM-DD_HH-MM-SS
+        outputDir (str): destination where events and info folders will be saved.
     """
     dataDir = dataDir[:-1] if dataDir.endswith(os.sep) else dataDir  # Remove last sep
-
+    if outputDir is None:
+        outputDir = dataDir+'_processed_multi'
     relativePathToRecording = 'Record Node 101/experiment1/recording1/'
     eventsDir = os.path.join(dataDir, relativePathToRecording, 'events')
     structFile = os.path.join(dataDir, relativePathToRecording, 'structure.oebin')
     syncFile = os.path.join(dataDir, relativePathToRecording, 'sync_messages.txt')
 
-    processedDir = dataDir+suffix
-    if not os.path.isdir(processedDir):
-        print(f'{processedDir} does not exist.')
+    if not os.path.isdir(outputDir):
+        print(f'{outputDir} does not exist.')
         print('WARNING! This session has not been processed. No files will be copied.')
         return
-    newEventsDir = os.path.join(processedDir, 'events')
-    infoDir = os.path.join(processedDir, 'info')
+    newEventsDir = os.path.join(outputDir, 'events')
+    infoDir = os.path.join(outputDir, 'info')
     try:
         shutil.copytree(eventsDir, newEventsDir)
     except FileExistsError:
@@ -163,14 +164,15 @@ def copy_events_and_info(dataDir, suffix='_processed_multi'):
         os.mkdir(infoDir)
     except FileExistsError:
         print(f'WARNING! {infoDir} already exists. It was not modified.')
-        return
+        return outputDir
     else:
         print(f'Created {infoDir}')
     shutil.copy2(structFile, infoDir)
     print(f'Copied {structFile} to {infoDir+os.sep}')
     shutil.copy2(syncFile, infoDir)
     print(f'Copied {syncFile} to {infoDir+os.sep}')
-    return processedDir
+    return outputDir
+
 
 def progress_bar(sofar, total, size=60):
     nBoxes = int(size*sofar/total)
@@ -198,11 +200,9 @@ def concatenate_sessions(sessionsRootPath, sessions, outputDir, debug=False):
     chunkSize = nBlocks * blockSize
 
     recordingPath = 'Record Node 101/experiment1/recording1/continuous/Neuropix-PXI-100.0/'
-
     dataPath = os.path.join(sessionsRootPath, '{}', recordingPath)
     dataFile = 'continuous.dat'
     timestampsFile = 'timestamps.npy'
-
     tmpDataFile = 'multisession_continuous.dat'
     sessionsInfoFile = 'multisession_info.csv'
     outputDataFile = os.path.join(outputDir, tmpDataFile)
@@ -214,7 +214,6 @@ def concatenate_sessions(sessionsRootPath, sessions, outputDir, debug=False):
         else:
             os.mkdir(outputDir)
             print(f'Created {outputDir}')
-
     if os.path.isfile(outputDataFile):
         overwrite = 'y' #input(f'File {outputFile} exists. Overwrite? (Y/n): ')
         if overwrite.lower() != 'y':
@@ -225,15 +224,14 @@ def concatenate_sessions(sessionsRootPath, sessions, outputDir, debug=False):
         print(f'DEBUG MESSAGE: this step would open {outputDataFile}')
     else:
         ofile = open(outputDataFile, 'wb')
-
     sessionsInfo = [] #pd.DataFrame()
-
     for oneSession in sessions:
-        oneSessionDataFile = os.path.join(dataPath.format(oneSession), dataFile)
-        oneSessionTimestampsFile = os.path.join(dataPath.format(oneSession), timestampsFile)
-
-        tsThisSession = np.load(oneSessionTimestampsFile, mmap_mode='r')
-        with open(oneSessionDataFile, 'rb') as dfile:
+        oneSessionDir = dataPath.format(oneSession)
+        oneSessionDataFile = os.path.join(oneSessionDir, dataFile)
+        oneSessionTimestampsFile = os.path.join(oneSessionDir, timestampsFile)
+        if os.path.isfile(oneSessionDataFile):
+            tsThisSession = np.load(oneSessionTimestampsFile, mmap_mode='r')
+            dfile = open(oneSessionDataFile, 'rb')
             fileSize = dfile.seek(0, os.SEEK_END)
             dfile.seek(0, 0)  # Back to the beginning
             nChunks = fileSize//chunkSize + 1  # Plus one to include a partial chunk
@@ -247,16 +245,20 @@ def concatenate_sessions(sessionsRootPath, sessions, outputDir, debug=False):
                     ofile.write(dataChunk)
                     progress_bar(oneChunk, nChunks)
                 print('\n')
+            close(dfile)
+        elif debug:
+            tsThisSession = [0,1]
+            fileSize = 0
+        else:
+            return
         sessionsInfo.append({'session':oneSession,
                              'firstTimestamp':tsThisSession[0],
                              'lastTimestamp': tsThisSession[-1],
                              'fileSize':fileSize })
-
     if debug:
         print(f'DEBUG MESSAGE: this step would close {outputDataFile}')
     else:
         ofile.close()
-
     sessionsInfo = pd.DataFrame(sessionsInfo)
     print(sessionsInfo)
     if debug:
