@@ -74,7 +74,7 @@ sinfo = loadneuropix.concatenate_sessions(sessionsRootPath, sessions, multisessi
 multisessionInfoFilepath = os.path.join(multisessionProcessedDir,'multisession_info.csv')
 if not debug:
     sinfo.to_csv(multisessionInfoFilepath)
-print(f'Saved {multisessionInfoFilepath}')
+print(f'Saved {multisessionInfoFilepath}\n')
 
 # -- Copy events and recording info for each session --
 for oneSession in sessions:
