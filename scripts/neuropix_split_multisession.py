@@ -38,3 +38,7 @@ sessionList = loadneuropix.split_sessions(multisessionProcessedDir)
 for oneSession in sessionList:
     sessionFullPath = os.path.join(sessionsRootPath, oneSession)
     processedDir = loadneuropix.copy_events_and_info(sessionFullPath)
+    multiDirFile = os.path.join(processedDir, 'multisession_dir.txt')
+    with open(multiDirFile, 'w') as dirFile:
+        dirFile.write(multisessionProcessedDir)
+    print(f'Saved {multiDirFile}\n')
