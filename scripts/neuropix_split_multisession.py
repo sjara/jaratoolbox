@@ -8,6 +8,7 @@ python neuropix_split_multisession.py test000 2020-01-31 3440
 
 import os
 import sys
+import shutil
 from jaratoolbox import loadneuropix
 from jaratoolbox import settings
 import importlib
@@ -32,13 +33,22 @@ multisessionProcessedDir = os.path.join(sessionsRootPath,
 loadneuropix.spikeshapes_from_templates(multisessionProcessedDir, save=True)
 
 # -- Split spike times into sessions --
-sessionList = loadneuropix.split_sessions(multisessionProcessedDir)
+sessionsList, sessionsDirs = loadneuropix.split_sessions(multisessionProcessedDir)
 
-# -- Copy Events --
-for oneSession in sessionList:
+# -- Copy Events and Info to each session --
+for inds, oneSessionProcessedDir in enumerate(sessionsDirs):
+    subDir = os.path.join(multisessionProcessedDir, sessionsList[inds])
+    shutil.copytree(os.path.join(subDir, 'events'),
+                    os.path.join(oneSessionProcessedDir, 'events'), dirs_exist_ok=True)
+    print(f'Copied events to {oneSessionProcessedDir}/')
+    shutil.copytree(os.path.join(subDir, 'info'),
+                    os.path.join(oneSessionProcessedDir, 'info'), dirs_exist_ok=True)
+    print(f'Copied info to {oneSessionProcessedDir}/')
+    '''
     sessionFullPath = os.path.join(sessionsRootPath, oneSession)
     processedDir = loadneuropix.copy_events_and_info(sessionFullPath)
-    multiDirFile = os.path.join(processedDir, 'multisession_dir.txt')
+    '''
+    multiDirFile = os.path.join(oneSessionProcessedDir, 'multisession_dir.txt')
     with open(multiDirFile, 'w') as dirFile:
         dirFile.write(multisessionProcessedDir)
     print(f'Saved {multiDirFile}\n')
