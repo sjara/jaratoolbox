@@ -76,3 +76,17 @@ if not debug:
     sinfo.to_csv(multisessionInfoFilepath)
 print(f'Saved {multisessionInfoFilepath}')
 
+# -- Copy events and recording info for each session --
+for oneSession in sessions:
+    sessionDir = os.path.join(sessionsRootPath, oneSession)
+    processedSessionSubDir = os.path.join(multisessionProcessedDir, oneSession)
+    if not debug:
+        try:
+            os.mkdir(sessionSubDir)
+            copy_events_and_info(sessionDir, processedSessionSubDir)
+        except FileExistsError:
+            print(f'WARNING! {sessionSubDir} already exists. It was not modified.')
+    else:
+        print(f'Created {processedSessionSubDir}')
+        print(f'Copied events and info from {sessionDir} to {processedSessionSubDir}')
+
