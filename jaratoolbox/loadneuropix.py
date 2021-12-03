@@ -24,6 +24,19 @@ def read_processor_info(infoDir, subProcessorIndex=0):
     return(startTime, samplingRate)
 
 
+def read_recording_info(processedDir):
+    firstTimestampFile = os.path.join(processedDir, 'first_timestamp.csv')
+    with open(firstTimestampFile) as tsFile:
+        firstTimestamp = int(tsFile.read())
+    paramsFile = os.path.join(processedDir, 'params.py')
+    with open(paramsFile) as pFile:
+        params = pFile.readlines()
+        for line in params:
+            if 'sample_rate' in line:
+                samplingRate = float(params[4].split('=')[1])
+    return(firstTimestamp, samplingRate)
+
+
 '''
 def read_sampling_rate(dataDir, processorID):
     structFile = os.path.join(dataDir, 'structure.oebin')
@@ -110,16 +123,17 @@ class Events():
         fullWordsFile = 'full_words.npy'
         timestampsFile = 'timestamps.npy'
 
-        (self.processorStartTime, self.samplingRate) = read_processor_info(self.infoDir)
+        #(self.firstTimestamp, self.samplingRate) = read_processor_info(self.infoDir)
+        (self.firstTimestamp, self.samplingRate) = read_recording_info(processedDataDir)
         self.channels = np.load(os.path.join(self.eventsDir, channelsFile))
         self.channelStates = np.load(os.path.join(self.eventsDir, channelStatesFile))
         self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
         self.timestamps = np.load(os.path.join(self.eventsDir, timestampsFile))
         if self.convertUnits:
-            self.timestamps = (self.timestamps-self.processorStartTime)/self.samplingRate
+            self.timestamps = (self.timestamps-self.firstTimestamp)/self.samplingRate
         
     def get_onset_times(self, eventChannel=1, channelState=1):
-        '''
+        """
         Get the onset times for specific events.
 
         Args:
@@ -127,8 +141,9 @@ class Events():
             channelState (int): 1 for onset, -1 for offset
         Returns:
             eventOnsetTimes (array): An array of the timestamps of the event onsets.
-        '''
-        eventOnsetTimes=self.timestamps[(self.channelStates==channelState)&(self.channels==eventChannel)]
+        """
+        thisStateThisChannel = (self.channelStates==channelState)&(self.channels==eventChannel)
+        eventOnsetTimes=self.timestamps[thisStateThisChannel]
         return eventOnsetTimes
         
 
@@ -278,6 +293,7 @@ def split_sessions(multisessionPath, debug=False):
         debug (bool): if False, don't create directories or save anything.
     Returns:
         sessionsInfo (pandas.DataFrame): information about each session.
+        sessionsDirs (list): paths to each processed session.
     """
     import pandas as pd  # Imported here to avoid dependency if using other functions
     rootDir = os.path.dirname(multisessionPath)
@@ -295,7 +311,8 @@ def split_sessions(multisessionPath, debug=False):
     nSamplesEachSession = sessionsInfo.lastTimestamp - sessionsInfo.firstTimestamp + 1
     lastSampleEachSession = np.cumsum(nSamplesEachSession)
     firstSampleEachSession = np.r_[0, lastSampleEachSession[:-1]]
-
+    sessionsDirsList = []
+    
     for inds, oneRow in sessionsInfo.iterrows():
         sessionDir = os.path.join(rootDir, f'{oneRow.session}_processed_multi')
         spikeIndsThisSession = ( (multiSpikeTimes>=firstSampleEachSession[inds]) & 
@@ -328,9 +345,10 @@ def split_sessions(multisessionPath, debug=False):
                 firstTSfile.write(f'{sessionsInfo.firstTimestamp[inds]}')
         print(f'Saved {sessionsInfo.firstTimestamp[inds]} to {thisSessionFirstTimestampFile}')
         print('')
-
-    sessionList = list(sessionsInfo.session)
-    return sessionList
+        sessionsDirsList.append(sessionDir)
+        
+    sessionsList = list(sessionsInfo.session)
+    return (sessionsList, sessionsDirsList)
     
 
 def spikeshapes_from_templates(clusterFolder, save=False, ignorezero=True):
