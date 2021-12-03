@@ -245,7 +245,7 @@ def concatenate_sessions(sessionsRootPath, sessions, outputDir, debug=False):
                     ofile.write(dataChunk)
                     progress_bar(oneChunk, nChunks)
                 print('\n')
-            close(dfile)
+            dfile.close()
         elif debug:
             tsThisSession = [0,1]
             fileSize = 0
