@@ -10,8 +10,9 @@ from matplotlib import pyplot as plt
 import parselmouth as pm
 
 
-DEFAULT_TIMING_PARAMS = {'burstDuration': 0.000001,
-                         'vowelDuration': 0.22,
+DEFAULT_TIMING_PARAMS = {'silenceDuration': 0,
+                         'burstDuration': 0,
+                         'vowelDuration': 0.24,
                          'formantTransitionDuration': 0.035,
                          'prevoiceDuration': 0,
                          'aspPoint': 0}
@@ -91,6 +92,8 @@ class SyllableRange():
                 self.syllables[indvot].append(syllableObj)
         sound = syllableObj.create_sound()
     def save(self, outputDir='/tmp/'):
+        if not os.path.isdir(outputDir):
+            os.mkdir(outputDir)
         percentVOT = np.linspace(0, 100, self.nVOT)
         percentFT = np.linspace(0, 100, self.nFT)
         for indvot in range(self.nVOT):
@@ -115,6 +118,17 @@ class SyllableRange():
                 plt.ylim([0, maxf])
         plt.tight_layout()
         plt.show()
+    def plot_waveforms(self):
+        plt.clf()
+        #mainAx = plt.subplot2grid([self.nVOT, self.nFT], [0, 0])
+        for indft in range(self.nFT):
+            for indvot in range(self.nVOT):
+                #plt.subplot2grid([self.nVOT, self.nFT], [indvot, indft], sharex=mainAx)
+                tvec,wave = self.syllables[indvot][indft].as_array()
+                plt.plot(tvec,wave)
+        plt.tight_layout()
+        plt.show()
+
 
 '''
         infoStr = ''
@@ -254,6 +268,7 @@ class Syllable():
         self.silenceDuration = silenceDuration
         self.vowelSound = None
         self.burstSound = None
+        self.prevoiceSound = None
         self.sound = None
         self.formantSet = formantSet
         self.formants = []
@@ -274,17 +289,27 @@ class Syllable():
                                       'bandwidth':bandwidth}
     def create_sound(self):
         # Last argument of the next call must be string.
-        self.silence = pm.praat.call('Create Sound from formula', 'silence', 1, 0,
-                                     self.silenceDuration, self.sampFreq, '0')
-        if self.burstDuration>0:
-            self.create_burst()
-        self.create_vowel()
-        if self.prevoiceDuration:
-            self.create_prevoicing()
+        soundComponents = []
+        if self.silenceDuration > 0:
+            self.silence = pm.praat.call('Create Sound from formula', 'silence', 1, 0,
+                                         self.silenceDuration, self.sampFreq, '0')
+            soundComponents.append(self.silence)
+        if self.burstDuration > 0:
+            self.burstSound = self.create_burst()
+            soundComponents.append(self.burstSound)
+        if self.prevoiceDuration > 0:
+            self.prevoiceSound = self.create_prevoicing()
+            soundComponents.append(self.prevoiceSound)
+        if self.vowelDuration > 0:
+            self.vowelSound = self.create_vowel()
+            soundComponents.append(self.vowelSound)
+        self.sound = soundComponents[0].concatenate(soundComponents)
+        '''
             self.sound  = self.silence.concatenate([self.silence, self.burstSound,
                                                     self.prevoiceSound, self.vowelSound])
         else:
             self.sound  = self.silence.concatenate([self.silence, self.burstSound, self.vowelSound])
+        '''
         return self.sound
     def create_burst(self):
         burstKG = pm.praat.call('Create KlattGrid', 'burst', 0, self.burstDuration,
@@ -297,14 +322,53 @@ class Syllable():
         pm.praat.call(burstKG, 'Add frication amplitude point', 0.001, 25)
         pm.praat.call(burstKG, 'Add frication amplitude point', self.burstDuration, 0)
         pm.praat.call(burstKG, 'Add voicing amplitude point', 0, 25)
-        self.burstSound = pm.praat.call(burstKG, 'To Sound (special)', 0, 0, self.sampFreq,
+        burstSound = pm.praat.call(burstKG, 'To Sound (special)', 0, 0, self.sampFreq,
                                             'yes', 'no', 'yes', 'yes', 'yes', 'yes',
                                             'Powers in tiers', 'yes', 'yes', 'yes',
                                             'Cascade', 1, 5, 1, 1,  1, 1, 1, 1,
                                             1, 1, 1, 1,  1, 1, 1, 6, 'yes')
-        pm.praat.call(self.burstSound, 'Scale intensity', 50)
-        return self.burstSound
+        pm.praat.call(burstSound, 'Scale intensity', 50)
+        return burstSound
     def create_vowel(self):
+        vowelKG = pm.praat.call('Create KlattGrid', 'creation', 0, self.vowelDuration,
+                                5, 0, 0, 1, 0, 0, 0)
+        for indf in range(self.nFormants):
+            pm.praat.call(vowelKG, 'Add oral formant frequency point', indf+1,
+                          0, self.formants[indf]['onset'])
+            pm.praat.call(vowelKG, 'Add oral formant frequency point', indf+1,
+                          self.formantTransitionDuration,
+                          self.formants[indf]['stable'])
+            pm.praat.call(vowelKG, 'Add oral formant bandwidth point', indf+1,
+                          0, self.formants[indf]['bandwidth'])
+
+        #pm.praat.call(vowelKG, 'Add pitch point', self.aspPoint, self.pitch['onset'])
+        #pm.praat.call(vowelKG, 'Add pitch point', self.aspPoint+0.1, self.pitch['stable'])
+        # -- We make pitch points independent of aspPoint, so ba and pa have the same vowel --
+        pm.praat.call(vowelKG, 'Add pitch point', 0, self.pitch['onset'])
+        pm.praat.call(vowelKG, 'Add pitch point', 0.1, self.pitch['stable'])
+        pm.praat.call(vowelKG, 'Add pitch point', self.vowelDuration-0.04, 0.9*self.pitch['stable'])
+        pm.praat.call(vowelKG, 'Add pitch point', self.vowelDuration, 0.5*self.pitch['stable'])
+
+        pm.praat.call(vowelKG, 'Add voicing amplitude point', 0, 0)
+        pm.praat.call(vowelKG, 'Add voicing amplitude point', self.aspPoint, 0)
+        pm.praat.call(vowelKG, 'Add voicing amplitude point', self.aspPoint+0.00001, 60)
+        pm.praat.call(vowelKG, 'Add voicing amplitude point', self.vowelDuration-0.02, 60)
+        pm.praat.call(vowelKG, 'Add voicing amplitude point', self.vowelDuration, 0)
+
+        if self.burstDuration>0:
+            pm.praat.call(vowelKG, 'Add aspiration amplitude point', self.burstDuration, 20)
+            pm.praat.call(vowelKG, 'Add aspiration amplitude point', self.burstDuration+0.001, 25)
+        if self.aspPoint>0:
+            pm.praat.call(vowelKG, 'Add aspiration amplitude point', self.aspPoint-0.001, 25)
+            pm.praat.call(vowelKG, 'Add aspiration amplitude point', self.aspPoint, 0)
+        
+        vowelSound = pm.praat.call(vowelKG, 'To Sound (special)', 0, 0.315, self.sampFreq,
+                                   'yes', 'yes', 'yes', 'yes', 'yes', 'yes',
+                                   'Powers in tiers', 'yes', 'yes', 'yes' ,
+                                   'Cascade', 1, 5, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,
+                                   1, 1, 1, 6, 'yes')
+        return vowelSound
+    def ORIG_create_vowel(self):
         vowelKG = pm.praat.call('Create KlattGrid', 'creation', 0, self.vowelDuration,
                                 5, 0, 0, 1, 0, 0, 0)
         for indf in range(self.nFormants):
@@ -332,12 +396,12 @@ class Syllable():
         pm.praat.call(vowelKG, 'Add aspiration amplitude point', self.aspPoint-0.001, 25)
         pm.praat.call(vowelKG, 'Add aspiration amplitude point', self.aspPoint, 0)
 
-        self.vowelSound = pm.praat.call(vowelKG, 'To Sound (special)', 0, 0.315, self.sampFreq,
-                                        'yes', 'yes', 'yes', 'yes', 'yes', 'yes',
-                                        'Powers in tiers', 'yes', 'yes', 'yes' ,
-                                        'Cascade', 1, 5, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,
-                                        1, 1, 1, 6, 'yes')
-        return self.vowelSound
+        vowelSound = pm.praat.call(vowelKG, 'To Sound (special)', 0, 0.315, self.sampFreq,
+                                   'yes', 'yes', 'yes', 'yes', 'yes', 'yes',
+                                   'Powers in tiers', 'yes', 'yes', 'yes' ,
+                                   'Cascade', 1, 5, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,
+                                   1, 1, 1, 6, 'yes')
+        return vowelSound
     def create_prevoicing(self):
         prevoiceKG = pm.praat.call('Create KlattGrid', 'prevoice', 0, self.prevoiceDuration,
                                    1, 0, 0, 1, 0, 0, 0)
@@ -345,14 +409,14 @@ class Syllable():
         pm.praat.call(prevoiceKG, 'Add oral formant frequency point', 1, 0, 100)
         pm.praat.call(prevoiceKG, 'Add pitch point', 0, 120)
         pm.praat.call(prevoiceKG, 'Add voicing amplitude point', 0, 50)
-        self.prevoiceSound = pm.praat.call(prevoiceKG, 'To Sound (special)', 0,
+        prevoiceSound = pm.praat.call(prevoiceKG, 'To Sound (special)', 0,
                                            self.prevoiceDuration, self.sampFreq,
                                           'yes', 'yes', 'yes', 'yes', 'yes', 'yes',
                                           'Powers in tiers', 'yes', 'yes', 'yes',
                                           'Cascade', 1, 5, 1, 1,  1, 1, 1, 1,
                                           1, 1, 1, 1,  1, 1, 1, 6, 'yes')
-        pm.praat.call(self.prevoiceSound, 'Scale intensity', 50)
-        return self.prevoiceSound
+        pm.praat.call(prevoiceSound, 'Scale intensity', 50)
+        return prevoiceSound
     def play(self):
         if self.sound is None:
             self.create_sound()
