@@ -452,7 +452,7 @@ def OLD_make_db_neuropixels_v1(experiment, singleSession=None):
     return celldb
 
 
-def make_db_neuropixels_v1(experiment, singleSession=None):
+def make_db_neuropixels_v1(experiment, singleSession=None, onlygood=True):
     """
     Create a database of cells given an Experiment object associated with
     recordings using Neuropixels probes version 1.
@@ -485,7 +485,10 @@ def make_db_neuropixels_v1(experiment, singleSession=None):
             spikeShapes = np.load(os.path.join(clusterFolder, 'spike_shapes.npy'))
             clusterGroup = pd.read_csv(os.path.join(clusterFolder, 'cluster_group.tsv'), sep='\t')
 
-            tempdb = clusterGroup.query("KSLabel=='good'").reset_index(drop=True)
+            if onlygood:
+                tempdb = clusterGroup.query("KSLabel=='good'").reset_index(drop=True)
+            else:
+                tempdb = clusterGroup
             # -- Add site info to database
             siteInfoDict = site.get_info()
             for key, val in siteInfoDict.items():
@@ -500,7 +503,7 @@ def make_db_neuropixels_v1(experiment, singleSession=None):
     return celldb
 
 
-def generate_cell_database(inforecFile, singleSession=None):
+def generate_cell_database(inforecFile, singleSession=None, onlygood=True):
     """
     Iterates over all experiments in an inforec and builds a cell database.
     This function requires that the data is already clustered.
@@ -509,6 +512,7 @@ def generate_cell_database(inforecFile, singleSession=None):
         inforecFile (str): full path to the inforec file
         singleSession (dict): specifies a single session to process, with format:
             {'date': YYYY-MM-DD, 'pdepth': int, 'sessiontype': str}
+        onlygood (bool): include only clusters labeled "good" by Kilosort/Phy.
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
@@ -525,7 +529,7 @@ def generate_cell_database(inforecFile, singleSession=None):
         if experiment.probe == 'A4x2-tet':
             extraRows = make_db_neuronexus_tetrodes(experiment)
         elif experiment.probe[:4] == 'NPv1':
-            extraRows = make_db_neuropixels_v1(experiment, singleSession)
+            extraRows = make_db_neuropixels_v1(experiment, singleSession, onlygood)
         celldb = pd.concat((celldb, extraRows), ignore_index=True)
     return celldb
 
