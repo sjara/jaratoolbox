@@ -305,7 +305,8 @@ def split_sessions(multisessionPath, debug=False):
     filesToCopy = ['params.py', 'multisession_info.csv']
     
     sessionsInfo = pd.read_csv(os.path.join(multisessionPath, sessionsInfoFile), index_col=0)
-    multiSpikeTimes = np.load(os.path.join(multisessionPath, multiSpikeTimesFile))
+    # NOTE: squeeze is needed because spikeTimes are saved with shape (nSpikes, 1) by Kilosort
+    multiSpikeTimes = np.load(os.path.join(multisessionPath, multiSpikeTimesFile)).squeeze()
     multiSpikeClusters = np.load(os.path.join(multisessionPath, multiSpikeClustersFile))
 
     nSamplesEachSession = sessionsInfo.lastTimestamp - sessionsInfo.firstTimestamp + 1
