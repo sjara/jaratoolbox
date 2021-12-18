@@ -2,6 +2,8 @@
 Objects and methods for keeping information about isolated cells.
 
 Cell database version history:
+- v5.0 saves arrays of lists of string flatten as JSON. This make loading a
+  database about 10 times faster.
 - v4.0 uses name egroup instead of tetrode (so it works with any probe) and 
   changed depth to pdepth (since this is the depth of the probe, not the cell)
   This version should work with both NeuroNexus and Neuropixels.
@@ -24,8 +26,10 @@ import pandas as pd
 import importlib
 import h5py
 import ast  # To parse string representing a list
+import json # To save lists of strings
+import pickle # To save lists of strings
 
-CELLDB_VERSION = '4.0'
+CELLDB_VERSION = '5.0'
 
 
 class Experiment():
@@ -177,7 +181,10 @@ class Site():
         self.pdepth = pdepth
         self.sessions = []
         self.comments = []
-        self.clusterFolder = 'multisession_{}_{}um_processed'.format(self.date, self.pdepth)
+        if probe=='A4x2-tet':
+            self.clusterFolder = 'multisession_{}_{}um'.format(self.date, self.pdepth)
+        else:
+            self.clusterFolder = 'multisession_{}_{}um_processed'.format(self.date, self.pdepth)
         
     def remove_egroups(self, egroupsToRemove):
         """
@@ -229,7 +236,7 @@ class Site():
             'date': self.date,
             'brainArea': self.brainArea,
             'recordingTrack': self.recordingTrack,
-            'egroups': self.egroups,
+            #'egroups': self.egroups,  # Ignore list of egroups
             'probe': self.probe,
             'info': self.info,
             'pdepth': self.pdepth,
@@ -379,10 +386,15 @@ def make_db_neuronexus_tetrodes(experiment):
             tempdb['spikePeakTimes'] = list(clusterStats['clusterPeakTimes'])
             mainPeak = clusterStats['clusterPeakAmplitudes'][:,1]
             avgSD = clusterStats['clusterSpikeSD'].mean(axis=1)
+            clustersWithOneSpike = clusterStats['nSpikes']==1
+            # NOTE: We make spikeQuality zero if nSpikes is only 1
+            #mainPeak[clustersWithOneSpike] = 0  # Zero out peak value if nSpikes==1
+            #avgSD[clustersWithOneSpike] = 1     # Make value non-zero if nSpikes==1
             tempdb['spikeShapeQuality'] = abs(mainPeak/avgSD)
             for key, val in siteInfoDict.items():
                 tempdb[key] = len(tempdb)*[val]
-            celldb = pd.concat((celldb, tempdb), axis=0, ignore_index=True)
+            #celldb = pd.concat((celldb, tempdb), axis=0, ignore_index=True)
+            celldb = celldb.append(tempdb, ignore_index=True)
     return celldb
 
 
@@ -526,11 +538,19 @@ def generate_cell_database(inforecFile, singleSession=None, onlygood=True):
                   f'{experiment.subject} on {experiment.date}')
             raise AttributeError('You must set maxDepth for each experiment.')
         print(f'Adding experiment from {experiment.subject} on {experiment.date}')
-        if experiment.probe == 'A4x2-tet':
+        if (experiment.probe == 'A4x2-tet'):
             extraRows = make_db_neuronexus_tetrodes(experiment)
+            if onlygood and len(extraRows)>0:
+                isi=0.05
+                quality=2
+                extraRows = extraRows[(extraRows['isiViolations'] < isi) & \
+                                      (extraRows['spikeShapeQuality'] > quality)]
         elif experiment.probe[:4] == 'NPv1':
             extraRows = make_db_neuropixels_v1(experiment, singleSession, onlygood)
-        celldb = pd.concat((celldb, extraRows), ignore_index=True)
+        elif experiment.probe is None:
+            raise TypeError(f'Inforec problem: An experiment of {experiment.subject} ' +
+                            'did not specify the probe.')
+        celldb = pd.concat((celldb, extraRows), ignore_index=False)
     return celldb
 
 
@@ -541,7 +561,7 @@ def read_inforec(inforecFile):
     return inforec
 
 
-def generate_cell_database_from_subjects(subjects, removeBadCells=True, isi=0.05, quality=2):
+def generate_cell_database_from_subjects(subjects, onlygood=True):
     """
     This function generates a database for multiple subjects.
 
@@ -554,10 +574,7 @@ def generate_cell_database_from_subjects(subjects, removeBadCells=True, isi=0.05
     fulldb = pd.DataFrame()
     for subject in subjects:
         inforec = os.path.join(settings.INFOREC_PATH, '{0}_inforec.py'.format(subject))
-        onedb = generate_cell_database(inforec)
-        # FIXME: this is specific to NeuroNexus probes
-        if removeBadCells:
-            onedb = onedb[(onedb['isiViolations'] < isi) & (onedb['spikeShapeQuality'] > quality)]
+        onedb = generate_cell_database(inforec, onlygood=onlygood)
         fulldb = fulldb.append(onedb, ignore_index=True)
     return fulldb
 
@@ -591,7 +608,7 @@ def get_cell_info(database, index):
     return cellDict
 
 
-def save_hdf(dframe, filename):
+def save_hdf(dframe, filename, verbose=True):
     """
     Save database as HDF5, in a cleaner format than pandas.DataFrame.to_hdf()
     Use celldatabase.load_hdf() to load these files.
@@ -604,7 +621,8 @@ def save_hdf(dframe, filename):
           should not have a column named 'index'.
     """
     h5file = h5py.File(filename, 'w')
-    string_dt = h5py.special_dtype(vlen=str)
+    #string_dt = h5py.special_dtype(vlen=str)  # OLD
+    listOfStr_dt =  h5py.special_dtype(vlen=str) #h5py.string_dtype(encoding='utf-8', length=None) 
     try:
         dbGroup = h5file.require_group('/')  # database
         dbGroup.attrs['celldb_version'] = CELLDB_VERSION
@@ -625,31 +643,41 @@ def save_hdf(dframe, filename):
                 arraydata = dframe[onecol].values
                 dset = dbGroup.create_dataset(onecol, data=arraydata)
             elif isinstance(onevalue, str):
-                arraydata = dframe[onecol].values.astype(string_dt)
-                dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=string_dt)
+                #arraydata = dframe[onecol].values.astype(string_dt)
+                #dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=string_dt)
+                arraydata = dframe[onecol].values.astype('S')
+                dset = dbGroup.create_dataset(onecol, data=arraydata)
             elif isinstance(onevalue, list):
                 # For columns like: behavSuffix, ephysTime, paradigm, sessionType
+                '''
                 arraydata = dframe[onecol].values
-                dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=string_dt)
+                dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=listOfStr_dt)
+                '''
+                arraydata = dframe[onecol].to_json(orient='split')
+                dset = dbGroup.create_dataset(onecol, data=arraydata, dtype=listOfStr_dt)
+                #dbGroup.attrs[onecol] = np.void(pickle.dumps(arraydata))
+                #dset = dbGroup.create_dataset(onecol, data=json.dumps(arraydata), dtype=listOfStr_dt)
             else:
                 raise ValueError('Trying to save items of invalid type')
             # dset.attrs['Description'] = onecol
         h5file.close()
+        if verbose:
+            print(f'Saved {filename}')
     except OSError:
         h5file.close()
         raise
 
 
-def load_hdf(filename, root='/', columns=[]):
+def load_hdf(filename, columns=[], root='/'):
     """
     Load database into a pandas dataframe from an HDF5 file
     saved by celldatabase.save_hdf()
 
     Args:
         filename: full path to HDF5 file.
-        root: the HDF5 group containing the database.
         columns: list of columns to load. Default: loads all columns.
                  You need to include 'index' to load the original indices.
+        root: the HDF5 group containing the database.
     """
     dbDict = {}
     indexArray = None
@@ -675,9 +703,11 @@ def load_hdf(filename, root='/', columns=[]):
             else:
                 dbDict[varname] = list(varvalue[...])  # If it is an array
         elif varvalue.dtype.kind == 'S':
-            dbDict[varname] = varvalue[...]
+            dbDict[varname] = varvalue[...].astype(str)
         elif varvalue.dtype == np.object:
+            '''
             try:
+                #dataAsList = [ast.literal_eval("{}".format(v)) for v in varvalue]
                 dataAsList = [ast.literal_eval("{}".format(v)) for v in varvalue]
             except (ValueError, SyntaxError):
                 # ValueError: If a list of strings contains a non-string (like None)
@@ -686,6 +716,8 @@ def load_hdf(filename, root='/', columns=[]):
                 # ast.parse requires it to be passed as "'2019-01-02'" to work.
                 dataAsList = [ast.literal_eval('"{}"'.format(v)) for v in varvalue]
             dbDict[varname] = dataAsList
+            '''
+            dbDict[varname] = pd.read_json(varvalue[()]).data
         else:
             raise ValueError('Data type {} for variable {} is not recognized '+\
                              'by celldatabase.'.format(varvalue.dtype,varname))
