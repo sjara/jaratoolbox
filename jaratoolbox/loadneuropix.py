@@ -352,7 +352,7 @@ def split_sessions(multisessionPath, debug=False):
     return (sessionsList, sessionsDirsList)
     
 
-def spikeshapes_from_templates(clusterFolder, save=False, ignorezero=True):
+def OLD_spikeshapes_from_templates(clusterFolder, save=False, ignorezero=True):
     """
     Extract a spike shape from each template.
     """
@@ -369,6 +369,41 @@ def spikeshapes_from_templates(clusterFolder, save=False, ignorezero=True):
         nonzerosamples = (spikeShapes.sum(axis=0)!=0)
         firstnonzero = np.flatnonzero(nonzerosamples)[0]
         spikeShapes = spikeShapes[:,firstnonzero:]
+    if save:
+        spikeShapesFile = os.path.join(clusterFolder, 'spike_shapes.npy')
+        bestChannelFile = os.path.join(clusterFolder, 'cluster_bestChannel.npy')
+        np.save(spikeShapesFile, spikeShapes)
+        print(f'Saved {spikeShapesFile}')
+        np.save(bestChannelFile, bestChannel)
+        print(f'Saved {bestChannelFile}\n')
+    return (spikeShapes, bestChannel)
+
+
+def spikeshapes_from_templates(clusterFolder, save=False):
+    """
+    Extract a spike shape from each template.
+    """
+    templates = np.load(os.path.join(clusterFolder,'templates.npy'))
+    (nOrigClusters, nTimePoints, nChannels) = templates.shape
+    spikeClusters = np.load(os.path.join(clusterFolder,'spike_clusters.npy')).flatten()
+    spikeTemplates = np.load(os.path.join(clusterFolder,'spike_templates.npy')).flatten()
+    validClusters = np.unique(spikeClusters)
+    nValidClusters = len(validClusters)
+    nTotalClusters = validClusters[-1] + 1
+    spikeShapes = np.full([nTotalClusters, nTimePoints], np.nan, dtype=templates.dtype)
+    bestChannel = np.full(nTotalClusters, -1, dtype=int)
+    for indc, oneCluster in enumerate(validClusters):
+        # -- Check if it's one the original clusters --
+        if oneCluster < nOrigClusters:
+            templateIndex = oneCluster
+        else:
+            spikeIndThisCluster = np.flatnonzero(spikeClusters==oneCluster)[0]
+            templateIndex = spikeTemplates[spikeIndThisCluster]
+        oneTemplate = templates[templateIndex,:,:]
+        indMax = np.argmax(np.abs(oneTemplate))
+        (rowMax, colMax) = np.unravel_index(indMax, oneTemplate.shape)
+        spikeShapes[oneCluster,:] = oneTemplate[:,colMax]
+        bestChannel[oneCluster] = colMax
     if save:
         spikeShapesFile = os.path.join(clusterFolder, 'spike_shapes.npy')
         bestChannelFile = os.path.join(clusterFolder, 'cluster_bestChannel.npy')
