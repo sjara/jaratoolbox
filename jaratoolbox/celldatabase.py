@@ -464,7 +464,7 @@ def OLD_make_db_neuropixels_v1(experiment, singleSession=None):
     return celldb
 
 
-def make_db_neuropixels_v1(experiment, singleSession=None, onlygood=True):
+def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, trimSpikeShapes=True):
     """
     Create a database of cells given an Experiment object associated with
     recordings using Neuropixels probes version 1.
@@ -473,6 +473,8 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlygood=True):
         experiment (celldatabase.Experiment): object defining experiment and sites.
         singleSession (dict): specifies a single session to process, with format:
             {'date': YYYY-MM-DD, 'pdepth': int, 'sessiontype': str}
+        onlyGood (bool): include only clusters labeled "good" by Kilosort/Phy.
+        trimSpikeShapes (bool): remove padding (zero) elements from spike shapes.
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
@@ -496,9 +498,15 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlygood=True):
             bestChannel = np.load(os.path.join(clusterFolder, 'cluster_bestChannel.npy'))
             spikeShapes = np.load(os.path.join(clusterFolder, 'spike_shapes.npy'))
             clusterGroup = pd.read_csv(os.path.join(clusterFolder, 'cluster_group.tsv'), sep='\t')
+            # -- Force the names of columns (since Kilosort and Phy use different names)--
+            clusterGroup.columns=['cluster', 'cluster_label']
 
-            if onlygood:
-                tempdb = clusterGroup.query("KSLabel=='good'").reset_index(drop=True)
+            if trimSpikeShapes:
+                firstValidSample = np.flatnonzero(np.nansum(spikeShapes, axis=0))[0]
+                spikeShapes = spikeShapes[:, firstValidSample:]
+
+            if onlyGood:
+                tempdb = clusterGroup.query("cluster_label=='good'").reset_index(drop=True)
             else:
                 tempdb = clusterGroup
             # -- Add site info to database
@@ -506,16 +514,16 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlygood=True):
             for key, val in siteInfoDict.items():
                 tempdb[key] = len(tempdb)*[val]
             # -- Add cluster-specific info --
-            tempdb['bestChannel'] = bestChannel[tempdb.cluster_id]
+            tempdb['bestChannel'] = bestChannel[tempdb.cluster]
             tempdb['maxDepth'] = experiment.maxDepth
             tempdb['egroup'] = egroup
-            tempdb['spikeShape'] = list(spikeShapes[tempdb.cluster_id,:])
-            tempdb.rename(columns={'cluster_id': 'cluster'}, inplace=True)
+            tempdb['spikeShape'] = list(spikeShapes[tempdb.cluster,:])
+            #tempdb.rename(columns={'cluster_id': 'cluster'}, inplace=True)
             celldb = celldb.append(tempdb, ignore_index=True)
     return celldb
 
 
-def generate_cell_database(inforecFile, singleSession=None, onlygood=True):
+def generate_cell_database(inforecFile, singleSession=None, onlyGood=True):
     """
     Iterates over all experiments in an inforec and builds a cell database.
     This function requires that the data is already clustered.
@@ -524,7 +532,7 @@ def generate_cell_database(inforecFile, singleSession=None, onlygood=True):
         inforecFile (str): full path to the inforec file
         singleSession (dict): specifies a single session to process, with format:
             {'date': YYYY-MM-DD, 'pdepth': int, 'sessiontype': str}
-        onlygood (bool): include only clusters labeled "good" by Kilosort/Phy.
+        onlyGood (bool): include only clusters labeled "good" by Kilosort/Phy.
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
@@ -540,13 +548,13 @@ def generate_cell_database(inforecFile, singleSession=None, onlygood=True):
         print(f'Adding experiment from {experiment.subject} on {experiment.date}')
         if (experiment.probe == 'A4x2-tet'):
             extraRows = make_db_neuronexus_tetrodes(experiment)
-            if onlygood and len(extraRows)>0:
+            if onlyGood and len(extraRows)>0:
                 isi=0.05
                 quality=2
                 extraRows = extraRows[(extraRows['isiViolations'] < isi) & \
                                       (extraRows['spikeShapeQuality'] > quality)]
         elif experiment.probe[:4] == 'NPv1':
-            extraRows = make_db_neuropixels_v1(experiment, singleSession, onlygood)
+            extraRows = make_db_neuropixels_v1(experiment, singleSession, onlyGood)
         elif experiment.probe is None:
             raise TypeError(f'Inforec problem: An experiment of {experiment.subject} ' +
                             'did not specify the probe.')
