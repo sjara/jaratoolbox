@@ -74,7 +74,7 @@ class SyllableRange():
         self.formantSet = self.freqFactor * DEFAULT_FORMANT_SET
         self.generate_sounds()
     def generate_sounds(self):
-        aspPointLimits = [0, 0.08]
+        aspPointLimits = [0, 0.06]
         aspPointValues = np.linspace(aspPointLimits[0], aspPointLimits[1], self.nVOT)
         F2on = self.formantSet[2,0]
         F3on = self.formantSet[3,0]
@@ -120,10 +120,10 @@ class SyllableRange():
         plt.show()
     def plot_waveforms(self):
         plt.clf()
-        #mainAx = plt.subplot2grid([self.nVOT, self.nFT], [0, 0])
+        mainAx = plt.subplot2grid([self.nVOT, self.nFT], [0, 0])
         for indft in range(self.nFT):
             for indvot in range(self.nVOT):
-                #plt.subplot2grid([self.nVOT, self.nFT], [indvot, indft], sharex=mainAx)
+                plt.subplot2grid([self.nVOT, self.nFT], [indvot, indft], sharex=mainAx)
                 tvec,wave = self.syllables[indvot][indft].as_array()
                 plt.plot(tvec,wave)
         plt.tight_layout()
