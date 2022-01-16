@@ -569,7 +569,7 @@ def read_inforec(inforecFile):
     return inforec
 
 
-def generate_cell_database_from_subjects(subjects, onlygood=True):
+def generate_cell_database_from_subjects(subjects, onlyGood=True):
     """
     This function generates a database for multiple subjects.
 
@@ -582,7 +582,7 @@ def generate_cell_database_from_subjects(subjects, onlygood=True):
     fulldb = pd.DataFrame()
     for subject in subjects:
         inforec = os.path.join(settings.INFOREC_PATH, '{0}_inforec.py'.format(subject))
-        onedb = generate_cell_database(inforec, onlygood=onlygood)
+        onedb = generate_cell_database(inforec, onlyGood=onlyGood)
         fulldb = fulldb.append(onedb, ignore_index=True)
     return fulldb
 
