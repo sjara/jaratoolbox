@@ -1,45 +1,56 @@
-# -*- coding: utf-8 -*-
-'''
+"""
 Some statistics functions.
 
 binofit: Parameter estimates and confidence intervals for binomial data.
-'''
+"""
 
 import scipy.stats
 import numpy as np
 import sys
 
 
-def weibull(xval,alpha,beta):
+def weibull(xval, alpha, beta):
     '''Weibull function
     alpha: bias
     beta: related to slope
     NOTE: this function isnot symmetric
     '''
-    return 1 - np.exp(-pow(xval/alpha,beta))
+    return 1 - np.exp(-pow(xval/alpha, beta))
 
-def gaussianCDF(xval,mu,sigma):
+
+def gaussianCDF(xval, mu, sigma):
     from scipy.stats import norm
-    return norm.cdf(xval,mu,sigma)
+    return norm.cdf(xval, mu, sigma)
 
-def logistic(xval,alpha,beta):
+
+def logistic(xval, alpha, beta):
     return 1/(1+np.exp(-(xval-alpha)/beta))
 
-def psychfun(xval,alpha,beta,lamb,gamma):
-    '''Psychometric function (allows defining asymptotes)
-    alpha: bias
-    beta : related to slope
-    lamb : lapse term (up)
-    gamma: lapse term (down)
-    '''
-    #return gamma + (1-gamma-lamb)*weibull(xval,alpha,beta)
-    #return gamma + (1-gamma-lamb)*gaussianCDF(xval,alpha,beta)
-    return gamma + (1-gamma-lamb)*logistic(xval,alpha,beta)
+
+def psychfun(xval, alpha, beta, lamb, gamma):
+    """
+    Psychometric function (allows defining asymptotes)
+
+    Args:
+        alpha: bias
+        beta : related to slope
+        lamb : lapse term (up). It should be a non-negative value, zero means curve goes to one.
+        gamma: lapse term (down). It should be a non-negative value, zero means curve goes to zero.
+    """
+    return gamma + (1-gamma-lamb)*logistic(xval, alpha, beta)
+
+'''
+# Example for fitting psychometric curve:
+paramInitial = [0, -0.5, 0, 0]
+paramBounds = [[-np.inf, -np.inf, 0, 0], [np.inf, np.inf, 0.5, 0.5]]
+curveParams, pCov = scipy.optimize.curve_fit(extrastats.psychfun, xValues, yValues,
+                                             p0=paramInitial, bounds=paramBounds)
+'''
 
 
 def psychometric_fit(xValues, nTrials, nHits, constraints=None, alpha=0.05):
     '''
-    Given performance for each value of parameter, estimate the curve.
+    Given trial data for each value of parameter, estimate the psychometric curve.
     This function uses psignifit (BootstrapInference)
     http://psignifit.sourceforge.net/TUTORIAL_BOOTSTRAP.html
 
