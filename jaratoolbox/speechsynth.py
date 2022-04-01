@@ -75,35 +75,43 @@ def show_spectrogram(soundwave, sampFreq, pad=False, **kwargs):
 
 
 class SyllableRange():
-    def __init__(self, nFT, nVOT, sampFreq=44100, freqFactor=1):
+    def __init__(self, nFT, nVOT, sampFreq=44100, freqFactor=1, votscale='linear'):
         """
         Args:
             nFT (int): number of Formant Transition steps.
             nVOT (int): number of Voice Onset TIme steps.
             sampFreq (int): sampling frequency in samples/second.
             freqFactor (float): factor applied to frequency values. We use 8 for mice, 1 for humans.
+            votscale (str): 'linear' or 'log'. Defines spacing between VOT steps.
         """
         self.sampFreq = sampFreq
         self.freqFactor = freqFactor
         self.nFT = nFT
         self.nVOT = nVOT
+        self.votScale = votscale
         self.syllables = []  # nVOT lists of nFT elements [nVOT][nFT]
         self.timingParams = DEFAULT_TIMING_PARAMS.copy()
         self.formantSet = self.freqFactor * DEFAULT_FORMANT_SET
+        self.aspPointValues = []
+        self.formant2onset = []
         self.generate_sounds()
     def generate_sounds(self):
-        aspPointLimits = [0, 0.06]
-        aspPointValues = np.linspace(aspPointLimits[0], aspPointLimits[1], self.nVOT)
+        if self.votScale == 'linear':
+            aspPointLimits = [0, 0.06]
+            self.aspPointValues = np.linspace(aspPointLimits[0], aspPointLimits[1], self.nVOT)
+        elif self.votScale == 'log':
+            aspPointLimits = [0.002, 0.064]
+            self.aspPointValues = np.geomspace(aspPointLimits[0], aspPointLimits[1], self.nVOT)
         F2on = self.formantSet[2,0]
         F3on = self.formantSet[3,0]
-        formant2onset = np.geomspace(F2on/1.4, F2on*1.4, self.nFT)
-        formant3onset = np.geomspace(F3on/1.25, F3on*1.25, self.nFT)
+        self.formant2onset = np.geomspace(F2on/1.4, F2on*1.4, self.nFT)
+        self.formant3onset = np.geomspace(F3on/1.25, F3on*1.25, self.nFT)
         for indvot in range(self.nVOT):
             self.syllables.append([])
-            self.timingParams['aspPoint'] = aspPointValues[indvot]
+            self.timingParams['aspPoint'] = self.aspPointValues[indvot]
             for indft in range(self.nFT):
-                self.formantSet[2,0] = formant2onset[indft]
-                self.formantSet[3,0] = formant3onset[indft]
+                self.formantSet[2,0] = self.formant2onset[indft]
+                self.formantSet[3,0] = self.formant3onset[indft]
                 syllableObj = Syllable(**self.timingParams,
                                        formantSet=self.formantSet,
                                        sampFreq=self.sampFreq)
@@ -146,7 +154,17 @@ class SyllableRange():
                 plt.plot(tvec,wave)
         plt.tight_layout()
         plt.show()
-
+    def info(self):
+        infoStr = (f'Freq factor: {self.freqFactor}\n\n'+
+                   f'F3 onset:\n'+
+                   f'{self.formant3onset}\n\n'+
+                   f'aspPoint:\n'+
+                   f'{self.aspPointValues}\n\n'+
+                   '')
+        #f'F0 (pitch): {self.syllables[0][0].pitch}\n\n'+
+        #           f'F2 onset:\n'+
+        #           f'{self.formant2onset}\n\n'+
+        return infoStr
 
 '''
         infoStr = ''
