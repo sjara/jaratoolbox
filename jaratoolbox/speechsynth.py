@@ -43,7 +43,7 @@ def show_praat_spectrogram(spectrogram, dynamic_range=70):
     plt.ylabel("Frequency (Hz)")
 
 
-def show_spectrogram(soundwave, sampFreq, **kwargs):
+def show_spectrogram(soundwave, sampFreq, pad=False, **kwargs):
     """
     Calculate and show spectrogram of signal.
 
@@ -57,7 +57,18 @@ def show_spectrogram(soundwave, sampFreq, **kwargs):
     kwargs.setdefault('noverlap', noverlap)  # 0.98
     kwargs.setdefault('cmap', 'viridis')
     kwargs.setdefault('vmin', -150)
-    plt.specgram(soundwave, Fs=sampFreq, **kwargs)
+    # -- Pad waveform --
+    if pad:
+        raise ValueError('Feature not implemented yet')
+        NFFT = kwargs['NFFT']
+        #soundwave = np.r_[np.zeros(NFFT), soundwave]
+        soundwave = np.r_[np.zeros(NFFT), soundwave, np.zeros(NFFT)]
+        padPeriod = len(soundwave)/sampFreq
+        xextent = [-NFFT/sampFreq, (len(soundwave)+NFFT)/sampFreq]
+        #xextent = [-NFFT/sampFreq, len(soundwave)/sampFreq]
+        plt.specgram(soundwave, Fs=sampFreq, xextent=xextent, **kwargs)
+    else:
+        plt.specgram(soundwave, Fs=sampFreq, **kwargs)
     plt.xlabel("Time (s)")
     plt.ylabel("Frequency (Hz)")
     #plt.ylim([0, 5000*freqFactor])
@@ -65,6 +76,13 @@ def show_spectrogram(soundwave, sampFreq, **kwargs):
 
 class SyllableRange():
     def __init__(self, nFT, nVOT, sampFreq=44100, freqFactor=1):
+        """
+        Args:
+            nFT (int): number of Formant Transition steps.
+            nVOT (int): number of Voice Onset TIme steps.
+            sampFreq (int): sampling frequency in samples/second.
+            freqFactor (float): factor applied to frequency values. We use 8 for mice, 1 for humans.
+        """
         self.sampFreq = sampFreq
         self.freqFactor = freqFactor
         self.nFT = nFT
@@ -103,12 +121,12 @@ class SyllableRange():
                                               percentVOT[indvot], percentFT[indft])
                 fullFilename = os.path.join(outputDir,fileName)
                 self.syllables[indvot][indft].save(fullFilename)
-    def spectrograms(self, maxf=5000):
+    def spectrograms(self, maxf=5000, **kwargs):
         plt.clf()
         for indft in range(self.nFT):
             for indvot in range(self.nVOT):
                 plt.subplot2grid([self.nVOT, self.nFT], [indvot, indft])
-                self.syllables[indvot][indft].spectrogram()
+                self.syllables[indvot][indft].spectrogram(**kwargs)
                 if indft != 0:
                     plt.gca().set_yticklabels([])
                     plt.gca().set_ylabel('')
@@ -428,9 +446,10 @@ class Syllable():
         soundWave = self.sound.as_array().squeeze()
         timeVec = np.arange(0,len(soundWave))/self.sampFreq
         return (timeVec, soundWave)
-    def spectrogram(self, **kwargs):
+    def spectrogram(self, maxf=5000, **kwargs):
         timeVec, swave = self.as_array()
         show_spectrogram(swave, self.sampFreq, **kwargs)
+        plt.ylim([0, maxf])
     def info(self):
         formantStr = f'F0 (pitch): {str(self.pitch)}\n'
         for indf in range(self.nFormants):
