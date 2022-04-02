@@ -464,10 +464,13 @@ def OLD_make_db_neuropixels_v1(experiment, singleSession=None):
     return celldb
 
 
-def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, trimSpikeShapes=True):
+def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, minimal=False,
+                           trimSpikeShapes=True):
     """
     Create a database of cells given an Experiment object associated with
     recordings using Neuropixels probes version 1.
+    This function reads data from multisession folders defined by site.clusterFolder,
+    usually named something like "multisession_2021-11-19_3320um_processed".
 
     Args:
         experiment (celldatabase.Experiment): object defining experiment and sites.
@@ -475,6 +478,7 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, trimSp
             {'date': YYYY-MM-DD, 'pdepth': int, 'sessiontype': str}
         onlyGood (bool): include only clusters labeled "good" by Kilosort/Phy.
         trimSpikeShapes (bool): remove padding (zero) elements from spike shapes.
+        minimal (bool): create a minimal database that does not include spike shapes.
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
@@ -495,16 +499,15 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, trimSp
                                                  experiment.subject, oneSessionFolder)
                 else:
                     break
-            bestChannel = np.load(os.path.join(clusterFolder, 'cluster_bestChannel.npy'))
-            spikeShapes = np.load(os.path.join(clusterFolder, 'spike_shapes.npy'))
             clusterGroup = pd.read_csv(os.path.join(clusterFolder, 'cluster_group.tsv'), sep='\t')
             # -- Force the names of columns (since Kilosort and Phy use different names)--
             clusterGroup.columns=['cluster', 'cluster_label']
-
-            if trimSpikeShapes:
-                firstValidSample = np.flatnonzero(np.nansum(spikeShapes, axis=0))[0]
-                spikeShapes = spikeShapes[:, firstValidSample:]
-
+            if not minimal:
+                bestChannel = np.load(os.path.join(clusterFolder, 'cluster_bestChannel.npy'))
+                spikeShapes = np.load(os.path.join(clusterFolder, 'spike_shapes.npy'))
+                if trimSpikeShapes:
+                    firstValidSample = np.flatnonzero(np.nansum(spikeShapes, axis=0))[0]
+                    spikeShapes = spikeShapes[:, firstValidSample:]
             if onlyGood:
                 tempdb = clusterGroup.query("cluster_label=='good'").reset_index(drop=True)
             else:
@@ -514,16 +517,16 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, trimSp
             for key, val in siteInfoDict.items():
                 tempdb[key] = len(tempdb)*[val]
             # -- Add cluster-specific info --
-            tempdb['bestChannel'] = bestChannel[tempdb.cluster]
             tempdb['maxDepth'] = experiment.maxDepth
             tempdb['egroup'] = egroup
-            tempdb['spikeShape'] = list(spikeShapes[tempdb.cluster,:])
-            #tempdb.rename(columns={'cluster_id': 'cluster'}, inplace=True)
+            if not minimal:
+                tempdb['bestChannel'] = bestChannel[tempdb.cluster]
+                tempdb['spikeShape'] = list(spikeShapes[tempdb.cluster,:])
             celldb = celldb.append(tempdb, ignore_index=True)
     return celldb
 
 
-def generate_cell_database(inforecFile, singleSession=None, onlyGood=True):
+def generate_cell_database(inforecFile, singleSession=None, onlyGood=True, minimal=False):
     """
     Iterates over all experiments in an inforec and builds a cell database.
     This function requires that the data is already clustered.
@@ -549,16 +552,20 @@ def generate_cell_database(inforecFile, singleSession=None, onlyGood=True):
         if (experiment.probe == 'A4x2-tet'):
             extraRows = make_db_neuronexus_tetrodes(experiment)
             if onlyGood and len(extraRows)>0:
-                isi=0.05
-                quality=2
+                isi = 0.05
+                quality = 2
                 extraRows = extraRows[(extraRows['isiViolations'] < isi) & \
                                       (extraRows['spikeShapeQuality'] > quality)]
+            celldb = pd.concat((celldb, extraRows), ignore_index=False)
+            # FIXME: It is really appropriate to ignore_index?
+            #        The reason is to preserve index of clusters when removing bad cells
         elif experiment.probe[:4] == 'NPv1':
-            extraRows = make_db_neuropixels_v1(experiment, singleSession, onlyGood)
+            extraRows = make_db_neuropixels_v1(experiment, singleSession, onlyGood,
+                                               minimal=minimal)
+            celldb = pd.concat((celldb, extraRows), ignore_index=True)
         elif experiment.probe is None:
             raise TypeError(f'Inforec problem: An experiment of {experiment.subject} ' +
                             'did not specify the probe.')
-        celldb = pd.concat((celldb, extraRows), ignore_index=False)
     return celldb
 
 
