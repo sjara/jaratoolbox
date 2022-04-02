@@ -54,6 +54,8 @@ class Cell():
         '''
         Args:
             dbRow (pandas.core.series.Series): A row from a dataframe created by celldatabase.
+            sessionData (SessionData): object contaning data for the session (when spikes and
+                                       behavior are already loaded).
             useModifiedClusters (bool): Whether to load the modified cluster files created after
                                         cleaning clusters, if they exist.
         '''
