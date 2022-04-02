@@ -10,7 +10,6 @@ Tools for analyzing anatomical/histological data.
 '''
 
 import os
-import pandas
 import json
 import re
 import PIL
@@ -35,7 +34,20 @@ except ModuleNotFoundError:
     print('Warning! Some methods require the module "allensdk", but it is not installed.')
 
 GRIDCOLOR = [0, 0.5, 0.5]
-TETRODETOSHANK = {1: 1, 2: 1, 3: 2, 4: 2, 5: 3, 6: 3, 7: 4, 8: 4}  # hardcoded dictionary of tetrode to shank mapping for probe geometry used in this study
+
+# -- A4x2tet geometry. Note that odd tetrodes are higher --
+A4x2tet_config = {'tetrodeToShank': {1: 1, 2: 1, 3: 2, 4: 2, 5: 3, 6: 3, 7: 4, 8: 4},
+                  'tetrodeDistanceFromTip': {1: 255, 2: 105, 3: 255, 4: 105,
+                                             5: 255, 6: 105, 7: 255, 8: 105}} # In microns
+
+# -- Neuropixels v1 geometry. First electrode is actually a little higher than 100um from tip
+from_tip = lambda x: 20*(x//2)+100  # Assumes channels start at 0
+channelDistanceFromTip = [from_tip(ch) for ch in range(0,385)]
+NPv1_config = {'channelDistanceFromTip': channelDistanceFromTip}
+
+PROBE_GEOMETRY = {'A4x2-tet': A4x2tet_config,
+                  'NPv1': NPv1_config}
+
 
 def define_grid(corners, nRows=3, nCols=2):
     '''
@@ -394,62 +406,63 @@ class BrainGrid(OverlayGrid):
 
 class AllenAnnotation(object):
     def __init__(self):
-        self.structureGraphFn = os.path.join(settings.ALLEN_ATLAS_DIR, 'structure_graph.json')
-        jsonData = open(self.structureGraphFn).read()
-        data = json.loads(jsonData)
-        self.structureGraph = data['msg']
-        structureList = []
-        self.structureDF = self.process_structure_graph(self.structureGraph)
-        self.annotationFn = os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_annotation_25.nrrd')
-        annotationData = nrrd.read(self.annotationFn)
+        self.structureGraphFile = os.path.join(settings.ALLEN_ATLAS_PATH, 'structure_graph.json')
+        with open(self.structureGraphFile) as structFile:
+            self.structureGraph = json.load(structFile)['msg']
+        structureTableFile = os.path.join(settings.ALLEN_ATLAS_PATH, 'structure_table.h5')
+        if os.path.isfile(structureTableFile):
+            # Saved with self.structureTable.to_hdf('/tmp/structure_table.h5', key='df', mode='w')
+            self.structureTable = pd.read_hdf(structureTableFile)
+        else:
+            self.structureTable = self.structure_graph_to_table(self.structureGraph)
+        self.annotationFile = os.path.join(settings.ALLEN_ATLAS_PATH, 'coronal_annotation_25.nrrd')
+        annotationData = nrrd.read(self.annotationFile)
         self.annotationVol = annotationData[0]
 
-    def process_structure_graph(self, structureGraph):
-        structureList = []
+    def find_children(self, parentID):
+        hasThisParent = (self.structureTable['parent_structure_id'] == parentID)
+        return self.structureTable[hasThisParent]['id'].to_numpy()
 
-        def process_structure_graph_internal(structureGraph):
+    def structure_graph_to_table(self, structureGraph):
+        structureList = []
+        def process_graph(structureGraph):
             for structure in structureGraph:
                 # Pop the children out to deal with them recursively
                 children = structure.pop('children', None)
                 # Add the structure info to the dataframe
-                structureList.append(pandas.Series(structure))
+                structureList.append(pd.Series(structure))
                 # Deal with the children
-                process_structure_graph_internal(children)
-
-        process_structure_graph_internal(structureGraph)
-        df = pandas.DataFrame(structureList)
-        return df
+                process_graph(children)
+        process_graph(structureGraph)
+        structureTable = pd.DataFrame(structureList)
+        return structureTable
 
     def get_structure_id(self, coords):
         # coords needs to be a 3-TUPLE (x, y, z)
         structID = int(self.annotationVol[coords])
         # if structID!=0:
-        #     name = self.structureDF.query('id == @structID')['name'].values[0]
+        #     name = self.structureTable.query('id == @structID')['name'].values[0]
         # else:
         #     name = 'Outside the brain'
         # return structID, name
         return structID
 
-    def get_name(self, structID):
-        name = self.structureDF.query('id==@structID')['name'].item()
-        return name
-
+    """
     def trace_parents(self, structID):
         # TODO: I don't know if the nested function approach will work in an obj
         '''Trace the lineage of a region back to the root of the structure graph'''
         parentTrace = []
         parentNames = []
-
         def trace_internal(structID):
-            parentID = self.structureDF.query('id==@structID')['parent_structure_id']
-            if not pandas.isnull(parentID.values[0]):
+            parentID = self.structureTable.query('id==@structID')['parent_structure_id']
+            if not pd.isnull(parentID.values[0]):
                 parentID = int(parentID)
                 parentTrace.append(parentID)
-                parentNames.append(self.structureDF.query('id==@parentID')['name'].item())
+                parentNames.append(self.structureTable.query('id==@parentID')['name'].item())
                 trace_internal(parentID)
-
         trace_internal(structID)
         return parentTrace, parentNames
+    """
 
     def get_structure_id_many_xy(self, xyArr, zSlice):
         names = []
@@ -464,9 +477,26 @@ class AllenAnnotation(object):
         # return structIDs, names
         return structIDs
 
+    def get_id_from_acronym(self, acronym):
+        dbrow = self.structureTable.query('acronym==@acronym')
+        if len(dbrow):
+            return dbrow['id'].values[0]
+        else:
+            return None
+
+    def get_pixels_from_acronym(self, zval, acronym):
+        areaID = self.get_id_from_acronym(acronym)
+        children = self.find_children(areaID)
+        thisSlice = np.zeros(self.annotationVol[:,:,zval].shape, dtype='bool')
+        for oneArea in np.r_[areaID, children]:
+            thisSlice = thisSlice | (self.annotationVol[:,:,zval] == oneArea)
+        return thisSlice
+
     def get_structure_from_id(self, structID):
         try:
-            name = self.get_name(structID)
+            #name = self.structureTable.query('id==@attribute')['name'].item()
+            name = self.structureTable.query('id==@structID').iloc[0]
+            #name = self.get_name(structID)
         except:
             name = "Area {} not found".format(structID)
         return name
@@ -474,13 +504,14 @@ class AllenAnnotation(object):
     def get_total_voxels_per_area(self, zCoord):
         allIDsThisSlice = self.annotationVol[:, :, zCoord].ravel()
         voxelsPerID = collections.Counter(allIDsThisSlice)
-        voxelsPerStructure = {self.get_structure_from_id(structID): count for structID, count in voxelsPerID.iteritems()}
+        voxelsPerStructure = {self.get_structure_from_id(structID):
+                              count for structID, count in voxelsPerID.iteritems()}
         return voxelsPerStructure
 
 
 class AllenCorticalCoordinates(object):
     def __init__(self):
-        self.laplacianFn = os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_laplacian_25.nrrd')
+        self.laplacianFn = os.path.join(settings.ALLEN_ATLAS_PATH, 'coronal_laplacian_25.nrrd')
         laplacianData = nrrd.read(self.laplacianFn)
         self.laplacianVol = laplacianData[0]
 
@@ -502,22 +533,74 @@ class AllenCorticalCoordinates(object):
         return allDepths
 
 
-class AllenAtlas(object):
+class AllenAverageCoronalAtlas(object):
+    """
+    Class for showing slices of the average coronal atlas.
+    """
     def __init__(self):
-        atlasPath = os.path.join(settings.ALLEN_ATLAS_DIR, 'coronal_average_template_25.nrrd')
+        atlasPath = os.path.join(settings.ALLEN_ATLAS_PATH, 'coronal_average_template_25.nrrd')
         atlasData = nrrd.read(atlasPath)
         self.atlas = atlasData[0]
-        self.maxSlice = np.shape(self.atlas)[2] - 1
-        self.sliceNum = 0
-        self.fig = plt.figure()
+        self.atlas = np.rot90(self.atlas, k=-1, axes=[0,1])
+        self.nSlices = self.atlas.shape[2]
+        self.currentSlice = 200
+        self.maxValue = self.atlas.max()
+        self.pCoords = {}  #self.nSlices*[[]]
+
+    def get_slice(self, sliceIndex):
+        return self.atlas[:, :, sliceIndex]
+
+    def add_points(self, xvals, yvals, zvals):
+        """
+        Add points to show on top of the slices.
+        """
+        possibleZvals = np.unique(zvals)
+        for zval in possibleZvals:
+            theseInds = zvals==zval
+            theseXvals = xvals[theseInds]
+            theseYvals = yvals[theseInds]
+            self.pCoords[int(zval)] = np.vstack((theseXvals, theseYvals))
+
+    def add_points_from_db(self, cellDB):
+        validPoints = cellDB['z_coord'].notnull()
+        self.add_points(cellDB['x_coord'][validPoints].to_numpy(),
+                        cellDB['y_coord'][validPoints].to_numpy(),
+                        cellDB['z_coord'][validPoints].to_numpy())
+
+    def show_all_sites(self, nRows=None, areas=[]):
+        fig = plt.gcf()
+        fig.clf()
+        fig.set_facecolor('k')
+        nSlicesToShow = len(self.pCoords)
+        nRows = int(np.sqrt(nSlicesToShow)) if nRows is None else nRows
+        nCols = int(nSlicesToShow//nRows) + (nSlicesToShow % nRows > 0)
+        if len(areas):
+            atlasAnnot = AllenAnnotation()
+        for inds, zval in enumerate(self.pCoords):
+            plt.subplot(nRows, nCols, inds+1)
+            plt.imshow(self.atlas[:, :, zval], cmap='gray', vmax=self.maxValue)
+            for oneArea in areas:
+                areaImage = atlasAnnot.get_pixels_from_acronym(zval, oneArea)
+                areaMask = np.ma.masked_array(areaImage, ~areaImage)
+                plt.imshow(areaMask.T, cmap='Set3', alpha=0.15)
+            plt.plot(self.pCoords[zval][0], self.pCoords[zval][1], '.r')
+            plt.axis(False)
+            #plt.text(4, 4, f'z={zval}', color='0.5', va='top')
+            labelXpos = np.diff(plt.xlim())[0]/2 + plt.xlim()[0]
+            labelYpos = plt.ylim()[0] - 20
+            plt.text(labelXpos, labelYpos, f'z = {zval}', color='0.5', ha='center', va='bottom')
+        plt.tight_layout()
+        plt.show()
+
+    def interactive(self, sliceInd=None):
+        self.currentSlice = sliceInd if sliceInd else self.currentSlice
+        self.fig = plt.gcf()
         self.ax = self.fig.add_subplot(111)
-        self.ax.hold(True)
-        self.show_slice(self.sliceNum)
+        self.draw_slice(self.currentSlice)
         self.mpid = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
         self.mouseClickData = []
         # Start the key press handler
         self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
-        # show the plot
         self.fig.show()
 
     def on_click(self, event):
@@ -529,7 +612,7 @@ class AllenAtlas(object):
         ymin, ymax = self.ax.get_ylim()
         xmin, xmax = self.ax.get_xlim()
         self.ax.plot(event.xdata, event.ydata, 'r+')
-        print("[{}, {}, {}]".format(int(event.xdata), int(event.ydata), int(self.sliceNum)))
+        print("[{}, {}, {}]".format(int(event.xdata), int(event.ydata), int(self.currentSlice)))
         self.ax.set_ylim([ymin, ymax])
         self.ax.set_xlim([xmin, xmax])
         self.fig.canvas.draw()
@@ -540,31 +623,31 @@ class AllenAtlas(object):
         '''
         # Functions to cycle through the slices
         if event.key == ",":
-            if self.sliceNum > 0:
-                self.sliceNum -= 1
+            if self.currentSlice > 0:
+                self.currentSlice -= 1
             else:
-                self.sliceNum = self.maxSlice
-            self.show_slice(self.sliceNum)
+                self.currentSlice = self.nSlices
+            self.draw_slice(self.currentSlice)
         if event.key == "<":
-            if self.sliceNum > 10:
-                self.sliceNum -= 10
+            if self.currentSlice > 10:
+                self.currentSlice -= 10
             else:
-                self.sliceNum = self.maxSlice
-            self.show_slice(self.sliceNum)
+                self.currentSlice = self.nSlices
+            self.draw_slice(self.currentSlice)
         elif event.key == '.':
-            if self.sliceNum < self.maxSlice:
-                self.sliceNum += 1
+            if self.currentSlice < self.nSlices:
+                self.currentSlice += 1
             else:
-                self.sliceNum = 0
-            self.show_slice(self.sliceNum)
+                self.currentSlice = 0
+            self.draw_slice(self.currentSlice)
         elif event.key == '>':
-            if self.sliceNum < self.maxSlice - 10:
-                self.sliceNum += 10
+            if self.currentSlice < self.nSlices - 10:
+                self.currentSlice += 10
             else:
-                self.sliceNum = 0
-            self.show_slice(self.sliceNum)
+                self.currentSlice = 0
+            self.draw_slice(self.currentSlice)
 
-    def show_slice(self, sliceNum):
+    def draw_slice(self, sliceNum):
         '''
         Method to draw one slice from the atlas
         '''
@@ -572,7 +655,10 @@ class AllenAtlas(object):
         self.ax.cla()
         self.mouseClickData = []
         # Draw the image
-        self.ax.imshow(np.rot90(self.atlas[:, :, sliceNum], -1), 'gray')
+        #self.ax.imshow(np.rot90(self.atlas[:, :, sliceNum], -1), 'gray')
+        self.ax.imshow(self.atlas[:, :, sliceNum], cmap='gray', vmax=self.maxValue)
+        if sliceNum in self.pCoords:
+            self.ax.plot(self.pCoords[sliceNum][0], self.pCoords[sliceNum][1], '.b')
         # Label the axes and draw
         plt.title('< or > to move through the stack\nSlice: {}'.format(sliceNum))
         self.fig.canvas.draw()
@@ -792,7 +878,7 @@ def save_svg_for_registration_one_mouse(subject, **kwargs):
 
 def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
     """
-    Get the CCF coordinates of a recording tract and (optionally) any recording sites on the tract.
+    Get the CCF coordinates of a recording track and (optionally) any recording sites on the track.
 
     Returns the x and y coordinates. Will only return site coordinates if both the recording depths
     and max depth are given.
@@ -846,26 +932,26 @@ def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
     return brainSurfCoords, tipCoords, siteCoords
 
 
-def cell_locations(dbCell, filterCondtions=None, brainAreaDict=None):
+def OLD_cell_locations(cellDB, filterConditions=None, brainAreaDict=None):
     """
     Estimate coordinates of recorded cells.
 
-    This function takes as argument a pandas DataFrame and appends new columns to it. The function relies
+    This function takes a pandas DataFrame and appends new columns to it. The function relies
     on the Allen SDK, so it is generally run in a Python virtual environment with the SDK installed.
     
-    The function also requires having a tracks file (in the infohistology folder) for each mouse as well
-    as the svgs with drawn penetrations which are generated by save_svg_for_registration_one_mouse()
+    The function also requires having a tracks file (in the infohistology folder) for each mouse,
+    and the svgs with drawn penetrations which are generated by save_svg_for_registration_one_mouse()
     
     Args:
-        dbCell (pandas.DataFrame): The dataframe can be generated by celldatabase.generate_cell_database().
+        cellDB (pandas.DataFrame): A dataframe generated by celldatabase.generate_cell_database().
         filterConditions (str): Optional string that can be passed to a DataFrame.query() function
                                 to select a subset of cells.
-        brainAreaDict (dict): A dictionary to correct if the inforecordings files has the brain areas
-                              called something different than the folders the svgs are located in.
+        brainAreaDict (dict): An optional dictionary to match the names of brain areas used in the
+                              inforecordings files and in the folders that contain the svgs.
                               The keys should match the inforec and the value match the tracks file.
     Returns:
-        Modified version of dbCell that has four new columns added: 
-            x_coord, y_coord, z_coord, and recordingSiteName
+        cellDB (pandas.DataFrame): Modified version of cellDB that has four new columns added:
+                                   x_coord, y_coord, z_coord, and recordingSiteName
     
     """
 
@@ -880,19 +966,17 @@ def cell_locations(dbCell, filterCondtions=None, brainAreaDict=None):
     rsp = mcc.get_reference_space()
     rspAnnotationVolumeRotated = np.rot90(rsp.annotation, 1, axes=(2, 0))
 
-    if filterCondtions:
-        bestCells = dbCell.query(filterCondtions)
+    if filterConditions:
+        bestCells = cellDB.query(filterConditions)
     else:
-        bestCells = dbCell
+        bestCells = cellDB
 
-    dbCell['recordingSiteName'] = ''  # prefill will empty strings so whole column is strings (no NaNs)
+    cellDB['recordingSiteName'] = ''  # prefill will empty strings so whole column is strings (no NaNs)
 
     for dbIndex, dbRow in bestCells.iterrows():
         subject = dbRow['subject']
-
         try:
             fileNameInfohist = os.path.join(settings.INFOHIST_PATH, '{}_tracks.py'.format(subject))
-            #tracks = imp.load_source('tracks_module', fileNameInfohist).tracks
             tracks = read_tracks_file(fileNameInfohist).tracks
         except IOError:
             print("No such tracks file: {}".format(fileNameInfohist))
@@ -936,17 +1020,96 @@ def cell_locations(dbCell, filterCondtions=None, brainAreaDict=None):
                 thisCoordID = rspAnnotationVolumeRotated[int(siteCoords[0]), int(siteCoords[1]), atlasZ]
                 structDict = rsp.structure_tree.get_structures_by_id([thisCoordID])
                 print("This is {}".format(str(structDict[0]['name'])))
-                dbCell.at[dbIndex, 'recordingSiteName'] = structDict[0]['name']
+                cellDB.at[dbIndex, 'recordingSiteName'] = structDict[0]['name']
 
                 # Saving the coordinates in the dataframe
-                dbCell.at[dbIndex, 'x_coord'] = siteCoords[0]
-                dbCell.at[dbIndex, 'y_coord'] = siteCoords[1]
-                dbCell.at[dbIndex, 'z_coord'] = atlasZ
+                cellDB.at[dbIndex, 'x_coord'] = siteCoords[0]
+                cellDB.at[dbIndex, 'y_coord'] = siteCoords[1]
+                cellDB.at[dbIndex, 'z_coord'] = atlasZ
 
             else:
                 print(subject, brainArea, shank, recordingTrack)
 
-    return dbCell
+    return cellDB
+
+
+def cell_locations(cellDB, filterConditions=None, brainAreaDict=None):
+    """
+    Estimate coordinates of recorded cells.
+
+    This function takes a pandas DataFrame and appends new columns to it. The function relies
+    on the Allen SDK, so it is generally run in a Python virtual environment with the SDK installed.
+
+    The function also requires having a tracks file (in the infohistology folder) for each mouse,
+    and the svgs with drawn penetrations which are generated by save_svg_for_registration_one_mouse()
+
+    Args:
+        cellDB (pandas.DataFrame): A dataframe generated by celldatabase.generate_cell_database().
+        filterConditions (str): Optional string that can be passed to a DataFrame.query() function
+                                to select a subset of cells.
+        brainAreaDict (dict): An optional dictionary to match the names of brain areas used in the
+                              inforecordings files and in the folders that contain the svgs.
+                              The keys should match the inforec and the value match the tracks file.
+    Returns:
+        newDB (pandas.DataFrame): Copy of cellDB that has four new columns added:
+                                   x_coord, y_coord, z_coord, and recordingSiteName
+    """
+    mcc = MouseConnectivityCache(resolution=25)
+    rsp = mcc.get_reference_space()
+    rspAnnotationVolumeRotated = np.rot90(rsp.annotation, 1, axes=(2, 0))
+    newDB = cellDB.query(filterCondtions) if filterConditions else cellDB.copy()
+    newDB['recordingSiteName'] = ''  # Prefill with empty strings so column is strings (not NaNs)
+
+    for dbIndex, dbRow in newDB.iterrows():
+        subject = dbRow['subject']
+        try:
+            fileNameInfohist = os.path.join(settings.INFOHIST_PATH, '{}_tracks.py'.format(subject))
+            tracks = read_tracks_file(fileNameInfohist).tracks
+            tracksDF = pd.DataFrame(tracks)
+        except IOError:
+            print("No such tracks file: {}".format(fileNameInfohist))
+        else:
+            brainArea = brainAreaDict[dbRow['brainArea']] if brainAreaDict else dbRow['brainArea']
+            egroup = dbRow['egroup']
+            recordingTrack = dbRow['recordingTrack']
+            if dbRow['probe']=='A4x2-tet':
+                shank = PROBE_GEOMETRY['A4x2-tet']['tetrodeToShank'][egroup]
+                fromTip = PROBE_GEOMETRY['A4x2-tet']['tetrodeDistanceFromTip'][egroup]
+                edepth = dbRow['pdepth']-fromTip
+            elif dbRow['probe'][:4]=='NPv1':
+                shank = 1 # FIXME: maybe we should start at 0 (like OpenEphys)
+                bestChannel = dbRow['bestChannel']
+                fromTip = PROBE_GEOMETRY['NPv1']['channelDistanceFromTip'][bestChannel]
+                edepth = dbRow['pdepth']-fromTip
+            else:
+                raise ValueError(f'The type of probe ({dbRow["probe"]}) is not known.')
+
+            queryStr = 'brainArea==@brainArea and shank==@shank and recordingTrack==@recordingTrack'
+            try:
+                thisTrack = tracksDF.query(queryStr).iloc[0]
+            except IndexError:
+                print(f'Shank not found: {subject}, {brainArea}, shank:{shank}, {recordingTrack}')
+                continue
+
+            histImage = thisTrack['histImage']
+            filenameSVG = get_filename_registered_svg(subject, brainArea, histImage,
+                                                      recordingTrack, shank)
+            brainSurfCoords, tipCoords, siteCoords = get_coords_from_svg(filenameSVG, [edepth],
+                                                                         dbRow['maxDepth'])
+            siteCoords = siteCoords[0]
+            atlasZ = thisTrack['atlasZ']
+            # -- Use Allen annotated atlas to figure out where recording site is --
+            thisCoordID = rspAnnotationVolumeRotated[int(siteCoords[0]), int(siteCoords[1]), atlasZ]
+            structDict = rsp.structure_tree.get_structures_by_id([thisCoordID])
+            if structDict[0] is None:
+                newDB.at[dbIndex, 'recordingSiteName'] = ''
+            else:
+                newDB.at[dbIndex, 'recordingSiteName'] = structDict[0]['name']
+            newDB.at[dbIndex, 'x_coord'] = siteCoords[0]
+            newDB.at[dbIndex, 'y_coord'] = siteCoords[1]
+            newDB.at[dbIndex, 'z_coord'] = atlasZ
+    return newDB
+
 
 
 # if __name__=='__main__':
@@ -954,8 +1117,6 @@ def cell_locations(dbCell, filterCondtions=None, brainAreaDict=None):
 # ogrid = OverlayGrid(nRows=3,nCols=2)
 # ogrid.set_grid(imgfile)
 
+# imgfile2 = '/data/brainmix_data/test043_TL/p1-D4-01b.jpg'
+# ogrid.apply_grid(imgfile2)
 
-'''
-imgfile2 = '/data/brainmix_data/test043_TL/p1-D4-01b.jpg'
-ogrid.apply_grid(imgfile2)
-'''
