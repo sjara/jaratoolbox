@@ -47,12 +47,17 @@ class BehaviorData(dict):
     '''
     Access to behavior data in HDF5 format saved by taskontrol.savedata
 
-
     TODO:
     - Check version/format
 
     '''
-    def __init__(self,filename,readmode='full',varlist=[]):
+    def __init__(self, filename, varlist=[]):
+        """
+        Args:
+            filename (str): full path to data file.
+            varlist (list): list of strings specifying variables to read. If empty, read everything.
+                            If not empty, it will read the corresponding labels too.
+        """
         self.filename = filename
         self.labels = {}
         self.stateMatrix = {}
@@ -64,12 +69,18 @@ class BehaviorData(dict):
             print('{0} does not exist or cannot be opened.'.format(self.filename))
             raise
         try:
+            if len(varlist) > 0:
+                self.read_subset(varlist)
+            else:
+                self.read_full()
+            '''
             if readmode=='summary':
                 self.read_summary()
             elif readmode=='full':
                 self.read_full()
-            elif varlist:
+            elif readmode=='subset':
                 self.read_subset(varlist)
+            '''
         except IOError:
             print('Some error occurred while reading data.')
             self.h5file.close()
@@ -89,7 +100,7 @@ class BehaviorData(dict):
             self.events[varname] = varvalue[...]
         for varname,varvalue in self.h5file['/sessionData'].items():
             self.session[varname] = str(varvalue[...])
-    def read_summary(self):
+    def OBSOLETE_read_summary(self):
         '''
         Read only results to calculate average performance.
         '''
@@ -108,11 +119,13 @@ class BehaviorData(dict):
         '''
         Read a subset of variables.
         '''
-        self['nTrials'] = len(self.h5file['/resultsData/nValid'][...])
-        self['nValid'] = self.h5file['/resultsData/nValid'][-1]
+        #self['nTrials'] = len(self.h5file['/resultsData/nValid'][...])
+        #self['nValid'] = self.h5file['/resultsData/nValid'][-1]
         for indp,thisparam in enumerate(varlist):
             try:
                 self[thisparam] = self.h5file['/resultsData/'+thisparam][...]
+                if '/resultsLabels/'+thisparam in self.h5file:
+                    self.labels[thisparam] = dict_from_HDF5(self.h5file['/resultsLabels/'+thisparam])
             except KeyError:
                 print("{0} has no key '{1}'".format(self.filename,thisparam))
                 self[thisparam] = 0
