@@ -113,7 +113,7 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
         fillWidth = 0.05*np.diff(timeRange)
 
     nSpikesEachTrial = np.diff(indexLimitsEachTrial, axis=0)[0]
-    nSpikesEachTrial = nSpikesEachTrial*(nSpikesEachTrial > 0)  # Some are negative
+    nSpikesEachTrial = nSpikesEachTrial*(nSpikesEachTrial > 0)  # FIXME: Some are negative(?)
     trialIndexEachCond = []
     spikeTimesEachCond = []
     for indcond, trialsThisCond in enumerate(trialsEachCond):
@@ -193,7 +193,6 @@ def plot_psth(spikeCountMat, smoothWinSize, binsStartTime, trialsEachCond=[],
         pPSTH.append(ph)
         pPSTH[-1].set_linewidth(linewidth)
         pPSTH[-1].set_color(colorEachCond[indc])
-        # plt.hold(True) # As of matplotlib 2.0, plt.hold is unecessary and was completely removed as axes are held until specified not to be
     return pPSTH
 
 
@@ -366,13 +365,13 @@ def breakaxis(xpos, ypos, width, height, gap=0.25):
 
 
 
-def save_figure(filename, fileformat, figsize, outputDir='./', facecolor='none'):
+def save_figure(filename, fileformat, figsize, outputDir='./', facecolor='none', **kwargs):
     plt.gcf().set_size_inches(figsize)
     figName = filename+'.{0}'.format(fileformat)
     fullName = os.path.join(outputDir, figName)
     if facecolor == 'none':
         plt.gcf().set_frameon(False)
-    plt.savefig(fullName, format=fileformat, facecolor=facecolor)
+    plt.savefig(fullName, format=fileformat, facecolor=facecolor, **kwargs)
     plt.gcf().set_frameon(True)
     print('Figure saved to {0}'.format(fullName))
 
