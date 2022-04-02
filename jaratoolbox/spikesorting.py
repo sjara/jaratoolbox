@@ -342,13 +342,13 @@ def plot_events_in_time(timeStamps,nBins=50,fontsize=8):
     extraplots.set_ticks_fontsize(ax,fontsize)
     return hp
 
-def plot_waveforms(waveforms,ntraces=40,fontsize=8):
-    '''
-    Plot waveforms given array of shape (nChannels,nSamplesPerSpike,nSpikes)
+def plot_waveforms(waveforms, ntraces=40, fontsize=8):
+    """
+    Plot waveforms given array of shape (nSpikes, nChannels, nSamplesPerSpike)
 
     The average waveform is over the randomly-selected spikes, and not all of the spikes.
-    '''
-    (nSpikes,nChannels,nSamplesPerSpike) = waveforms.shape
+    """
+    (nSpikes, nChannels, nSamplesPerSpike) = waveforms.shape
     spikesToPlot = np.random.randint(nSpikes,size=ntraces)
     alignedWaveforms = align_waveforms(waveforms[spikesToPlot,:,:])
 
