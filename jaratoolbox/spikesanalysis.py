@@ -49,9 +49,36 @@ def eventlocked_spiketimes(timeStamps, eventOnsetTimes, timeRange, spikeindex=Fa
         indexLimitsEachTrial[:,indtrial] = [accumIndexFirstSpike,accumIndexFirstSpike+nSpikesThisTrial]
         accumIndexFirstSpike += nSpikesThisTrial
     if spikeindex:
-        return (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial,spikeIndices)
+        return (spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial, spikeIndices)
     else:
-        return (spikeTimesFromEventOnset,trialIndexForEachSpike,indexLimitsEachTrial)
+        return (spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial)
+
+
+def NOTFINISHED_spiketimes_subset(spikeTimesFromEventOnset, trialIndexForEachSpike,
+                                  indexLimitsEachTrial, trials):
+    """
+    Return locked spike information for a subset of trials.
+
+    WARNING: indexLimitsEachTrialNew is not correct.
+             It should be updated to reflect the new trial set
+
+    Args:
+        trials (np.array): Boolean array specify which trials to extract.
+    """
+    trialsList = np.flatnonzero(trials)
+    nSpikesEachTrial = np.diff(indexLimitsEachTrial, axis=0)[0]
+    indexLimitsEachTrialNew = indexLimitsEachTrial[:, trials]
+    spikeTimesFromEventOnsetNew = np.empty(0, dtype='float64')
+    trialIndexForEachSpikeNew = np.empty(0, dtype='int')
+    for indtrial, thisTrial in enumerate(trialsList):
+        indsThisTrial = slice(indexLimitsEachTrial[0, thisTrial],
+                              indexLimitsEachTrial[1, thisTrial])
+        spikeTimesFromEventOnsetNew = np.concatenate((spikeTimesFromEventOnsetNew,
+                                                      spikeTimesFromEventOnset[indsThisTrial]))
+        trialIndexForEachSpikeNew = np.concatenate((trialIndexForEachSpikeNew,
+                                                    np.repeat(indtrial, nSpikesEachTrial[thisTrial])))
+    return spikeTimesFromEventOnsetNew, trialIndexForEachSpikeNew, indexLimitsEachTrialNew
+
 
 def minimum_event_onset_diff(eventOnsetTimes, minEventOnsetDiff):
     '''
@@ -69,6 +96,7 @@ def minimum_event_onset_diff(eventOnsetTimes, minEventOnsetDiff):
     evdiff = np.r_[1.0, np.diff(eventOnsetTimes)]
     eventOnsetTimes = eventOnsetTimes[evdiff>minEventOnsetDiff]
     return eventOnsetTimes
+
 
 def spiketimes_to_spikecounts(spikeTimesFromEventOnset, indexLimitsEachTrial, binEdges):
     '''
@@ -158,7 +186,8 @@ def avg_num_spikes_each_condition(trialsEachCondition, indexLimitsEachTrial):
            (defined by either one of nValues1 or a combination of a value in nValues1 and a value in nValues2).
     '''
 
-    print("WARNING!!! avg_num_spikes_each_condition is deprecated and will be removed in the next version of jaratoolbox.")
+    print('WARNING!!! avg_num_spikes_each_condition is deprecated and will be removed ' +
+          'in the next version of jaratoolbox.')
 
     numSpikesInTimeRangeEachTrial = np.squeeze(np.diff(indexLimitsEachTrial, axis=0))
     conditionMatShape = np.shape(trialsEachCondition)
