@@ -4,6 +4,7 @@ Tools for analyzing behavioral data.
 
 import os
 import numpy as np
+import datetime
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from jaratoolbox import extrafuncs
@@ -119,8 +120,26 @@ def find_missing_trials(ephysEventTimes, behavEventTimes, threshold=0.05):
             break
     return missingTrials
 
+def sessions_in_range(datesRange=None, exclude=[], suffix='a'):
+    """
+    Create a list of sessions given a range of dates.
 
-def load_many_sessions(subjects,sessions,paradigm='2afc',loadingClass=None,datesRange=None):
+    Args:
+        datesRange (list): 2-item list of strings (dates in ISO format) defining the range.
+        exclude (list): list of strings (dates in ISO format) with dates to exclude.
+        suffix (str): string to append after the date.
+    """
+    datesLims = [datetime.datetime.fromisoformat(dateStr) for dateStr in datesRange]
+    dateDelta = datesLims[-1] - datesLims[0]
+    allDates = [datesLims[0] + datetime.timedelta(n) for n in range(dateDelta.days+1)]
+    datesExclude = [datetime.datetime.fromisoformat(dateStr) for dateStr in exclude]
+    for oneDate in datesExclude:
+        if oneDate in allDates:
+            allDates.remove(oneDate)
+    allSessions = [oneDate.strftime('%Y%m%da') for oneDate in allDates]
+    return allSessions
+
+def load_many_sessions(subjects, sessions, paradigm='2afc', loadingClass=None, varlist=[]):
     '''
     Load multiple behavior files.
 
@@ -133,7 +152,7 @@ def load_many_sessions(subjects,sessions,paradigm='2afc',loadingClass=None,dates
         sessions (list): List of strings containing sessions to load.
         paradigm (str): name of paradigm.
         loadingClass (class): can be something like loadbehavior.FlexCategBehaviorData.
-        datesRange (list): 2-item list of sessions defining a range of sessions to load.
+        varlist (list): list of strings specifying variables to read. If empty, read everything.
 
     Returns:
         allBehavData (dict): similar to the output of loadbehavior.BehaviorData() but
@@ -145,13 +164,18 @@ def load_many_sessions(subjects,sessions,paradigm='2afc',loadingClass=None,dates
     '''
     if isinstance(subjects,str):
         subjects = [subjects]
+    '''
     if datesRange:
-        datesLims = [parse_isodate(dateStr) for dateStr in datesRange]
-        allDates = [datesLims[0]+datetime.timedelta(n) \
-                        for n in range((datesLims[-1]-datesLims[0]).days+1)]
+        datesLims = [datetime.datetime.fromisoformat(dateStr) for dateStr in datesRange]
+        dateDelta = datesLims[-1] - datesLims[0]
+        allDates = [datesLims[0] + datetime.timedelta(n) for n in range(dateDelta.days+1)]
+        datesExclude = [datetime.datetime.fromisoformat(dateStr) for dateStr in exclude]
+        for oneDate in datesExclude:
+            allDates.remove(oneDate)
         allSessions = [oneDate.strftime('%Y%m%da') for oneDate in allDates]
     else:
         allSessions = sessions
+    '''
     nSubjects = len(subjects)
     if loadingClass==None:
         loadingClass = loadbehavior.BehaviorData
@@ -160,7 +184,10 @@ def load_many_sessions(subjects,sessions,paradigm='2afc',loadingClass=None,dates
     #    readmode = 'full'
     #else:
     #    readmode = params
-    readmode = 'full'
+    #if not len(varlist):
+    #    readmode = 'full'
+    #else:
+    #    readmode = None # Read only parameters in varlist
 
     #allBehavData = {}
     #allBehavData['sessionID'] = np.empty(0,dtype='i2')
@@ -168,10 +195,11 @@ def load_many_sessions(subjects,sessions,paradigm='2afc',loadingClass=None,dates
 
     inds=0
     for inda,subjectName in enumerate(subjects):
-        for inds,thisSession in enumerate(allSessions):
+        for inds,thisSession in enumerate(sessions):
             try:
-                behavFile = loadbehavior.path_to_behavior_data(subjectName,paradigm,thisSession)
-                behavData = loadingClass(behavFile,readmode=readmode)
+                behavFile = loadbehavior.path_to_behavior_data(subjectName, paradigm, thisSession)
+                behavData = loadingClass(behavFile, varlist=varlist)
+                #behavData = loadingClass(behavFile, readmode=readmode)
             except IOError:
                 print(thisSession+' does not exist')
                 continue
