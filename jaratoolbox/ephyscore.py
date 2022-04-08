@@ -186,7 +186,7 @@ class Cell():
             behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
 
         To implement in the future:
-        * Allow use of different readmode for loading partial data
+        * Allow use of valist for loading partial behavior data
         * Allow use of different loading class for paradigms like FlexCategBehaviorData
         '''
         #Set the loading class for behavior data
@@ -201,7 +201,7 @@ class Cell():
             behavDataFilePath = loadbehavior.path_to_behavior_data(self.subject,
                                                                    thisParadigm,
                                                                    fullSessionStr)
-            bdata = behavClass(behavDataFilePath,readmode='full')
+            bdata = behavClass(behavDataFilePath)
         else:
             bdata = None
         return bdata

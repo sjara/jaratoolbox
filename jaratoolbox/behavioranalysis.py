@@ -180,15 +180,6 @@ def load_many_sessions(subjects, sessions, paradigm='2afc', loadingClass=None, v
     if loadingClass==None:
         loadingClass = loadbehavior.BehaviorData
     
-    #if params=='all':
-    #    readmode = 'full'
-    #else:
-    #    readmode = params
-    #if not len(varlist):
-    #    readmode = 'full'
-    #else:
-    #    readmode = None # Read only parameters in varlist
-
     #allBehavData = {}
     #allBehavData['sessionID'] = np.empty(0,dtype='i2')
     #allBehavData['subjectID'] = np.empty(0,dtype='i1')
@@ -199,7 +190,6 @@ def load_many_sessions(subjects, sessions, paradigm='2afc', loadingClass=None, v
             try:
                 behavFile = loadbehavior.path_to_behavior_data(subjectName, paradigm, thisSession)
                 behavData = loadingClass(behavFile, varlist=varlist)
-                #behavData = loadingClass(behavFile, readmode=readmode)
             except IOError:
                 print(thisSession+' does not exist')
                 continue
@@ -248,7 +238,7 @@ def behavior_summary(subjects,sessions,trialslim=[],outputDir='',paradigm='2afc'
         for inda,animalName in enumerate(subjects):
             try:
                 behavFile = loadbehavior.path_to_behavior_data(animalName,paradigm,thisSession)
-                behavData = loadingClass(behavFile,readmode='full')
+                behavData = loadingClass(behavFile)
             except IOError:
                 print(thisSession+' does not exist')
                 continue
@@ -577,7 +567,7 @@ if __name__ == "__main__":
         session = '20140421a'
 
         behavFile = loadbehavior.path_to_behavior_data(subject, experimenter, paradigm, session)
-        behavData = loadbehavior.FlexCategBehaviorData(behavFile, readmode='full')
+        behavData = loadbehavior.FlexCategBehaviorData(behavFile)
         behavData.find_trials_each_block()
  
         # trialsEachBlock = behavData.blocks['trialsEachBlock']

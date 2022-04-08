@@ -246,7 +246,7 @@ class EphysInterface(object):
             behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
                                                                 sessionObj.paradigm,
                                                                 fullSessionStr)
-            bdata = behavClass(behavDataFilePath,readmode='full')
+            bdata = behavClass(behavDataFilePath)
         else:
             bdata = None
         ephysData = ephyscore.load_ephys(sessionObj.subject, sessionObj.paradigm, sessionDir, tetrode, cluster)
@@ -467,7 +467,7 @@ class EphysInterface(object):
             behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
                                                                 sessionObj.paradigm,
                                                                 fullSessionStr)
-            bdata = behavClass(behavDataFilePath,readmode='full')
+            bdata = behavClass(behavDataFilePath)
             sortArray = bdata[sortArray]
         else:
             sortArray = []
@@ -762,7 +762,7 @@ class EphysInterface(object):
                 behavDataFilePath = loadbehavior.path_to_behavior_data(sessionObj.subject,
                                                                     sessionObj.paradigm,
                                                                     fullSessionStr)
-                bdata = behavClass(behavDataFilePath,readmode='full')
+                bdata = behavClass(behavDataFilePath)
                 #FIXME: Hardcoded variable name to sort by for tuning
                 freqEachTrial = bdata['currentFreq']
                 freqLabels = ["%.1f"%freq for freq in np.unique(freqEachTrial)/1000]

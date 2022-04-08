@@ -73,14 +73,6 @@ class BehaviorData(dict):
                 self.read_subset(varlist)
             else:
                 self.read_full()
-            '''
-            if readmode=='summary':
-                self.read_summary()
-            elif readmode=='full':
-                self.read_full()
-            elif readmode=='subset':
-                self.read_subset(varlist)
-            '''
         except IOError:
             print('Some error occurred while reading data.')
             self.h5file.close()
@@ -157,8 +149,8 @@ class BehaviorData(dict):
 
 class FlexCategBehaviorData(BehaviorData):
     '''This class adds methods specific to the flexible categorization paradigm.'''
-    def __init__(self,behavFileName,readmode='full',varlist=[]):
-        BehaviorData.__init__(self,behavFileName,readmode,varlist)
+    def __init__(self, behavFileName, varlist=[]):
+        BehaviorData.__init__(self, behavFileName, varlist)
         # FIXME: Not sure nTrials should be defined here. What is trials are removed?
         self.nTrials = len(self['currentBlock'])
         self.blocks = {}
@@ -187,17 +179,17 @@ class FlexCategBehaviorData(BehaviorData):
 
 if __name__ == "__main__":
 
-    CASE=2
+    CASE=1
     if CASE==1:
-        behavFile = '/data/behavior/santiago/test011/test011_2afc_20140311a.h5'
+        behavFile = '/data/behavior/test011/test011_2afc_20140311a.h5'
         bdata = BehaviorData(behavFile)
     if CASE==2:
-        bfile=path_to_behavior_data('test020','santiago','2afc','20140421a')
-        bdata = FlexCategBehaviorData(bfile,readmode='full')
+        bfile=path_to_behavior_data('test020', '2afc','20140420a')
+        bdata = FlexCategBehaviorData(bfile)
     if CASE==3:
-        bfile=path_to_behavior_data('test020','santiago','2afc','20140421a')
+        bfile=path_to_behavior_data('test020', '2afc','20140420a')
         print(bfile)
-        bdata = FlexCategBehaviorData(bfile,readmode='full')
+        bdata = FlexCategBehaviorData(bfile)
         from pylab import *
         hold(0)
         for p,v in sorted(bdata.items()):
