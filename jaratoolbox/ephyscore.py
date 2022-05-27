@@ -8,6 +8,7 @@ import pandas as pd
 from jaratoolbox import loadopenephys
 from jaratoolbox import loadneuropix
 from jaratoolbox import loadbehavior
+from jaratoolbox import spikesanalysis
 from jaratoolbox import settings
 
 # Define the event channel mapping for each paradigm. For each paradigm, you
@@ -29,6 +30,8 @@ class SessionData():
 
     These objects can be used when creating a Cell object to make loading more efficient,
     since the files containing spikes, events and behavior are common across cells in a session.
+
+    See also: CellEnsemble()
     """
     def __init__(self, dbRow, sessiontype):
         if not isinstance(dbRow, pd.core.series.Series):
@@ -48,17 +51,139 @@ class SessionData():
         return self.behavData
 
 
+class CellEnsemble():
+    def __init__(self, celldb, dirsuffix='_processed_multi'):
+        """
+        Args:
+            celldb (pandas DataFrame): A dataframe created by celldatabase for a single site.
+                                       All rows must have the same subject, date and pdepth.
+            useModifiedClusters (bool): Whether to load the modified cluster files created after
+                                        cleaning clusters, if they exist.
+        """
+        if not isinstance(celldb, pd.core.frame.DataFrame):
+            raise TypeError('This object must be initialized with a pandas DataFrame object.')
+        if (len(celldb.subject.unique())>1 or len(celldb.date.unique())>1 or
+            len(celldb.pdepth.unique())>1):
+            msg = 'The database must contain only neurons from one site (same date and pdepth).'
+            raise TypeError(msg)
+        if len(celldb.egroup.unique())>1:
+            raise TypeError('Currently, this class works only for a single electrode group (probe).')
+        self.celldb = celldb
+        refRow = celldb.iloc[0]
+        self.subject = refRow.subject
+        self.date = refRow.date
+        self.pdepth = refRow.pdepth
+        self.egroup = refRow.egroup
+        self.behavData = None
+        self.ephysData = None
+        self.dirsuffix = dirsuffix
+        self.refCell = Cell(refRow) # Reference cell
+        self.refCell.cluster = None  # The reference cell helps load data for all cells
+        self.spikeTimesFromEventOnsetAll = []
+        self.trialIndexForEachSpikeAll = []
+        self.indexLimitsEachTrialAll = []
+        self.eventOnsetTimes = []
+    def __str__(self):
+        objStr = f'{self.subject} {self.date} {self.pdepth:0.0f}um g{self.egroup}'
+        return objStr
+    def load(self, sessiontype, behavClass=None):
+        """
+        Load the spikes, events, and behavior data for a single session. Loads the LAST recorded
+        session of the type that was recorded from the cell.
+        Args:
+            sessiontype (str): the type of session to load data for.
+            behavClass (jaratoolbox.loadbehavior Class): The loading class to use, each class
+                                                         of behavData will have different methods.
+        Returns:
+            ephysData (dict):'spikeTimes' (array), 'samples' (array) and 'events' (dict)
+                              The dictionary 'events' contains two keys for each type of event
+                              used in the paradigm - one for the eventOn, when the event turns on,
+                              and one for the eventOff, when the event turns off. These will look like
+                              'stimOn' and 'stimOff' for the event type 'stim' defined in the paradigm.
+            behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
+        """
+        sessionInds = self.refCell.get_session_inds(sessiontype)
+        try:
+            sessionIndToUse = sessionInds[-1]  # NOTE: Taking the last session of this type!
+        except IndexError as ierror:
+            ierror.args += ('Session type "{}" does not exist for this cell.'.format(sessiontype),)
+            raise
+        self.behavData = self.refCell.load_behavior_by_index(sessionIndToUse, behavClass=behavClass)
+        self.ephysData = self.refCell.load_ephys_by_index(sessionIndToUse)
+        return self.ephysData, self.behavData
+    def get_spiketimes(self, cluster):
+        """
+        Get spikes times for a single cluster.
+        """
+        spikesThisCluster = (self.ephysData['clusterEachSpike']==cluster)
+        spikeTimes = self.ephysData['spikeTimes'][spikesThisCluster]
+        return spikeTimes
+    def eventlocked_spiketimes(self, eventOnsetTimes, timeRange):
+        """
+        Align spikes from each cell to an event.
+        Args:
+            eventOnsetTimes: (np.array) the time of each instance of the event to lock to.
+            timeRange: (list) two-element list specifying time-range to extract around event.
+        Returns:
+            spikeTimesFromEventOnsetAll (list): list of spikeTimesFromEventOnset arrays.
+            trialIndexForEachSpikeAll (list): list of trialIndexForEachSpike arrays.
+            indexLimitsEachTrialAll (list): list of indexLimitsEachTrial arrays.
+        See spikesanalysis.eventlocked_spiketimes() for a description of the arrays.
+        """
+        if self.ephysData is None:
+            msg = 'You need to run load() for this object first.'
+            raise RuntimeError(msg)
+        self.eventOnsetTimes = eventOnsetTimes
+        self.spikeTimesFromEventOnsetAll = []
+        self.trialIndexForEachSpikeAll = []
+        self.indexLimitsEachTrialAll = []
+        for cluster in self.celldb.cluster:
+            spikeTimes = self.get_spiketimes(cluster)
+            (spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial) = \
+                spikesanalysis.eventlocked_spiketimes(spikeTimes, eventOnsetTimes, timeRange)
+            self.spikeTimesFromEventOnsetAll.append(spikeTimesFromEventOnset)
+            self.trialIndexForEachSpikeAll.append(trialIndexForEachSpike)
+            self.indexLimitsEachTrialAll.append(indexLimitsEachTrial)
+        return (self.spikeTimesFromEventOnsetAll,
+                self.trialIndexForEachSpikeAll,
+                self.indexLimitsEachTrialAll)
+    def sort_trials(self, trialsEachCond):
+        """Note implemented yet"""
+        pass
+    def spiketimes_to_spikecounts(self, binEdges):
+        """
+        Get spike count for each time bin for each cell.
+        Args:
+            binEdges (np.arrat): edges of time bins, including left-most and right-most edges.
+        Returns:
+            spikeCountMat (np.array): spike counts for each bin. Shape is (nCells, nTrials, nBins).
+        """
+        if len(self.spikeTimesFromEventOnsetAll) == 0:
+            msg = 'You need to run eventlocked_spiketimes() for this object first'
+            raise RuntimeError(msg)
+        nBins = len(binEdges) - 1
+        nTrials = len(self.eventOnsetTimes)
+        nClusters = len(self.celldb)
+        spikeCountMatAll = np.empty((nClusters, nTrials, nBins), dtype=int)
+        for indc in range(nClusters):
+            cMat = spikesanalysis.spiketimes_to_spikecounts(self.spikeTimesFromEventOnsetAll[indc],
+                                                            self.indexLimitsEachTrialAll[indc],
+                                                            binEdges)
+            spikeCountMatAll[indc,:,:] = cMat
+        return spikeCountMatAll
+
+
 class Cell():
     def __init__(self, dbRow, sessionData=None, dirsuffix='_processed_multi',
                  useModifiedClusters=False):
-        '''
+        """
         Args:
             dbRow (pandas.core.series.Series): A row from a dataframe created by celldatabase.
             sessionData (SessionData): object contaning data for the session (when spikes and
                                        behavior are already loaded).
             useModifiedClusters (bool): Whether to load the modified cluster files created after
                                         cleaning clusters, if they exist.
-        '''
+        """
         # FIXME: When looping through cells, make sure that nothing is
         #        preserved from iteration to the next
         if not isinstance(dbRow, pd.core.series.Series):
@@ -87,7 +212,7 @@ class Cell():
         return objStr
         
     def load(self, sessiontype, behavClass=None):
-        '''
+        """
         Load the spikes, events, and behavior data for a single session. Loads the LAST recorded
         session of the type that was recorded from the cell.
         Args:
@@ -101,7 +226,7 @@ class Cell():
                               and one for the eventOff, when the event turns off. These will look like
                               'stimOn' and 'stimOff' for the event type 'stim' defined in the paradigm.
             behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
-        '''
+        """
         sessionInds = self.get_session_inds(sessiontype)
         try:
             sessionIndToUse = sessionInds[-1]  # NOTE: Taking the last session of this type!
@@ -112,18 +237,18 @@ class Cell():
         return ephysData, behavData
 
     def get_session_inds(self, sessiontype):
-        '''
+        """
         Get the indices of sessions of a particular sessiontype that were recorded for the cell.
         Args:
             sessiontype (str): The type of session to look for (as written in the inforec file)
         Returns:
             sessionInds (list): List of the indices for this session type
-        '''
+        """
         sessionInds = [i for i, st in enumerate(self.dbRow['sessionType']) if st==sessiontype]
         return sessionInds
 
     def load_by_index(self, sessionInd, behavClass=None):
-        '''
+        """
         Load both ephys and behavior data for a session using the absolute index in the list
         of sessions for the cell.
         Args:
@@ -133,7 +258,7 @@ class Cell():
         Returns:
             ephysData (list): Spiketimes (array), samples (array) and events (dict)
             behavData (jaratoolbox.loadbehavior.BehaviorData): Behavior data dict
-        '''
+        """
         if self.sessionData is None:
             ephysData = self.load_ephys_by_index(sessionInd)
             behavData = self.load_behavior_by_index(sessionInd, behavClass=behavClass)
@@ -143,13 +268,13 @@ class Cell():
         return ephysData, behavData
 
     def load_ephys_by_index(self, sessionInd):
-        '''
+        """
         Load ephys data for a session using the absolute index in the list of sessions for the cell.
         Args:
             sessionInd (int): The index of the session in the list of sessions recorded for the cell.
         Returns:
             ephysData (list): Spiketimes (array), samples (array) and events (dict)
-        '''
+        """
         sessionDir = self.get_ephys_dir(sessionInd)
         paradigm = self.dbRow['paradigm'][sessionInd]
         if self.dbRow['probe'] == 'A4x2-tet':
@@ -163,19 +288,19 @@ class Cell():
         return ephysData
 
     def get_ephys_dir(self, sessionInd):
-        '''
+        """
         Return the full path to the ephys data for a given session.
         Args:
             sessionInd (int): The index of the session in the list of sessions recorded for the cell.
         Returns:
             sessionDir (str): Full path to the ephys data
-        '''
+        """
         ephysTime = self.dbRow['ephysTime'][sessionInd]
         sessionDir = '{}_{}'.format(self.date, ephysTime)
         return sessionDir
 
     def load_behavior_by_index(self, sessionInd, behavClass=None):
-        '''
+        """
         Load the behavior data for a session using the absolute index in the list of sessions
         for the cell.
         Args:
@@ -188,7 +313,7 @@ class Cell():
         To implement in the future:
         * Allow use of valist for loading partial behavior data
         * Allow use of different loading class for paradigms like FlexCategBehaviorData
-        '''
+        """
         #Set the loading class for behavior data
         if behavClass==None:
             behavClass = loadbehavior.BehaviorData
@@ -207,13 +332,13 @@ class Cell():
         return bdata
 
     def load_all_spikedata(self):
-        '''
+        """
         Load the spike data for all recorded sessions into a set of arrays.
         Returns:
             timestamps (np.array): The timestamps for all spikes across all sessions
             samples (np.array): The samples for all spikes across all sessions
             recordingNumber (np.array): The index of the session where the spike was recorded
-        '''
+        """
         samples=np.array([])
         timestamps=np.array([])
         recordingNumber=np.array([])
@@ -327,4 +452,22 @@ def load_ephys_neuropixels_v1(subject, paradigm, sessionDir, egroup, cluster=Non
                  'events': eventDict,
                  'clusterEachSpike': spikesData.clusters}
     return ephysData
+
+
+def spiketimes_each_cell(spikeTimesAllCells, clusterEachSpike, clusters=None):
+    """
+    Return a dictionary with the spike times for each cell.
+    Args:
+        spikeTimesAllCells (np.array): spike times for all cells (before spike sorting).
+        clusterEachSpike (np.array): cluster index for each spike.
+        clusters (np.array): which clusters to include. If None, include all clusters.
+    """
+    spikeTimesEachCell = {}
+    if clusters is None:
+        clusters = np.unique(clusterEachSpike)
+    for cluster in clusters:
+        spikesThisCluster = (clusterEachSpike==cluster)
+        spikeTimesEachCell[cluster] = spikeTimesAllCells[spikesThisCluster]
+    return spikeTimesEachCell
+
 
