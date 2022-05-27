@@ -349,10 +349,34 @@ def spread_plot(xVal, yVals, spacing):
     for oneY in uniqueY:
         nVals = np.sum(yVals == oneY)
         possibleOffsets = spacing * np.arange(-nVals/2.0+0.5, nVals/2.0, 1)
+        #print(possibleOffsets)
         xOffset = possibleOffsets[:nVals]
-        hp, = plt.plot(np.tile(xVal, nVals)+xOffset, np.tile(oneY, nVals), 'o', mfc='none')
+        #hp, = plt.plot(np.tile(xVal, nVals)+xOffset, np.tile(oneY, nVals), 'o', mfc='none')
+        #hp, = plt.plot(np.tile(xVal, nVals)+xOffset, np.tile(oneY, nVals), **kwargs)
+        hp, = plt.plot(np.tile(xVal, nVals)+xOffset, np.tile(oneY, nVals), 'o', mfc='none', **kwargs)
         allMarkers.append(hp)
     return allMarkers
+
+
+def spread_offsets(data, spacing, delta=0):
+    """
+    Calculate offsets for a spread plot of continuous values.
+
+    Args:
+        data (np.array): values to plot.
+        spacing (float): minimum final offset.
+        delta (float): minimum difference between values to be offset.
+    """
+    m1, m2 = np.meshgrid(data, data)
+    dmat = np.abs(m1-m2) <= delta
+    dmat *= ~np.eye(len(data), dtype=bool)
+    pairs = np.nonzero(np.triu(dmat))
+
+    offsets = np.zeros(len(data))
+    for ind1, ind2 in zip(*pairs):
+        offsets[ind1] += -spacing/2
+        offsets[ind2] += spacing/2
+    return offsets
 
 
 def breakaxis(xpos, ypos, width, height, gap=0.25):
