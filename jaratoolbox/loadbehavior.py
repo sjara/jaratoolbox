@@ -121,6 +121,8 @@ class BehaviorData(dict):
             except KeyError:
                 print("{0} has no key '{1}'".format(self.filename,thisparam))
                 self[thisparam] = 0
+        for varname,varvalue in self.h5file['/sessionData'].items():
+            self.session[varname] = str(varvalue[...])
     
     def remove_trials(self,trialslist):
         '''
