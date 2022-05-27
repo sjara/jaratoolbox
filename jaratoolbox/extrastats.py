@@ -39,6 +39,13 @@ def psychfun(xval, alpha, beta, lamb, gamma):
     """
     return gamma + (1-gamma-lamb)*logistic(xval, alpha, beta)
 
+def invpsychfun(yval, alpha, beta, lamb, gamma):
+    """
+    Inverse of psychometric function. See psychfun() for parameters.
+    """
+    return alpha - beta * np.log((1-lamb-gamma)/(yval-gamma) - 1)
+    
+
 '''
 # Example for fitting psychometric curve:
 paramInitial = [0, -0.5, 0, 0]
