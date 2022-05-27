@@ -81,17 +81,17 @@ def trials_each_cond_inds(trialsEachCond, nTrials):
     """
     Create trialsEachCond as a list of indexes with trials for each condition.
     """
-    if isinstance(trialsEachCond,np.ndarray):
+    if isinstance(trialsEachCond, np.ndarray):
         # -- Convert boolean matrix to list of trial indexes --
-        trialsEachCond = [np.flatnonzero(trialsEachCond[:, ind]) for ind in range(trialsEachCond.shape[1])]
+        trialsEachCondInds = [np.flatnonzero(trialsEachCond[:, ind]) for ind in range(trialsEachCond.shape[1])]
     if trialsEachCond==[]:
         nCond=1
         # trialsEachCond = [np.arange(indexLimitsEachTrial.shape[1])]
-        trialsEachCond = [np.arange(nTrials)]
+        trialsEachCondInds = [np.arange(nTrials)]
     else:
-        nCond = len(trialsEachCond)
-    nTrialsEachCond = [len(x) for x in trialsEachCond]
-    return trialsEachCond, nTrialsEachCond, nCond
+        nCond = len(trialsEachCondInds)
+    nTrialsEachCond = [len(x) for x in trialsEachCondInds]
+    return trialsEachCondInds, nTrialsEachCond, nCond
 
 
 def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond=[],
@@ -104,7 +104,7 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
     trialsEachCond can be a list of lists of indexes, or a boolean array of shape [nTrials,nConditions]
     """
     nTrials = len(indexLimitsEachTrial[0])
-    (trialsEachCond, nTrialsEachCond, nCond) = trials_each_cond_inds(trialsEachCond, nTrials)
+    (trialsEachCondInds, nTrialsEachCond, nCond) = trials_each_cond_inds(trialsEachCond, nTrials)
 
     if colorEachCond is None:
         colorEachCond = ['0.5', '0.75']*int(np.ceil(nCond/2.0))
@@ -116,7 +116,7 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
     nSpikesEachTrial = nSpikesEachTrial*(nSpikesEachTrial > 0)  # FIXME: Some are negative(?)
     trialIndexEachCond = []
     spikeTimesEachCond = []
-    for indcond, trialsThisCond in enumerate(trialsEachCond):
+    for indcond, trialsThisCond in enumerate(trialsEachCondInds):
         spikeTimesThisCond = np.empty(0, dtype='float64')
         trialIndexThisCond = np.empty(0, dtype='int')
         for indtrial, thisTrial in enumerate(trialsThisCond):
@@ -340,7 +340,7 @@ def new_significance_stars(xRange, yPos, yLength, color='k', starMarker='*', fon
     # plt.hold(False)
 
 
-def spread_plot(xVal, yVals, spacing):
+def spread_plot(xVal, yVals, spacing=0.1, **kwargs):
     """
     Plot at one x position samples that are quantized in y, by spreading dots equally.
     """
