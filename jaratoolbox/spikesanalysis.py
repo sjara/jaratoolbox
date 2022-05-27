@@ -54,6 +54,22 @@ def eventlocked_spiketimes(timeStamps, eventOnsetTimes, timeRange, spikeindex=Fa
         return (spikeTimesFromEventOnset, trialIndexForEachSpike, indexLimitsEachTrial)
 
 
+def sort_by_trial_type(trialIndexForEachSpike, trialsEachCond):
+    """
+    Find trial index for each spike sorted according to trial type.
+    Args:
+        trialIndexForEachSpike (np.array): See eventlocked_spiketimes()
+        trialsEachCond (np.array): array of booleans of shape [nTrials, nConditions]
+    Returns:
+        sortedTrials (np.array): trials sorted by trial type
+        sortedTrialIndexForEachSpike (np.array): sorted version of trialIndexForEachSpike
+    """
+    condEachSortedTrial, sortedTrials = np.nonzero(trialsEachCond.T)
+    sortingInds = np.argsort(sortedTrials)
+    sortedTrialIndexForEachSpike = sortingInds[trialIndexForEachSpike]
+    return sortedTrials, sortedTrialIndexForEachSpike
+
+
 def NOTFINISHED_spiketimes_subset(spikeTimesFromEventOnset, trialIndexForEachSpike,
                                   indexLimitsEachTrial, trials):
     """
@@ -111,10 +127,10 @@ def spiketimes_to_spikecounts(spikeTimesFromEventOnset, indexLimitsEachTrial, bi
     spikeCountMat: each column is one trial. N rows is len(binEdges)-1
     '''
     nTrials = indexLimitsEachTrial.shape[1]
-    spikeCountMat = np.empty((nTrials,len(binEdges)-1),dtype=int)
+    spikeCountMat = np.empty((nTrials,len(binEdges)-1), dtype=int)
     for indtrial in range(nTrials):
-        indsThisTrial = slice(indexLimitsEachTrial[0,indtrial],indexLimitsEachTrial[1,indtrial])
-        spkCountThisTrial,binsEdges = np.histogram(spikeTimesFromEventOnset[indsThisTrial],binEdges)
+        indsThisTrial = slice(indexLimitsEachTrial[0,indtrial], indexLimitsEachTrial[1,indtrial])
+        spkCountThisTrial,binsEdges = np.histogram(spikeTimesFromEventOnset[indsThisTrial], binEdges)
         spikeCountMat[indtrial,:] = spkCountThisTrial
     return spikeCountMat
 
