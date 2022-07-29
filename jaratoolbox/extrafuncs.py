@@ -7,6 +7,7 @@ Additional functions often used but not available in python modules.
 
 import numpy as np
 import datetime
+import importlib
 
 def pad_float_list(listOfLists, length=None, pad=np.NaN):
     '''Pad a list of lists of floats with nan to the same length.
@@ -97,3 +98,16 @@ def moving_average_masked(thearray,winsize,sem=False):
         return (valMean,valSEM)
     else:
         return valMean
+
+
+def read_infofile(infoFilePath):
+    """
+    Read info file (such as inforec, infovideos, or infohistology files)
+
+    This function reads the file into an object, so you can access the variables created
+    in the file as attributes of that object, e.g., infoModule.myvar
+    """
+    spec = importlib.util.spec_from_file_location('info_module', infoFilePath)
+    infoModule = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(infoModule)
+    return infoModule
