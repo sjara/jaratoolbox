@@ -219,7 +219,8 @@ def avg_num_spikes_each_condition(trialsEachCondition, indexLimitsEachTrial):
     return avgSpikesArray
 
 
-def response_latency(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, threshold=0.5, win=None):
+def response_latency(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, threshold=0.5,
+                     win=None, invert=False):
     '''
     Calculate response latency as time point where smooth PSTH crosses some fraction of
     the (baseline subtracted) max response.
@@ -241,9 +242,17 @@ def response_latency(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, 
     if not np.any(baselineBins):
         raise ValueError('The data needs to include a period before the stimulus.')
     avBaseline = np.mean(smoothPSTH[baselineBins])
-    maxResp = np.max(smoothPSTH)
-    thresholdSpikeCount = avBaseline + threshold*(maxResp-avBaseline)
-    respLatencyInd = np.flatnonzero(smoothPSTH>thresholdSpikeCount)[0]
+    halfWinLen = len(win)//2
+    if invert:
+        # NOTE: the convolution results in edge effects that need to be ignored.
+        maxResp = np.min(smoothPSTH[halfWinLen:-halfWinLen])
+        thresholdSpikeCount = avBaseline - threshold*(avBaseline-maxResp)
+        respLatencyInd = np.flatnonzero(smoothPSTH[halfWinLen:-halfWinLen]<thresholdSpikeCount)[0]
+        respLatencyInd += halfWinLen  # Adding the samples removed at the edges
+    else:
+        maxResp = np.max(smoothPSTH)
+        thresholdSpikeCount = avBaseline + threshold*(maxResp-avBaseline)
+        respLatencyInd = np.flatnonzero(smoothPSTH>thresholdSpikeCount)[0]
     yDiff = (smoothPSTH[respLatencyInd]-smoothPSTH[respLatencyInd-1])
     yFraction = (thresholdSpikeCount-smoothPSTH[respLatencyInd-1])/ yDiff
     respLatency = timeVec[respLatencyInd-1] + yFraction*(timeVec[respLatencyInd]-timeVec[respLatencyInd-1])
