@@ -95,7 +95,7 @@ def trials_each_cond_inds(trialsEachCond, nTrials):
 
 
 def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond=[],
-                colorEachCond=None, fillWidth=None, labels=None):
+                colorEachCond=None, fillWidth=None, labels=None, rasterized=True):
     """
     Plot spikes raster plot grouped by condition
     Returns (pRaster,hcond,zline)
@@ -142,7 +142,7 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
     for indcond in range(nCond):
         pRasterOne, = plt.plot(spikeTimesEachCond[indcond],
                                trialIndexEachCond[indcond]+firstTrialEachCond[indcond], '.k',
-                               rasterized=True)
+                               rasterized=rasterized)
         pRaster.append(pRasterOne)
         ypos = np.array([firstTrialEachCond[indcond],firstTrialEachCond[indcond],
                          lastTrialEachCond[indcond],lastTrialEachCond[indcond]])-0.5
@@ -386,7 +386,6 @@ def breakaxis(xpos, ypos, width, height, gap=0.25):
     plt.plot([xpos-0.25*width, xpos+0.25*width], [ypos,ypos], color='white', lw=4, clip_on=False, zorder=10)
     plt.plot(xvals-gap*width, yvals, color='k', clip_on=False, zorder=11)
     plt.plot(xvals+gap*width, yvals, color='k', clip_on=False, zorder=11)
-
 
 
 def save_figure(filename, fileformat, figsize, outputDir='./', facecolor='none', **kwargs):
