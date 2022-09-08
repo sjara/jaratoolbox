@@ -464,7 +464,8 @@ def calculate_psychometric(hitTrials,paramValueEachTrial,valid=None):
     nHitsEachValue: array of same length as possibleValues
     '''
     try:
-        from statsmodels.stats.proportion import proportion_confint #Used to compute confidence interval for the error bars. 
+        # NOTE: statsmodels is used to compute confidence interval for the error bars.
+        from statsmodels.stats.proportion import proportion_confint 
         useCI = True
     except ImportError:
         print('Warning: To calculate confidence intervals, please install "statsmodels" module.')
