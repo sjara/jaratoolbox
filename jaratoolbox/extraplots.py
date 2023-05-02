@@ -2,10 +2,10 @@
 Additional function for modifying plots and tabular bdata.
 """
 
-
-import matplotlib.pyplot as plt
-import numpy as np
 import os
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.optimize
 
 
 def boxoff(ax, keep='left', yaxis=True):
@@ -498,7 +498,60 @@ def dataframe_to_html(dframe, outputfile):
     with open(outputfile, 'w') as fobj:
         fobj.write(htmlString.format(title=title, css=cssString, table=htmlTable))
 
-            
+
+
+def gaussian(x, a, x0, sigma, y0):
+    """
+    Gaussian function.
+    """
+    return a*np.exp(-(x-x0)**2/(2*sigma**2))+y0
+
+def gaussian_full_width_half_max(sigma):
+    return 2.355*sigma
+
+def fit_tuning_curve(possibleValues, averageFiringRate):
+    """
+    Fit tuning curve values with a Gaussian.
+
+    Note that for frequency tuning, you want to pass the possibleLogFreq 
+    rather than just possibleFreq.
+    """
+    nValues = len(possibleValues)
+    # Order of parameters: a, x0, sigma, y0
+    p0 = [1, possibleValues[nValues//2], 1, 0]
+    bounds = ([0, possibleValues[0], 0, 0],
+              [np.inf, possibleValues[-1], np.inf, np.inf])
+    fitParams, pcov = scipy.optimize.curve_fit(gaussian, possibleValues,
+                                          averageFiringRate, p0=p0, bounds=bounds)
+    # -- Calculate R^2 --
+    gaussianResp = gaussian(possibleValues, *fitParams)
+    residuals = averageFiringRate - gaussianResp
+    ssquared = np.sum(residuals**2)
+    ssTotal = np.sum((averageFiringRate-np.mean(averageFiringRate))**2)
+    Rsquared = 1 - (ssquared/ssTotal)
+    return (fitParams, Rsquared)
+
+
+def plot_tuning_curve(possibleValues, averageFiringRate, fitParams=None, xscale='log'):
+    """
+    Plot tuning curve with Gaussian fit.
+
+    xscale can be 'linear' or 'log'
+    """
+    if xscale=='linear':
+        raise ValueError('xscale linear is not implemented yet')
+    possibleLogFreq = np.log2(possibleValues)
+    xvals = np.linspace(possibleLogFreq[0], possibleLogFreq[-1], 60)
+    yvals = gaussian(xvals, *fitParams)
+    pdots = plt.plot(possibleLogFreq, averageFiringRate, 'o')
+    pfit = plt.plot(xvals, yvals, '-', lw=3)
+    plt.ylabel('Firing rate (Hz)')
+    plt.xlabel('Frequency (kHz)')
+    xTickLabels = [f'{freq/1000:0.0f}' for freq in possibleValues]
+    plt.xticks(possibleLogFreq, xTickLabels)
+    return (pdots, pfit)
+
+
 if __name__ == '__main__':
     rdata = np.random.randint(0, 9, (10, 3, 3))
     dataList = [(m,) for m in rdata]
