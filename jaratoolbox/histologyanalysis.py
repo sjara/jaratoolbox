@@ -492,6 +492,14 @@ class AllenAnnotation(object):
             thisSlice = thisSlice | (self.annotationVol[:,:,zval] == oneArea)
         return thisSlice
 
+    def get_voxels_from_acronym(self, acronym):
+        areaID = self.get_id_from_acronym(acronym)
+        children = self.find_children(areaID)
+        areaVoxels = np.zeros(self.annotationVol.shape, dtype='bool')
+        for oneChild in children:
+            areaVoxels = np.logical_or(areaVoxels, self.annotationVol==oneChild)
+        return areaVoxels
+
     def get_structure_from_id(self, structID):
         try:
             #name = self.structureTable.query('id==@attribute')['name'].item()
@@ -536,6 +544,14 @@ class AllenCorticalCoordinates(object):
 class AllenAverageCoronalAtlas(object):
     """
     Class for showing slices of the average coronal atlas.
+
+    Atlas coords:
+      x : left -> right
+      y : dorsal -> ventral
+      z : posterior -> anterior
+    https://community.brain-map.org/t/how-to-transform-ccf-x-y-z-coordinates-into-stereotactic-coordinates/1858
+    NOTE: there is a comment in that post saying that's wrong, but this works for us.
+          And note that we rotate the coronal_avg_template: np.rot90(self.atlas, k=-1, axes=[0,1])
     """
     def __init__(self):
         atlasPath = os.path.join(settings.ALLEN_ATLAS_PATH, 'coronal_average_template_25.nrrd')
