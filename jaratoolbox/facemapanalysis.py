@@ -34,7 +34,7 @@ def copy_facemap_roi(procfile, videofile, outputfile=None):
     return outputfile
 
 
-def find_sync_light_onsets(sync_light, invert=True, fixmissing=False):
+def find_sync_light_onsets(sync_light, invert=True, fixmissing=False, prepost=False):
     """
     Find the onsets in the array representing the synchronization light.
     This function assumes the onsets are periodic (with randomness within 0.5T and 1.5T).
@@ -46,21 +46,48 @@ def find_sync_light_onsets(sync_light, invert=True, fixmissing=False):
                                so use invert=True to invert the trace if needed.
         invert (bool): if True, the sync_light trace is inverted before processing.
         fixmissing (bool): if True, missing onsets are added to the output.
+        prepost (bool): if True, assume there is a pre and post pulse of longer duration,
+                        and ignore these in the final list.
 
     Returns:
         fixed_sync_light_onset (np.array): array of booleans indicating the onsets.
     """
+    PRE_POST_DURATION_THRESHOLD = 20  # In units of frames. HARCODED! (should be calculated)
+
     # -- Find changes in synch light --
-    sync_light_diff = np.diff(sync_light, prepend=0)
+    sync_light_diff = np.diff(sync_light, prepend=sync_light[0])
     if invert:
         sync_light_diff = -sync_light_diff
-    sync_light_diff[sync_light_diff < 0] = 0
-    sync_light_threshold = 0.2*sync_light_diff.max()
-    sync_light_onset = sync_light_diff > sync_light_threshold
 
+    sync_light_threshold = 0.2*np.abs(sync_light_diff).max()
+    sync_light_onset = sync_light_diff > sync_light_threshold
+    sync_light_offset = sync_light_diff < -sync_light_threshold
+    sync_light_onset_ind = np.where(sync_light_onset)[0]
+    sync_light_offset_ind = np.where(sync_light_offset)[0]
+
+    if prepost:
+        sync_light_midpoint = (sync_light.max()+sync_light.min())/2
+        if sync_light_onset_ind[-1] > sync_light_offset_ind[-1]:
+            sync_light_offset_ind = np.append(sync_light_offset_ind, len(sync_light)-1)
+            nOffsets = len(sync_light_offset_ind)
+        first_sync_duration = sync_light_offset_ind[0] - sync_light_onset_ind[0]
+        last_sync_duration = sync_light_offset_ind[-1] - sync_light_onset_ind[-1]
+        if first_sync_duration > PRE_POST_DURATION_THRESHOLD:
+            print('Found pre sync pulse. This pulse will be ignore in the final list.')
+            sync_light_onset[sync_light_onset_ind[0]] = False
+            sync_light_onset_ind = sync_light_onset_ind[1:]
+        else:
+            # Raise ValueError exception
+            raise ValueError('No pre sync pulse found.')
+        if last_sync_duration > PRE_POST_DURATION_THRESHOLD:
+            print('Found post sync pulse. This pulse will be ignore in the final list.')
+            sync_light_onset[sync_light_onset_ind[-1]] = False
+            sync_light_onset_ind = sync_light_onset_ind[:-1]
+        else:
+            # Raise ValueError exception
+            raise ValueError('No post sync pulse found.')
 
     # -- Find period of sync_light_onset --
-    sync_light_onset_ind = np.where(sync_light_onset)[0]
     sync_light_onset_diff = np.diff(sync_light_onset_ind)  # In units of frames
     expected_onset_period = np.median(sync_light_onset_diff)  # In units of (float) frames
 
