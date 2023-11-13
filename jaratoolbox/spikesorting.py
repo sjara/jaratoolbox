@@ -1043,9 +1043,9 @@ def rescue_clusters(celldb, isiThreshold=0.02):
     cellsToRescue = celldb.query('isiViolations>@isiThreshold')
     for indRow, dbRow in cellsToRescue.iterrows():
         cell = ephyscore.Cell(dbRow)
-        print(dbRow['subject'], dbRow['date'], dbRow['depth'])
+        print(dbRow['subject'], dbRow['date'], dbRow['pdepth'])
         timestamps, samples, recordingNumber = cell.load_all_spikedata()
-        tetrode = dbRow['tetrode']
+        tetrode = dbRow['egroup']
         cluster = dbRow['cluster']
 
         #isiViolations = spikesorting.calculate_ISI_violations(timestamps)
