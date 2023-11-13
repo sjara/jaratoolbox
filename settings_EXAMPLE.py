@@ -25,6 +25,8 @@ DATABASE_PATH = '/mnt/jarahubdata/figuresdata'
 
 ALLEN_ATLAS_PATH = '/mnt/jarahubdata/atlas/AllenCCF_25/'
 
+ALLEN_SDK_CACHE_PATH = '/var/tmp/allensdk_cache'
+
 TEMP_OUTPUT_PATH = '/tmp/'
 
 SOUNDS_PATH = '/mnt/jarahubdata/jarasounds/'
