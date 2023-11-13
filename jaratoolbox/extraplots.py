@@ -400,18 +400,25 @@ def save_figure(filename, fileformat, figsize, outputDir='./', facecolor='none',
 
 
 class FlipThrough(object):
-    def __init__(self, plotter, data):
+    def __init__(self, plotter, data, fig=None, **kwargs):
         """
         Allow flipping through data plots.
         Args:
             plotter (function): function that plots data.
-            data (list): list of tuples containing the parameters for the plotter function.
+            data (list): Inputs for the plotter function to loop through.
+                         Each element can be a tuple.
+            pargs (dict): additional "fixed" parameters to the plotter.
+            fig (plt.Figure): figure to use.
         """
         self.plotter = plotter
         self.data = data
         self.counter = 0
         self.maxDataInd = len(data)-1
-        self.fig = plt.gcf()
+        if fig is None:
+            self.fig = plt.figure()
+        else:
+            self.fig = fig
+        self.kwargs = kwargs
         self.redraw() # Plot data
         self.kpid = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
 
@@ -419,9 +426,9 @@ class FlipThrough(object):
         self.fig.clf()
         if isinstance(self.data[self.counter], tuple):
             # FIXME: this will fail if the function requires a tuple as input
-            self.plotter(*self.data[self.counter])
+            self.plotter(*self.data[self.counter], **self.kwargs)
         else:
-            self.plotter(self.data[self.counter])
+            self.plotter(self.data[self.counter], **self.kwargs)
         plt.suptitle('{}/{}: Press < or > to flip through data'.format(self.counter+1,
                                                                        self.maxDataInd+1))
         self.fig.show()
