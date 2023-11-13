@@ -369,7 +369,7 @@ class Cell():
 
 
 def load_ephys_neuronexus_tetrodes(subject, paradigm, sessionDir, tetrode, cluster=None,
-                                   useModifiedClusters=False):
+                                   useModifiedClusters=False, verbose=False):
     # -- Setup path and filenames --
     ephysBaseDir = os.path.join(settings.EPHYS_PATH, subject)
     eventsFilename = os.path.join(ephysBaseDir, sessionDir,
@@ -396,11 +396,13 @@ def load_ephys_neuronexus_tetrodes(subject, paradigm, sessionDir, tetrode, clust
             # Use the modified .clu file if it exists, otherwise use the original one
             clustersFileModified = os.path.join(clustersDir, f'Tetrode{tetrode}.clu.modified')
             if os.path.exists(clustersFileModified):
-                print("Loading modified .clu file for session {}".format(spikesFilename))
+                if verbose:
+                    print("Loading modified .clu file for session {}".format(spikesFilename))
                 spikeData.set_clusters(clustersFileModified)
             else:
-                print(f'Modified .clu file does not exist, loading standard .clu file ' +
-                      'for session {spikesFilename}')
+                if verbose:
+                    print(f'Modified .clu file does not exist, loading standard .clu file ' +
+                          'for session {spikesFilename}')
                 clustersFile = os.path.join(clustersDir,'Tetrode{}.clu.1'.format(tetrode))
                 spikeData.set_clusters(clustersFile)
         spikeData.samples = spikeData.samples[spikeData.clusters==cluster]
