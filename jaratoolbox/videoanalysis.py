@@ -18,14 +18,14 @@ class Video(object):
         self.filename = filename
         self.cap = cv2.VideoCapture(self.filename)
         # For some reason, nFrames is not always accurate.
-        self.nFrames = int(self.cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-        self.frameSize = [int(self.cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)),
-                          int(self.cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))]
-        self.fps = self.cap.get(cv2.cv.CV_CAP_PROP_FPS) # Sometimes it is NaN
+        self.nFrames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.frameSize = [int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+                          int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))]
+        self.fps = self.cap.get(cv2.CAP_PROP_FPS) # Sometimes it is NaN
         self.frame = None
     def read(self):
         self.ret, self.frame = self.cap.read()
-        currentFrame = int(self.cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
+        currentFrame = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
         if not self.ret:
             # If it returns False, it has reached the end of the file.
             # and nFrames needs to be fixed.
@@ -46,7 +46,20 @@ class Video(object):
         '''
         return (self.ret, self.frame)
     def get_current_frame(self):
-            return int(self.cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
+            return int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
+    def read_frames(self, nframes=None):
+        """
+        Read nframes of video into numpy array. If nframes is None, read full video.
+        """
+        if nframes is None:
+            nframes = self.nFrames
+        print(f'Reading {nframes} video frames into numpy array...')
+        fullvideo = np.empty([nframes]+self.frameSize[::-1]+[3])
+        for iframe in range(nframes):
+            ret, frame = self.read()
+            fullvideo[iframe,:] = frame
+        return fullvideo
+
     def show_frame(self, frameIndex):
         '''Note that this is very inefficient as it load the video up to this frame
            This is necessary to load all pixels, because of the compression strategy
