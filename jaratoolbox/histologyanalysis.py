@@ -33,6 +33,10 @@ except ModuleNotFoundError:
     # FIXME Add actual method name when it is decided for database_cell_lcoations
     print('Warning! Some methods require the module "allensdk", but it is not installed.')
 
+
+# -- Define the location where the SDK will download files --
+ALLEN_SDK_MANIFEST = os.path.join(settings.ALLEN_SDK_CACHE_PATH, 'manifest.json')
+
 GRIDCOLOR = [0, 0.5, 0.5]
 
 # -- A4x2tet geometry. Note that odd tetrodes are higher --
@@ -405,6 +409,12 @@ class BrainGrid(OverlayGrid):
 
 
 class AllenAnnotation(object):
+    """
+    Atlas coords:
+      x : left -> right
+      y : dorsal -> ventral
+      z : posterior -> anterior
+    """
     def __init__(self):
         self.structureGraphFile = os.path.join(settings.ALLEN_ATLAS_PATH, 'structure_graph.json')
         with open(self.structureGraphFile) as structFile:
@@ -978,7 +988,7 @@ def OLD_cell_locations(cellDB, filterConditions=None, brainAreaDict=None):
     # lapData = nrrd.read(lapPath)
     # lap = lapData[0]
 
-    mcc = MouseConnectivityCache(resolution=25)
+    mcc = MouseConnectivityCache(resolution=25, manifest_file=ALLEN_SDK_MANIFEST)
     rsp = mcc.get_reference_space()
     rspAnnotationVolumeRotated = np.rot90(rsp.annotation, 1, axes=(2, 0))
 
@@ -1070,7 +1080,7 @@ def cell_locations(cellDB, filterConditions=None, brainAreaDict=None):
         newDB (pandas.DataFrame): Copy of cellDB that has four new columns added:
                                    x_coord, y_coord, z_coord, and recordingSiteName
     """
-    mcc = MouseConnectivityCache(resolution=25)
+    mcc = MouseConnectivityCache(resolution=25, manifest_file=ALLEN_SDK_MANIFEST)
     rsp = mcc.get_reference_space()
     rspAnnotationVolumeRotated = np.rot90(rsp.annotation, 1, axes=(2, 0))
     newDB = cellDB.query(filterCondtions) if filterConditions else cellDB.copy()
