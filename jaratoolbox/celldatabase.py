@@ -31,6 +31,17 @@ import pickle # To save lists of strings
 
 CELLDB_VERSION = '5.0'
 
+def pandas_version_at_least(newVersion):
+    """
+    Return True is pandas version is equal or higher than newVersion.
+    Args:
+        newVersion (str): such as '1.4'
+    """
+    pandasVersion = pd.__version__
+    pandasVersionFloat = float('.'.join(pandasVersion.split('.')[:2]))
+    newVersionFloat = float('.'.join(newVersion.split('.')[:2]))
+    isEqualOrHigher = pandasVersionFloat >= newVersionFloat
+    return isEqualOrHigher
 
 class Experiment():
     """
@@ -368,9 +379,9 @@ def make_db_neuronexus_tetrodes(experiment):
                                                 site.clusterFolder,
                                                 clusterStatsFn)
             if not os.path.isfile(clusterStatsFullPath):
-                raise NotClusteredError('Experiment {} Site {} eGroup {} is not clustered.\n' +
-                                        'No file {}'.format(indExperiment, indSite, egroup,
-                                                            clusterStatsFullPath))
+                raise NotClusteredError(f'Experiment {site.subject} {site.date} ' +
+                                        f'T{egroup} {site.pdepth}um is not clustered.\n' +
+                                        f'No file {clusterStatsFullPath}')
             clusterStats = np.load(clusterStatsFullPath)
             nClusters, nTimePoints = clusterStats['clusterSpikeShape'].shape
             dtypeSpikeShape = clusterStats['clusterSpikeShape'].dtype
@@ -388,8 +399,8 @@ def make_db_neuronexus_tetrodes(experiment):
             avgSD = clusterStats['clusterSpikeSD'].mean(axis=1)
             clustersWithOneSpike = clusterStats['nSpikes']==1
             # NOTE: We make spikeQuality zero if nSpikes is only 1
-            #mainPeak[clustersWithOneSpike] = 0  # Zero out peak value if nSpikes==1
-            #avgSD[clustersWithOneSpike] = 1     # Make value non-zero if nSpikes==1
+            mainPeak[clustersWithOneSpike] = 0  # Zero out peak value if nSpikes==1
+            avgSD[clustersWithOneSpike] = 1     # Make value non-zero if nSpikes==1
             tempdb['spikeShapeQuality'] = abs(mainPeak/avgSD)
             for key, val in siteInfoDict.items():
                 tempdb[key] = len(tempdb)*[val]
@@ -732,7 +743,10 @@ def load_hdf(filename, columns=[], root='/'):
                 dataAsList = [ast.literal_eval('"{}"'.format(v)) for v in varvalue]
             dbDict[varname] = dataAsList
             '''
-            dbDict[varname] = pd.read_json(varvalue[()]).data
+            if pandas_version_at_least('1.4'):
+                dbDict[varname] = pd.read_json(varvalue[()].decode()).data
+            else:
+                dbDict[varname] = pd.read_json(varvalue[()]).data
         else:
             raise ValueError('Data type {} for variable {} is not recognized '+\
                              'by celldatabase.'.format(varvalue.dtype,varname))
