@@ -797,7 +797,7 @@ SVG_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 def get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank, outputDir=None):
     if outputDir is None:
         outputDir = os.path.join(settings.HISTOLOGY_PATH, '{}_processed'.format(subject))
-    registrationFolder = 'registration{}'.format(brainArea)
+    registrationFolder = f'registration_{brainArea}'
     filenameSVG = os.path.join(outputDir, registrationFolder,
                                '{}_{}_shank{}.svg'.format(histImage, recordingTrack, shank))
     return filenameSVG
@@ -823,8 +823,8 @@ def generate_filenames_for_registration(subject, brainArea, histImage, recording
     """
 
     filenameAtlas = os.path.join(settings.ALLEN_ATLAS_PATH, f'JPEG/allenCCF_Z{atlasZ}.jpg')
-    shanksFolder = f'recordingTracks{brainArea}'
-    registrationFolder = f'registration{brainArea}'
+    shanksFolder = f'recordingTracks_{brainArea}'
+    registrationFolder = f'registration_{brainArea}'
     filenameHist = os.path.join(settings.HISTOLOGY_PATH, f'{subject}_processed', shanksFolder,
                                 f'{histImage}_{recordingTrack}_shank{shank}.jpg')
     filenameFinalSVG = get_filename_registered_svg(subject, brainArea, histImage, recordingTrack, shank,
@@ -928,11 +928,11 @@ def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
     if len(paths) != 1:
         raise ValueError('The SVG file must contain exactly 1 path')
     pathCoords = paths[0].attrib['d']
-    reString = r'M (\d+\.*\d*),(\d+\.*\d*) (\d+\.*\d*),(\d+\.*\d*)'
-    coordStrings = re.findall(reString, pathCoords)
+    reString = r'm (\d+\.*\d*),(\d+\.*\d*) (\d+\.*\d*),(\d+\.*\d*)'
+    coordStrings = re.findall(reString, pathCoords, re.IGNORECASE)
     if len(coordStrings) == 0:
         raise ValueError('The path does not have the correct format. ' +
-                         'You probably did not double click for this tract')
+                         'You probably did not double click for this tract.')
     tractCoords = coordStrings[0]
     tractCoords = list(map(float, tractCoords))
 
@@ -1110,9 +1110,14 @@ def cell_locations(cellDB, filterConditions=None, brainAreaDict=None):
             else:
                 raise ValueError(f'The type of probe ({dbRow["probe"]}) is not known.')
 
-            queryStr = 'brainArea==@brainArea and shank==@shank and recordingTrack==@recordingTrack'
             try:
-                thisTrack = tracksDF.query(queryStr).iloc[0]
+                #queryStr = 'brainArea==@brainArea and shank==@shank and recordingTrack==@recordingTrack'
+                #thisTrack = tracksDF.query(queryStr).iloc[0]
+                # Workaround due to a bug in pandas/numexpr https://github.com/pandas-dev/pandas/issues/54449
+                selRow = ((tracksDF.brainArea==brainArea) &
+                          (tracksDF.shank==shank) &
+                          (tracksDF.recordingTrack==recordingTrack))
+                thisTrack = tracksDF.iloc[0]
             except IndexError:
                 print(f'Shank not found: {subject}, {brainArea}, shank:{shank}, {recordingTrack}')
                 continue
