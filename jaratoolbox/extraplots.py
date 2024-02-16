@@ -44,12 +44,16 @@ def adjust_pos(ax, modifier):
     modifier is a list of 4 elements (left, bottom, width, height) to add to the original position
     """
     axPos = ax.get_position()
+    axPosArray = np.array([axPos.x0, axPos.y0, axPos.width, axPos.height])
+    newPos = axPosArray + np.array(modifier)
+    '''
     xVals = np.array([axPos.xmin+modifier[0],
                       axPos.xmax+modifier[0]])
     yVals = np.array([axPos.ymin+modifier[1],
                       axPos.ymax+modifier[3]])
     axPos.update_from_data(xVals, yVals)
-    ax.set_position(axPos)
+    '''
+    ax.set_position(newPos)
 
 
 def set_axes_color(ax, axColor):
@@ -110,7 +114,7 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
         colorEachCond = ['0.5', '0.75']*int(np.ceil(nCond/2.0))
 
     if fillWidth is None:
-        fillWidth = 0.05*np.diff(timeRange)
+        fillWidth = 0.05*np.diff(timeRange).item()
 
     nSpikesEachTrial = np.diff(indexLimitsEachTrial, axis=0)[0]
     nSpikesEachTrial = nSpikesEachTrial*(nSpikesEachTrial > 0)  # FIXME: Some are negative(?)
@@ -163,7 +167,7 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
 
 
 def plot_psth(spikeCountMat, smoothWinSize, binsStartTime, trialsEachCond=[],
-              colorEachCond=None, linestyle=None, linewidth=3, downsamplefactor=1):
+              colorEachCond=None, linestyle=None, linewidth=3, downsamplefactor=1, hidesamples=0):
     """
     TODO:
     - Check if the windowing is non-causal
@@ -188,8 +192,8 @@ def plot_psth(spikeCountMat, smoothWinSize, binsStartTime, trialsEachCond=[],
         thisCondCounts = spikeCountMat[trialsEachCond[indc], :]
         thisPSTH = np.mean(thisCondCounts, axis=0)
         smoothPSTH = np.convolve(thisPSTH, winShape, mode='same')
-        sSlice = slice(0, len(smoothPSTH),downsamplefactor)
-        ph, = plt.plot(binsStartTime[sSlice],smoothPSTH[sSlice], ls=linestyle[indc])
+        sSlice = slice(hidesamples, len(smoothPSTH)-hidesamples, downsamplefactor)
+        ph, = plt.plot(binsStartTime[sSlice], smoothPSTH[sSlice], ls=linestyle[indc])
         pPSTH.append(ph)
         pPSTH[-1].set_linewidth(linewidth)
         pPSTH[-1].set_color(colorEachCond[indc])
