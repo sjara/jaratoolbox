@@ -318,7 +318,8 @@ class Cell():
         if behavClass==None:
             behavClass = loadbehavior.BehaviorData
 
-        #Load the behavior data
+        # -- Load the behavior data --
+        # NOTE: this section could use get_behavior_path()
         if self.dbRow['behavSuffix'][sessionInd] is not None:
             dateStr = ''.join(self.date.split('-'))
             fullSessionStr = '{}{}'.format(dateStr, self.dbRow['behavSuffix'][sessionInd])
@@ -367,7 +368,27 @@ class Cell():
         recordingNumber = recordingNumber.astype(int)
         return timestamps, samples, recordingNumber
 
+    def get_behavior_path(self, sessiontype):
+        """
+        Return the full path to the behavior file.
+        Args:
+           sessiontype (str): the type of session to load data for.
+        Returns:
+            behavDataFilePath (str): Full path to the behavior data
+        """
+        sessionInd = self.get_session_inds(sessiontype)[-1]
+        if self.dbRow['behavSuffix'][sessionInd] is not None:
+            dateStr = ''.join(self.date.split('-'))
+            fullSessionStr = '{}{}'.format(dateStr, self.dbRow['behavSuffix'][sessionInd])
+            thisParadigm = self.dbRow['paradigm'][sessionInd]
+            behavDataFilePath = loadbehavior.path_to_behavior_data(self.subject,
+                                                                   thisParadigm,
+                                                                   fullSessionStr)
+        else:
+            behavDataFilePath = None
+        return behavDataFilePath
 
+    
 def load_ephys_neuronexus_tetrodes(subject, paradigm, sessionDir, tetrode, cluster=None,
                                    useModifiedClusters=False, verbose=False):
     # -- Setup path and filenames --
