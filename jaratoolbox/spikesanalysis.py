@@ -260,7 +260,23 @@ def response_latency(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, 
                'maxResponse':maxResp,'threshold':thresholdSpikeCount}
     return (respLatency,interim)
 
-    
+
+def gaussian(x, a, x0, sigma, y0):
+    """
+    Gaussian function
+    Args:
+        x (numpy.ndarray): input data
+        a (float): the height of the curve's peak
+        x0 (float): horizontal offset
+        sigma (float): standard deviation (width of Gaussian)
+        y0 (float): vertical offset
+
+    Returns:
+        output of gaussian function
+    """
+    return a*np.exp(-(x-x0)**2/(2*sigma**2))+y0
+
+
 """
 def calculate_psth(spikeRasterMat,timeVec,windowSize):
     '''Calculate Peri-Stimulus Time Histogram.
