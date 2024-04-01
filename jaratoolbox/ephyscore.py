@@ -15,6 +15,7 @@ from jaratoolbox import settings
 # should include a dict like this: {eventName:intanEventChannel}
 # where intanEventChannel is the digital input channel that your event TTL is connected to
 CHANNELMAPS = {'threetones_sequence': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
+               'natural_sound_detection': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'oddball_sequence': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'am_tuning_curve': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'bandwidth_am':{'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
