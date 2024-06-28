@@ -493,7 +493,8 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, minima
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
-    singleSuffix='_processed_single'
+    #singleSuffix='_processed_single'
+    singleSuffix='_processed_multi'
     celldb = pd.DataFrame()
     for indSite, site in enumerate(experiment.sites):
         for indEletrodeGroup, egroup in enumerate(experiment.egroups):
@@ -533,7 +534,8 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, minima
             if not minimal:
                 tempdb['bestChannel'] = bestChannel[tempdb.cluster]
                 tempdb['spikeShape'] = list(spikeShapes[tempdb.cluster,:])
-            celldb = celldb.append(tempdb, ignore_index=True)
+            #celldb = celldb.append(tempdb, ignore_index=True)
+            celldb = pd.concat((celldb, tempdb), axis=0, ignore_index=True)
     return celldb
 
 
