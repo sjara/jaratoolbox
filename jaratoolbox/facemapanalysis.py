@@ -34,7 +34,7 @@ def copy_facemap_roi(procfile, videofile, outputfile=None):
     return outputfile
 
 
-def find_sync_light_onsets(sync_light, invert=True, fixmissing=False, prepost=False):
+def find_sync_light_onsets(sync_light, invert=True, fixmissing=False, prepost=False, verbose=False):
     """
     Find the onsets in the array representing the synchronization light.
     This function assumes the onsets are periodic (with randomness within 0.5T and 1.5T).
@@ -65,6 +65,20 @@ def find_sync_light_onsets(sync_light, invert=True, fixmissing=False, prepost=Fa
     sync_light_onset_ind = np.where(sync_light_onset)[0]
     sync_light_offset_ind = np.where(sync_light_offset)[0]
 
+    # -- Find period of sync_light_onset --
+    sync_light_onset_diff = np.diff(sync_light_onset_ind)  # In units of frames
+    expected_onset_period = np.median(sync_light_onset_diff)  # In units of (float) frames
+
+    # -- Remove repeated onsets --
+    onset_freq_upper_threshold = int(1.5 * expected_onset_period)
+    onset_freq_lower_threshold = int(0.5 * expected_onset_period)
+    repeated_onsets = sync_light_onset_diff < onset_freq_lower_threshold
+    repeated_onsets_ind = np.where(repeated_onsets)[0]
+    fixed_sync_light_onset = sync_light_onset.copy()
+    fixed_sync_light_onset[sync_light_onset_ind[repeated_onsets_ind+1]] = False
+    sync_light_onset = fixed_sync_light_onset
+    sync_light_onset_ind = np.where(fixed_sync_light_onset)[0]
+    
     if prepost:
         sync_light_midpoint = (sync_light.max()+sync_light.min())/2
         if sync_light_onset_ind[-1] > sync_light_offset_ind[-1]:
@@ -73,14 +87,16 @@ def find_sync_light_onsets(sync_light, invert=True, fixmissing=False, prepost=Fa
         first_sync_duration = sync_light_offset_ind[0] - sync_light_onset_ind[0]
         last_sync_duration = sync_light_offset_ind[-1] - sync_light_onset_ind[-1]
         if first_sync_duration > PRE_POST_DURATION_THRESHOLD:
-            print('Found pre sync pulse. This pulse will be ignore in the final list.')
+            if(verbose):
+                print('Found pre sync pulse. This pulse will be ignore in the final list.')
             sync_light_onset[sync_light_onset_ind[0]] = False
             sync_light_onset_ind = sync_light_onset_ind[1:]
         else:
             # Raise ValueError exception
             raise ValueError('No pre sync pulse found.')
         if last_sync_duration > PRE_POST_DURATION_THRESHOLD:
-            print('Found post sync pulse. This pulse will be ignore in the final list.')
+            if(verbose):
+                print('Found post sync pulse. This pulse will be ignore in the final list.')
             sync_light_onset[sync_light_onset_ind[-1]] = False
             sync_light_onset_ind = sync_light_onset_ind[:-1]
         else:
@@ -119,13 +135,12 @@ def find_sync_light_onsets(sync_light, invert=True, fixmissing=False, prepost=Fa
 
 
 def estimate_running_each_trial(running_trace, trial_onset, smoothsize=10, presamples=4,
-                                threshold=3, showfig=False):
+                                showfig=False):
     """
-    Estimate whether the animal was running during each trial.
+    Estimate the magnitude of locomotion during each trial.
 
     This function first smooths the running trace according to smoothsize (non-causal),
-    it then uses the average of N presamples before the onset to to estimate whether
-    running was higher than the threshold.
+    it then uses the average of N presamples before the onset to estimate locomotion.
 
     Args:
         running_trace (np.array): running trace (usually from a pixelchange ROI).
@@ -133,29 +148,51 @@ def estimate_running_each_trial(running_trace, trial_onset, smoothsize=10, presa
             It should be the same length as running_trace.
         smoothsize (int): window size (in frames) for smoothing the running trace.
         presamples (int): number of (smoothed) samples to use for estimating running.
-        threshold (float): threshold for the running trace. If None, the threshold is
-                           estimated from the trace.
         showfig (bool): if True, show a figure with the running trace and the threshold.
 
     Returns:
         running_each_trial (np.array): array of booleans indicating whether the animal
                                        was running during each trial.
-        threshold (float): threshold used to estimate running_each_trial.
     """
     smoothwin = np.ones(smoothsize)/(smoothsize)
     running_trace_smooth = np.convolve(running_trace, smoothwin, mode='same')
     trial_onset_ind = np.where(trial_onset)[0]
     presamples_inds = np.arange(-presamples, 0) + trial_onset_ind[:, np.newaxis]
-    pretrial_avg = running_trace_smooth[presamples_inds].mean(axis=1)
-    running_each_trial =  pretrial_avg > threshold
+    running_each_trial = running_trace_smooth[presamples_inds].mean(axis=1)
     if showfig:
         plt.cla()
         plt.plot(running_trace_smooth, '0.8')
-        plt.plot(trial_onset_ind, pretrial_avg, 'xg')
-        plt.plot(trial_onset_ind, running_each_trial*running_trace_smooth.max(), 'og')
-        plt.axhline(threshold, color='k')
-        plt.legend(['running_trace_smooth', 'pretrial_avg', 'running_each_trial'],
+        plt.plot(trial_onset_ind, running_each_trial, 'xg')
+        plt.legend(['running_trace_smooth', 'running_each_trial'],
                     loc='upper right')
         plt.show()
     return running_each_trial, running_trace_smooth
 
+
+def guess_sync_light_onsets(nframes, trial_start_time, framerate=30):
+    """
+    Guess the onsets of the sync light based on the trial start time from the behavior file.
+
+    Args:
+        nframes (int): number of frames in the video.
+        trial_start_time (np.array): array of floats indicating the start time of each trial.
+        framerate (float): frame rate of the video. NOTE: currently not used.
+    Returns:
+        sync_light_onsets (np.array): array of booleans indicating the onsets of the sync light.
+    """
+    ntrials = len(trial_start_time)
+    #sessionDurationInSec = nframes / framerate
+    # -- This method assumes there is little time at the start/end of a session before sync. --
+    trial_period_in_frames = int(nframes / (ntrials+1))
+    sync_light_onsets = np.zeros(nframes, dtype=bool)
+    onset_ind = np.linspace(trial_period_in_frames, nframes-trial_period_in_frames,
+                            ntrials).astype(int)
+    if 0:
+        # -- This method assumes we have an exact framerate. It didn't work well. --
+        trial_period_in_sec = np.median(np.diff(trial_start_time))
+        trial_period_in_frames = trial_period_in_sec * framerate
+        onset_ind = (trial_period_in_frames * np.arange(1, ntrials+1)).astype(int)
+    sync_light_onsets[onset_ind] = True
+    return sync_light_onsets
+    
+    
