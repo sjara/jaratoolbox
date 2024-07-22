@@ -28,8 +28,8 @@ def plot_spectrum(wave, samplingRate, dc=True, maxFreq=None):
         samplesToPlot = (fvec>0)
     if maxFreq is not None:
         samplesToPlot = samplesToPlot & (fvec<=maxFreq)
-    plt.plot(fvec[samplesToPlot],np.log10(np.abs(signalFFT[samplesToPlot])))
-    return (fvec, signalFFT)
+    pobj = plt.plot(fvec[samplesToPlot],np.log10(np.abs(signalFFT[samplesToPlot])))
+    return (fvec, signalFFT, pobj)
 
 
 def plot_spectrogram(wave, samplingRate, window='hanning', nfft=2048, noverlap=1024):
@@ -64,7 +64,8 @@ def plot_spectrogram(wave, samplingRate, window='hanning', nfft=2048, noverlap=1
 def play_waveform(waveform, samplingRate, amp=1):
     '''NOTE: This function is designed for Linux systems only.'''
     tempFile = '/tmp/tempsound.wav'
-    wave16bit = (amp*waveform).astype('int16')
+    #wave16bit = (amp*waveform).astype('int16')
+    wave16bit = (32767*amp*waveform).astype('int16')
     scipy.io.wavfile.write(tempFile, samplingRate, wave16bit)
     os.system('aplay {}'.format(tempFile))
     
@@ -144,6 +145,9 @@ class SoundAnalysis(object):
         else:
             self.samplingRate = fs
             self.wave = waveform
+        # We will work with the waveform in floating point numbers
+        if self.wave.dtype == 'int16':
+            self.wave = self.wave.astype('float')/(2**15)
         self.downsampleFactor = downsample
         self.nSamples = len(self.wave)
         self.timeVec = np.arange(0, len(self.wave)/self.samplingRate, 1/self.samplingRate)
@@ -176,7 +180,14 @@ class SoundAnalysis(object):
             return (self.timeVec, self.wave)
         else:
             return (self.timeVec[samples], self.wave[samples])
-        
+
+    def plot_spectrum(self, dc=True, maxFreq=None):
+        """
+        Display spectrum.
+        """
+        fvec, signalFFT, pobj = plot_spectrum(self.wave, self.samplingRate, dc=dc, maxFreq=maxFreq)
+        return (fvec, signalFFT, pobj)
+
     def plot_spectrogram(self, window='hanning', nfft=2048, noverlap=1024):
         """
         Display spectrogram.
@@ -189,6 +200,12 @@ class SoundAnalysis(object):
         """
         Play sound waveform.
         """
+        '''
+        if self.wave.dtype == 'int16':
+            factor = 1/32767
+        else:
+            factor = 1
+        '''
         play_waveform(self.wave, self.samplingRate, amp=amp)
 
     def play_from_file(self):
@@ -236,8 +253,8 @@ class SoundAnalysis(object):
         if self.downsampleFactor!=1:
             self.bandsEnvelopes = scipy.signal.decimate(self.bandsEnvelopes, self.downsampleFactor,
                                                         axis=1, zero_phase=True)
-            # Decimating caould create negative numbers, but envelopes must be non-negative.
-            self.bandsEnvelopes[self.bandsEnvelopes<0]=0
+            # Decimating could create negative numbers, but envelopes must be non-negative.
+            self.bandsEnvelopes[self.bandsEnvelopes<0] = 0
         self.bandsEnvelopesTimeVec = self.timeVec[::self.downsampleFactor]
         return self.get_bands_envelopes()
     
@@ -271,8 +288,8 @@ class SoundAnalysis(object):
         cgramVals = self.bandsEnvelopes
         #np.log10(np.abs(self.specgramV)**2)
         VMAX=None; VMIN = None #cgramVals.min()+7
-        plt.clf()
-        plt.gca().set_axis_bgcolor('k')
+        #plt.clf()
+        #plt.gca().set_axis_bgcolor('k')
         plt.imshow(cgramVals, cmap='viridis', aspect='auto',
                    interpolation=INTERP, vmin=VMIN, vmax=VMAX)
         #plt.ylim(np.array([200,0]))
@@ -357,7 +374,6 @@ class SoundAnalysis(object):
         if verbose: print('Calculating statistics...')
         bandStats = self.calculate_bands_stats()
         return (bandStats,fbank)
-
 
 
 class FilterBank(object):
@@ -457,7 +473,7 @@ class SoundSynthesis(SoundAnalysis):
         self.nSamples = nSamples
 
         #np.random.seed(0)  # FIXME: I'm fixing the random seed for testing
-        PINK = 0
+        PINK = 1
         if PINK: 
             pinknoise = voss(self.nSamples)
             self.seedWaveform = pinknoise-pinknoise.mean()
@@ -533,7 +549,7 @@ class SoundSynthesis(SoundAnalysis):
     def impose_oneband(self, indband, newMean=None, newVar=None):
         """ Testing imposing statistics """
         compressionExp = DEFAULT_COMPRESSION
-        stats = self.calculate_stats()
+        stats = self.calculate_bands_stats()
         if newVar is not None:
             oldVar = stats['var'][indband]
             scaleFactor = (np.sqrt(newVar)/np.sqrt(oldVar))**(1/compressionExp)
@@ -557,6 +573,10 @@ class SoundSynthesis(SoundAnalysis):
         print('Max imag: {}'.format(np.max(np.abs(np.imag(np.sum(components, axis=0))))))
         self.wave = newWave
         return (tvec, newWave)
+
+    def play_seed(self, amp=1):
+        """Play the seed waveform"""
+        play_waveform(self.seedWaveform, self.samplingRate, amp=amp)
 
     def save(self, filename):
         wave16bit = self.wave.astype('int16')
