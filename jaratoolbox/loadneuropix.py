@@ -197,14 +197,15 @@ def progress_bar(sofar, total, size=60):
     sys.stdout.write('\b'*(size+2)) # return to start of line, after '['
 
 
-def concatenate_sessions(sessionsRootPath, sessions, outputDir, debug=False):
+def concatenate_sessions(sessionsRootPath, sessions, outputDir, probe='NP2', debug=False):
     """
-    Save file with concatenated neurpixels data, ready for spike sorting.
+    Save file with concatenated Neuropixels data, ready for spike sorting.
 
     Args:
         sessionsRootPath (str): path to where session directories are located.
         sessionDirs (list): list of full paths to sessions to concatenate.
         outputDir (bool): directory where concatenated files will be saved.
+        probe (str): version of the probe: 'NP1', 'NP2' 
         debug (bool): if False, don't create directories or save anything.
     Returns:
         sessionsInfo (pandas.DataFrame): information about each session.
@@ -214,7 +215,12 @@ def concatenate_sessions(sessionsRootPath, sessions, outputDir, debug=False):
     nBlocks = 2048
     chunkSize = nBlocks * blockSize
 
-    recordingPath = 'Record Node 101/experiment1/recording1/continuous/Neuropix-PXI-100.0/'
+    if probe=='NP1':
+        recordingPath = 'Record Node 101/experiment1/recording1/continuous/Neuropix-PXI-100.0/'
+    elif probe=='NP2':
+        recordingPath = 'Record Node 101/experiment1/recording1/continuous/Neuropix-PXI-100.ProbeA/'
+    else:
+        raise ValueError('Probe version not recognized. Please use "NP1" or "NP2".')
     dataPath = os.path.join(sessionsRootPath, '{}', recordingPath)
     dataFile = 'continuous.dat'
     timestampsFile = 'timestamps.npy'
