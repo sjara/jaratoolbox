@@ -32,7 +32,7 @@ debug = True if (len(sys.argv)==5 and sys.argv[4]=='debug') else False
 sessionsRootPath = os.path.join(settings.EPHYS_NEUROPIX_PATH, subject)
 multisessionRawDir = os.path.join(sessionsRootPath, f'multisession_{dateStr}_{pdepth}um_raw')
 multisessionProcessedDir = os.path.join(sessionsRootPath, f'multisession_{dateStr}_{pdepth}um_processed')
-multisessionTempDir = os.path.join(sessionsRootPath, f'multisession_{dateStr}_{pdepth}um_tmp')
+#multisessionTempDir = os.path.join(sessionsRootPath, f'multisession_{dateStr}_{pdepth}um_tmp')
 
 # -- Load inforec file --
 inforecFile = os.path.join(settings.INFOREC_PATH, f'{subject}_inforec.py')
@@ -46,6 +46,7 @@ for experiment in inforec.experiments:
     if experiment.date==dateStr:
         for site in experiment.sites:
             if site.pdepth==pdepth:
+                probeStr = experiment.probe
                 siteToProcess = site
 if siteToProcess is None:
     print(f'Recording for {subject} on {dateStr} at {pdepth}um not found.')
@@ -54,21 +55,32 @@ sessions = siteToProcess.session_ephys_dirs()
 
 # -- Create multisession_folders --
 if debug:
-    print('Running in DEBUG mode. Messages will appear, not nothing will be created/saved.')
+    print('Running in DEBUG mode. Messages will appear, but nothing will be created/saved.')
 if not os.path.isdir(multisessionRawDir):
     if not debug:
         os.mkdir(multisessionRawDir)
     print(f'Created {multisessionRawDir}')
+'''    
 if not os.path.isdir(multisessionTempDir):
     if not debug:
         os.mkdir(multisessionTempDir)
     print(f'Created {multisessionTempDir}')
+'''
 if not os.path.isdir(multisessionProcessedDir):
     if not debug:
         os.mkdir(multisessionProcessedDir)
     print(f'Created {multisessionProcessedDir}')
 
-sinfo = loadneuropix.concatenate_sessions(sessionsRootPath, sessions, multisessionRawDir, debug=debug)
+if 'NPv1' in probeStr:
+    probeType = 'NPv1'
+elif 'NPv2' in probeStr:
+    probeType = 'NPv2'
+else:
+    raise ValueError(f'Unknown probe type: {probeStr}. Please check your inforec file.')
+
+savedat = True
+sinfo = loadneuropix.concatenate_sessions(sessionsRootPath, sessions, multisessionRawDir,
+                                          probe=probeType, debug=debug, savedat=savedat)
 
 # -- Save a copy of multisession_info.csv to processed folder --
 multisessionInfoFilepath = os.path.join(multisessionProcessedDir,'multisession_info.csv')
