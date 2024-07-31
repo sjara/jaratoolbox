@@ -524,7 +524,7 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, minima
                 bestChannel = np.load(os.path.join(clusterFolder, 'cluster_bestChannel.npy'))
                 spikeShapesFile = os.path.join(clusterFolder, 'cluster_waveform.npy')
                 if not os.path.isfile(spikeShapesFile):
-                    spikeShapesFile = os.path.join(clusterFolder, 'spikes_shapes.npy') # pre 2024-07-30
+                    spikeShapesFile = os.path.join(clusterFolder, 'spike_shapes.npy') # pre 2024-07-30
                 spikeShapes = np.load(os.path.join(clusterFolder, spikeShapesFile))
                 if trimSpikeShapes:
                     firstValidSample = np.flatnonzero(np.nansum(spikeShapes, axis=0))[0]
