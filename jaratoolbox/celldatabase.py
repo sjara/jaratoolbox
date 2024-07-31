@@ -71,7 +71,7 @@ class Experiment():
         if egroups is None:
             if self.probe == 'A4x2-tet':
                 self.egroups = [1, 2, 3, 4, 5, 6, 7, 8]
-            elif self.probe[:4] == 'NPv1':
+            elif self.probe[:2] == 'NP':
                 self.egroups = [0]
             else:
                 self.egroups = [1, 2, 3, 4, 5, 6, 7, 8]  # Assume tetrodes
@@ -476,7 +476,7 @@ def OLD_make_db_neuropixels_v1(experiment, singleSession=None):
 
 
 def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, minimal=False,
-                           trimSpikeShapes=True):
+                           trimSpikeShapes=True, ignoreMissing=False):
     """
     Create a database of cells given an Experiment object associated with
     recordings using Neuropixels probes version 1.
@@ -490,6 +490,7 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, minima
         onlyGood (bool): include only clusters labeled "good" by Kilosort/Phy.
         trimSpikeShapes (bool): remove padding (zero) elements from spike shapes.
         minimal (bool): create a minimal database that does not include spike shapes.
+        ignoreMissing (bool): do not raise an error if the data for a site is missing.
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
@@ -502,6 +503,11 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, minima
             if singleSession is None:
                 clusterFolder = os.path.join(settings.EPHYS_NEUROPIX_PATH,
                                              experiment.subject, site.clusterFolder)
+                if not os.path.isdir(clusterFolder):
+                    print(f'WARNING: Experiment {site.subject} {site.date} ' +
+                          f'{site.pdepth}um is not spike-sorted.')
+                    if ignoreMissing:
+                        continue
             else:
                 if site.date==singleSession['date'] and site.pdepth==singleSession['pdepth']:
                     sessionIndex = site.get_session_index(singleSession['sessiontype'])
@@ -516,7 +522,10 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, minima
             clusterGroup.columns=['cluster', 'cluster_label']
             if not minimal:
                 bestChannel = np.load(os.path.join(clusterFolder, 'cluster_bestChannel.npy'))
-                spikeShapes = np.load(os.path.join(clusterFolder, 'spike_shapes.npy'))
+                spikeShapesFile = os.path.join(clusterFolder, 'cluster_waveform.npy')
+                if not os.path.isfile(spikeShapesFile):
+                    spikeShapesFile = os.path.join(clusterFolder, 'spikes_shapes.npy') # pre 2024-07-30
+                spikeShapes = np.load(os.path.join(clusterFolder, spikeShapesFile))
                 if trimSpikeShapes:
                     firstValidSample = np.flatnonzero(np.nansum(spikeShapes, axis=0))[0]
                     spikeShapes = spikeShapes[:, firstValidSample:]
@@ -539,7 +548,8 @@ def make_db_neuropixels_v1(experiment, singleSession=None, onlyGood=True, minima
     return celldb
 
 
-def generate_cell_database(inforecFile, singleSession=None, onlyGood=True, minimal=False):
+def generate_cell_database(inforecFile, singleSession=None, onlyGood=True, minimal=False,
+                           ignoreMissing=False):
     """
     Iterates over all experiments in an inforec and builds a cell database.
     This function requires that the data is already clustered.
@@ -549,6 +559,7 @@ def generate_cell_database(inforecFile, singleSession=None, onlyGood=True, minim
         singleSession (dict): specifies a single session to process, with format:
             {'date': YYYY-MM-DD, 'pdepth': int, 'sessiontype': str}
         onlyGood (bool): include only clusters labeled "good" by Kilosort/Phy.
+        ignoreMissing (bool): do not raise an error if the data for a site is missing.
     Returns:
         celldb (pandas.DataFrame): the cell database
     """
@@ -572,9 +583,9 @@ def generate_cell_database(inforecFile, singleSession=None, onlyGood=True, minim
             celldb = pd.concat((celldb, extraRows), ignore_index=False)
             # FIXME: It is really appropriate to ignore_index?
             #        The reason is to preserve index of clusters when removing bad cells
-        elif experiment.probe[:4] == 'NPv1':
+        elif experiment.probe[:2] == 'NP':
             extraRows = make_db_neuropixels_v1(experiment, singleSession, onlyGood,
-                                               minimal=minimal)
+                                               minimal=minimal, ignoreMissing=ignoreMissing)
             celldb = pd.concat((celldb, extraRows), ignore_index=True)
         elif experiment.probe is None:
             raise TypeError(f'Inforec problem: An experiment of {experiment.subject} ' +
