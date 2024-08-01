@@ -7,6 +7,7 @@ import sys
 import numpy as np
 import pandas as pd
 import re
+import json
 import shutil
 
 
@@ -117,13 +118,8 @@ class Events():
             processedDataDir (str): path to root of neuropixels raw data for a given session.
         """
         self.convertUnits = convert
-        dirToTestVersion = os.path.join(processedDataDir,'events/Neuropix-PXI-100.ProbeA/TTL/')
-        if os.path.isdir(dirToTestVersion):
-            self.openEphysVersion = '0.6'
-        else:
-            self.openEphysVersion = '0.5'
-
-        if self.openEphysVersion == '0.6':
+        self.openEphysVersion = get_openephys_version(processedDataDir)
+        if self.openEphysVersion[:3] == '0.6':
             self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.ProbeA/TTL/')
             #self.eventsDir = os.path.join(processedDataDir,'events/NI-DAQmx-104.PXI-6255/TTL/')
             samplesFile = 'sample_numbers.npy'
@@ -135,9 +131,8 @@ class Events():
             self.states = np.load(os.path.join(self.eventsDir, statesFile))
             self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
             self.timestamps = np.load(os.path.join(self.eventsDir, samplesFile))  # In samples
-        else:
+        elif self.openEphysVersion[:3] == '0.5':
             # Try the old path and file (for Open Ephys v0.5)
-            self.openEphysVersion = '0.5'
             self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.0/TTL_1/')
             samplesFile = 'timestamps.npy'
             firstSampleFile = 'first_timestamp.csv'
@@ -165,9 +160,9 @@ class Events():
         Returns:
             eventOnsetTimes (array): An array of the timestamps of the event onsets.
         """
-        if self.openEphysVersion == '0.6':
+        if self.openEphysVersion[:3] == '0.6':
             thisStateThisChannel = (self.states==(channelState*eventChannel))
-        elif self.openEphysVersion == '0.5':
+        elif self.openEphysVersion[:3] == '0.5':
             thisStateThisChannel = (self.states==channelState)&(self.fullWords==eventChannel)
         eventOnsetTimes = self.timestamps[thisStateThisChannel]
         return eventOnsetTimes
@@ -684,4 +679,12 @@ def spikes_per_cluster(datadir, nClusters):
         nSpikes[indc] = np.count_nonzero(spikeClusters==clusterID)
     return nSpikes
 
-    
+def get_openephys_version(processedDataDir):
+    """
+    Get the version of Open Ephys GUI used to record the data.
+    """
+    infoFile = os.path.join(processedDataDir,'info/structure.oebin')
+    with open(infoFile) as sfile:
+        openEphysParams = json.loads(sfile.read())
+    version = openEphysParams['GUI version']
+    return version
