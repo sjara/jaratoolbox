@@ -282,7 +282,8 @@ class Cell():
             ephysData = load_ephys_neuronexus_tetrodes(self.subject, paradigm, sessionDir,
                                                        self.egroup, self.cluster,
                                                        useModifiedClusters=self.useModifiedClusters)
-        elif self.dbRow['probe'][:4] == 'NPv1':
+        #elif self.dbRow['probe'][:4] == 'NPv1':
+        elif self.dbRow['probe'][:2] == 'NP':
             ephysData = load_ephys_neuropixels_v1(self.subject, paradigm, sessionDir,
                                                   self.egroup, self.cluster,
                                                   self.dirsuffix)
