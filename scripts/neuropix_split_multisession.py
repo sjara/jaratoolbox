@@ -37,7 +37,7 @@ if debug:
 if not debug:
     loadneuropix.spikeshapes_from_templates(multisessionProcessedDir, save=True)
 else:
-    print('DEBUG: This would save spike shapes.\n')
+    print('DEBUG: This would save cluster waveforms (spike shapes).\n')
 
 # -- Split spike times into sessions --
 sessionsList, sessionsDirs = loadneuropix.split_sessions(multisessionProcessedDir,
