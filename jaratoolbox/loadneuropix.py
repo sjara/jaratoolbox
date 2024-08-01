@@ -104,7 +104,7 @@ class Spikes():
         return samplingRate
     
 
-class EventsV2():
+class Events():
     """
     Class for loading TTL events saved by Open Ephys (version > 0.6).
 
@@ -117,20 +117,41 @@ class EventsV2():
             processedDataDir (str): path to root of neuropixels raw data for a given session.
         """
         self.convertUnits = convert
-        #self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.0/TTL_1/')
-        self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.ProbeA/TTL/')
-        #self.eventsDir = os.path.join(processedDataDir,'events/NI-DAQmx-104.PXI-6255/TTL/')
-        self.infoDir = os.path.join(processedDataDir,'info')
-        statesFile = 'states.npy'
-        fullWordsFile = 'full_words.npy'
-        timestampsFile = 'timestamps.npy'
-        samplesFile = 'sample_numbers.npy'
+        dirToTestVersion = os.path.join(processedDataDir,'events/Neuropix-PXI-100.ProbeA/TTL/')
+        if os.path.isdir(dirToTestVersion):
+            self.openEphysVersion = '0.6'
+        else:
+            self.openEphysVersion = '0.5'
 
-        (self.firstTimestamp, self.samplingRate) = read_recording_info(processedDataDir)
-        self.states = np.load(os.path.join(self.eventsDir, statesFile))
-        self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
-        #self.timestamps = np.load(os.path.join(self.eventsDir, timestampsFile))  # In seconds
-        self.timestamps = np.load(os.path.join(self.eventsDir, samplesFile))  # In samples
+        if self.openEphysVersion == '0.6':
+            self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.ProbeA/TTL/')
+            #self.eventsDir = os.path.join(processedDataDir,'events/NI-DAQmx-104.PXI-6255/TTL/')
+            samplesFile = 'sample_numbers.npy'
+            firstSampleFile = 'first_sample.csv'
+            statesFile = 'states.npy'
+            fullWordsFile = 'full_words.npy'
+            timestampsFile = 'timestamps.npy'
+            (self.firstTimestamp, self.samplingRate) = read_recording_info(processedDataDir, firstSampleFile)
+            self.states = np.load(os.path.join(self.eventsDir, statesFile))
+            self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
+            self.timestamps = np.load(os.path.join(self.eventsDir, samplesFile))  # In samples
+        else:
+            # Try the old path and file (for Open Ephys v0.5)
+            self.openEphysVersion = '0.5'
+            self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.0/TTL_1/')
+            samplesFile = 'timestamps.npy'
+            firstSampleFile = 'first_timestamp.csv'
+            channelsFile = 'channels.npy'
+            channelStatesFile = 'channel_states.npy'
+            fullWordsFile = 'full_words.npy'
+            timestampsFile = 'timestamps.npy'
+            (self.firstTimestamp, self.samplingRate) = read_recording_info(processedDataDir, firstSampleFile)
+            self.channels = np.load(os.path.join(self.eventsDir, channelsFile))
+            self.states = np.load(os.path.join(self.eventsDir, channelStatesFile))
+            self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
+            self.timestamps = np.load(os.path.join(self.eventsDir, timestampsFile))
+        self.infoDir = os.path.join(processedDataDir,'info')
+
         if self.convertUnits:
             self.timestamps = (self.timestamps-self.firstTimestamp)/self.samplingRate
         
@@ -144,11 +165,15 @@ class EventsV2():
         Returns:
             eventOnsetTimes (array): An array of the timestamps of the event onsets.
         """
-        thisStateThisChannel = (self.states==(channelState*eventChannel))
+        if self.openEphysVersion == '0.6':
+            thisStateThisChannel = (self.states==(channelState*eventChannel))
+        elif self.openEphysVersion == '0.5':
+            thisStateThisChannel = (self.states==channelState)&(self.fullWords==eventChannel)
         eventOnsetTimes = self.timestamps[thisStateThisChannel]
         return eventOnsetTimes
     
-class Events():
+
+class Events_legacy():
     """
     Class for loading TTL events.
 
@@ -611,7 +636,9 @@ def OLD_spikeshapes_from_templates(clusterFolder, save=False, ignorezero=True):
 
 def spikeshapes_from_templates(clusterFolder, save=False):
     """
-    Extract a spike shape from each template.
+    Extract a spike shape from each template and save two files:
+    - cluster_waveform.npy: spike shape for the nest channel of each cluster.
+    - cluster_bestChannel.npy: best channel for each cluster.
     """
     templates = np.load(os.path.join(clusterFolder,'templates.npy'))
     (nOrigClusters, nTimePoints, nChannels) = templates.shape
