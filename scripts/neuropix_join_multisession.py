@@ -7,6 +7,9 @@ python neuropix_join_multisession.py test000 2020-01-31 3440
 
 To debug (without saving anything), use:
 python neuropix_join_multisession.py test000 2020-01-31 3440 debug
+
+To save everything except the large .dat file:
+python neuropix_join_multisession.py test000 2020-01-31 3440 nodat
 """
 
 import os
@@ -27,6 +30,7 @@ subject = sys.argv[1]
 dateStr = sys.argv[2]
 pdepth = int(sys.argv[3])
 debug = True if (len(sys.argv)==5 and sys.argv[4]=='debug') else False
+savedat = False if (len(sys.argv)==5 and sys.argv[4]=='nodat') else True
 
 
 sessionsRootPath = os.path.join(settings.EPHYS_NEUROPIX_PATH, subject)
@@ -78,7 +82,6 @@ elif 'NPv2' in probeStr:
 else:
     raise ValueError(f'Unknown probe type: {probeStr}. Please check your inforec file.')
 
-savedat = True
 sinfo = loadneuropix.concatenate_sessions(sessionsRootPath, sessions, multisessionRawDir,
                                           probe=probeType, debug=debug, savedat=savedat)
 
