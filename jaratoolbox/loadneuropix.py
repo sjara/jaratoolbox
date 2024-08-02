@@ -227,10 +227,12 @@ def copy_events_and_info(dataDir, outputDir=None):
     dataDir = dataDir[:-1] if dataDir.endswith(os.sep) else dataDir  # Remove last sep
     if outputDir is None:
         outputDir = dataDir+'_processed_multi'
-    relativePathToRecording = 'Record Node 101/experiment1/recording1/'
+    relativePathToNode = 'Record Node 101/'
+    relativePathToRecording = os.path.join(relativePathToNode, 'experiment1/recording1/')
     eventsDir = os.path.join(dataDir, relativePathToRecording, 'events')
     structFile = os.path.join(dataDir, relativePathToRecording, 'structure.oebin')
     syncFile = os.path.join(dataDir, relativePathToRecording, 'sync_messages.txt')
+    settingsFile = os.path.join(dataDir, relativePathToNode, 'settings.xml')
 
     if not os.path.isdir(outputDir):
         print(f'{outputDir} does not exist.')
@@ -255,6 +257,8 @@ def copy_events_and_info(dataDir, outputDir=None):
     print(f'Copied {structFile} to {infoDir+os.sep}')
     shutil.copy2(syncFile, infoDir)
     print(f'Copied {syncFile} to {infoDir+os.sep}')
+    shutil.copy2(settingsFile, infoDir)
+    print(f'Copied {settingsFile} to {infoDir+os.sep}')
     return outputDir
 
 
@@ -390,7 +394,7 @@ def concatenate_sessions(sessionsRootPath, sessions, outputDir, probe='NPv2', de
     if not os.path.isdir(outputDir):
         if debug:
             print(f'DEBUG MESSAGE: this step would create {outputDir}')
-        else:
+        elif savedat:
             os.mkdir(outputDir)
             print(f'Created {outputDir}')
     if os.path.isfile(outputDataFile) and savedat:
