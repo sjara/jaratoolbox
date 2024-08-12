@@ -132,10 +132,13 @@ class Events():
             self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
             self.timestamps = np.load(os.path.join(self.eventsDir, samplesFile))  # In samples
         elif self.openEphysVersion[:3] == '0.5':
-            # Try the old path and file (for Open Ephys v0.5)
+            # Use the old path and file names (for Open Ephys v0.5)
             self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.0/TTL_1/')
             samplesFile = 'timestamps.npy'
             firstSampleFile = 'first_timestamp.csv'
+            if not os.path.isfile(os.path.join(processedDataDir, firstSampleFile)):
+                # If data was split with a new version of neuropix_split..., use the new file name
+                firstSampleFile = 'first_sample.csv'
             channelsFile = 'channels.npy'
             channelStatesFile = 'channel_states.npy'
             fullWordsFile = 'full_words.npy'
@@ -558,7 +561,15 @@ def split_sessions(multisessionPath, debug=False):
     multiSpikeClusters = np.load(os.path.join(multisessionPath, multiSpikeClustersFile))
 
     #nSamplesEachSession = sessionsInfo.lastTimestamp - sessionsInfo.firstTimestamp + 1
-    nSamplesEachSession = sessionsInfo.lastSample - sessionsInfo.firstSample + 1
+    try:
+        firstSampleList = sessionsInfo.firstSample
+        lastSampleList = sessionsInfo.lastSample
+    except AttributeError:
+        # Try the old way where samples were saved as timestamps (openEphysVersion v0.5)
+        firstSampleList = sessionsInfo.firstTimestamp
+        lastSampleList = sessionsInfo.lastTimestamp
+    nSamplesEachSession = lastSampleList - firstSampleList + 1
+
     lastSampleEachSession = np.cumsum(nSamplesEachSession)
     firstSampleEachSession = np.r_[0, lastSampleEachSession[:-1]]
     sessionsDirsList = []
@@ -597,8 +608,8 @@ def split_sessions(multisessionPath, debug=False):
         #print(f'Saved {sessionsInfo.firstTimestamp[inds]} to {thisSessionFirstTimestampFile}')
         if not debug:
             with open(thisSessionFirstSampleFile, 'w') as firstTSfile:
-                firstTSfile.write(f'{sessionsInfo.firstSample[inds]}')
-        print(f'Saved {sessionsInfo.firstSample[inds]} to {thisSessionFirstSampleFile}')
+                firstTSfile.write(f'{firstSampleList[inds]}')
+        print(f'Saved {firstSampleList[inds]} to {thisSessionFirstSampleFile}')
         print('')
         sessionsDirsList.append(sessionDir)
         
