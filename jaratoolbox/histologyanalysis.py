@@ -953,7 +953,7 @@ def get_coords_from_svg(filenameSVG, recordingDepths=None, maxDepth=None):
             siteCoords.append(coordsAtFraction)
     else:
         siteCoords = None
-        if recordingDepths is not None or maxDepth is not None:
+        if recordingDepths is None or maxDepth is None:
             print('WARNING: Please give both recording depths and max depth to get site coordinates.')
     return brainSurfCoords, tipCoords, siteCoords
 
@@ -1085,6 +1085,7 @@ def cell_locations(cellDB, filterConditions=None, brainAreaDict=None):
     rspAnnotationVolumeRotated = np.rot90(rsp.annotation, 1, axes=(2, 0))
     newDB = cellDB.query(filterCondtions) if filterConditions else cellDB.copy()
     newDB['recordingSiteName'] = ''  # Prefill with empty strings so column is strings (not NaNs)
+    shanksNotFound = []
 
     for dbIndex, dbRow in newDB.iterrows():
         subject = dbRow['subject']
@@ -1117,9 +1118,12 @@ def cell_locations(cellDB, filterConditions=None, brainAreaDict=None):
                 selRow = ((tracksDF.brainArea==brainArea) &
                           (tracksDF.shank==shank) &
                           (tracksDF.recordingTrack==recordingTrack))
-                thisTrack = tracksDF.iloc[0]
+                thisTrack = tracksDF[selRow].iloc[0]
             except IndexError:
-                print(f'Shank not found: {subject}, {brainArea}, shank:{shank}, {recordingTrack}')
+                shankStr = f'{subject}, {brainArea}, shank:{shank}, {recordingTrack}'
+                if shankStr not in shanksNotFound:
+                    print(f'Shank not found: {shankStr}')
+                    shanksNotFound.append(shankStr)
                 continue
 
             histImage = thisTrack['histImage']
