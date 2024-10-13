@@ -604,11 +604,11 @@ class AllenAverageCoronalAtlas(object):
             atlasAnnot = AllenAnnotation()
         for inds, zval in enumerate(self.pCoords):
             plt.subplot(nRows, nCols, inds+1)
-            plt.imshow(self.atlas[:, :, zval], cmap='gray', vmax=self.maxValue)
+            plt.imshow(self.atlas[:, :, zval], cmap='gray', vmax=self.maxValue, aspect='equal')
             for oneArea in areas:
                 areaImage = atlasAnnot.get_pixels_from_acronym(zval, oneArea)
                 areaMask = np.ma.masked_array(areaImage, ~areaImage)
-                plt.imshow(areaMask.T, cmap='Set3', alpha=0.15)
+                plt.imshow(areaMask.T, cmap='Set3', alpha=0.15, aspect='equal')
             plt.plot(self.pCoords[zval][0], self.pCoords[zval][1], '.r')
             plt.axis(False)
             #plt.text(4, 4, f'z={zval}', color='0.5', va='top')
@@ -682,7 +682,7 @@ class AllenAverageCoronalAtlas(object):
         self.mouseClickData = []
         # Draw the image
         #self.ax.imshow(np.rot90(self.atlas[:, :, sliceNum], -1), 'gray')
-        self.ax.imshow(self.atlas[:, :, sliceNum], cmap='gray', vmax=self.maxValue)
+        self.ax.imshow(self.atlas[:, :, sliceNum], cmap='gray', vmax=self.maxValue, aspect='equal')
         if sliceNum in self.pCoords:
             self.ax.plot(self.pCoords[sliceNum][0], self.pCoords[sliceNum][1], '.b')
         # Label the axes and draw
