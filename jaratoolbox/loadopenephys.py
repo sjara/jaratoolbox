@@ -100,7 +100,7 @@ class DataCont(object):
                 samplesIndexes = samplesVec + zeroSampleThisEvent
                 lockedLFP[inde,:] = self.samples[samplesIndexes]
             else:
-                lockedLFP[inde,:] = np.NaN
+                lockedLFP[inde,:] = np.nan
         return (lockedLFP,timeVec)
 
 

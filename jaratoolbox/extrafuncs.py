@@ -9,12 +9,12 @@ import numpy as np
 import datetime
 import importlib
 
-def pad_float_list(listOfLists, length=None, pad=np.NaN):
+def pad_float_list(listOfLists, length=None, pad=np.nan):
     '''Pad a list of lists of floats with nan to the same length.
     Args:
         listOfLists: a list of lists of floats.
         length: optional argument for the length wish to pad all the sublist to.
-        pad: value to pad empty slots with, default to np.NaN since datatype is float.
+        pad: value to pad empty slots with, default to np.nan since datatype is float.
     Returns:
         A list of lists where all the sublists are of the same length.
     '''
