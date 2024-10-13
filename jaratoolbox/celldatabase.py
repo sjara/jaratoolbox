@@ -743,7 +743,10 @@ def load_hdf(filename, columns=[], root='/'):
                 dbDict[varname] = list(varvalue[...])  # If it is an array
         elif varvalue.dtype.kind == 'S':
             dbDict[varname] = varvalue[...].astype(str)
-        elif varvalue.dtype == np.object:
+        elif varvalue.dtype == object:
+            jsonStr = varvalue[()].decode()
+            jsonData = json.loads(jsonStr)
+            dbDict[varname] = pd.Series(jsonData['data'])
             '''
             try:
                 #dataAsList = [ast.literal_eval("{}".format(v)) for v in varvalue]
@@ -756,10 +759,16 @@ def load_hdf(filename, columns=[], root='/'):
                 dataAsList = [ast.literal_eval('"{}"'.format(v)) for v in varvalue]
             dbDict[varname] = dataAsList
             '''
+            '''
+            # -- Older versions --
             if pandas_version_at_least('1.4'):
-                dbDict[varname] = pd.read_json(varvalue[()].decode()).data
+                jsonStr = varvalue[()].decode()
+                jsonData = json.loads(jsonStr)
+                dbDict[varname] = pd.Series(jsonData['data'])
+                #dbDict[varname] = pd.read_json(varvalue[()].decode()).data
             else:
                 dbDict[varname] = pd.read_json(varvalue[()]).data
+            '''
         else:
             raise ValueError('Data type {} for variable {} is not recognized '+\
                              'by celldatabase.'.format(varvalue.dtype,varname))
