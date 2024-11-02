@@ -88,7 +88,7 @@ def trials_each_cond_inds(trialsEachCond, nTrials):
     if isinstance(trialsEachCond, np.ndarray):
         # -- Convert boolean matrix to list of trial indexes --
         trialsEachCondInds = [np.flatnonzero(trialsEachCond[:, ind]) for ind in range(trialsEachCond.shape[1])]
-    if trialsEachCond==[]:
+    if trialsEachCond is None:
         nCond=1
         # trialsEachCond = [np.arange(indexLimitsEachTrial.shape[1])]
         trialsEachCondInds = [np.arange(nTrials)]
@@ -98,7 +98,7 @@ def trials_each_cond_inds(trialsEachCond, nTrials):
     return trialsEachCondInds, nTrialsEachCond, nCond
 
 
-def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond=[],
+def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond=None,
                 colorEachCond=None, fillWidth=None, labels=None, rasterized=True):
     """
     Plot spikes raster plot grouped by condition
