@@ -297,8 +297,8 @@ def significance_stars(xRange, yPos, yLength, color='k', starMarker='*', starSiz
     # plt.hold(True)  # FIXME: Use holdState
     xGap = gapFactor*nStars
     xVals = [xRange[0], xRange[0],
-             np.mean(xRange)-xGap*np.diff(xRange), np.nan,
-             np.mean(xRange)+xGap*np.diff(xRange),
+             np.mean(xRange)-xGap*np.diff(xRange)[0], np.nan,
+             np.mean(xRange)+xGap*np.diff(xRange)[0],
              xRange[1], xRange[1]]
     yVals = [yPos-yLength, yPos, yPos, np.nan, yPos, yPos, yPos-yLength]
     hlines, = plt.plot(xVals, yVals, color=color)
@@ -435,6 +435,7 @@ class FlipThrough(object):
             self.plotter(self.data[self.counter], **self.kwargs)
         plt.suptitle('{}/{}: Press < or > to flip through data'.format(self.counter+1,
                                                                        self.maxDataInd+1))
+        #self.fig.canvas.draw() # Added 2024-11-01
         self.fig.show()
 
     def on_key_press(self, event):
