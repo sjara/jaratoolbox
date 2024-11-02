@@ -863,7 +863,7 @@ def read_tracks_file(tracksFile):
     return tracksinfo
 
 
-def save_svg_for_registration_one_mouse(subject, **kwargs):
+def save_svg_for_registration_one_mouse(subject, outputDir=None):
     """
     Save all the svgs for manual registration for a single mouse.
 
@@ -879,7 +879,8 @@ def save_svg_for_registration_one_mouse(subject, **kwargs):
                        detailing information about each recording track, as well as
                        images in the histology folder corresponding to each penetration.
         outputDir (str): directory in which the registration folders for each brain area
-                         are, where the svgs will be saved
+                         are, where the svgs will be saved. If None, will use a default
+                         like settings.HISTOLOGY_PATH/SUBJECT_processed
 
     Returns:
         atlasSizes, histSizes (lists):
@@ -895,7 +896,11 @@ def save_svg_for_registration_one_mouse(subject, **kwargs):
                                                 track['brainArea'],
                                                 track['histImage'],
                                                 track['recordingTrack'],
-                                                track['shank'], track['atlasZ'])
+                                                track['shank'],
+                                                track['atlasZ'],
+                                                outputDir=outputDir)
+        print(outputDir)
+        print(filenameSVG)
         (atlasSize, histSize) = save_svg_for_registration(filenameSVG, filenameAtlas, filenameHist)
         atlasSizes.append(atlasSize)
         histSizes.append(histSize)
