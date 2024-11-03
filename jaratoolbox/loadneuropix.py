@@ -275,7 +275,7 @@ def progress_bar(sofar, total, size=60):
 
 def concatenate_sessions_legacy(sessionsRootPath, sessions, outputDir, debug=False):
     """
-    Save file with concatenated neurpixels data, ready for spike sorting.
+    Save file with concatenated neuropixels data, ready for spike sorting.
     This is the legacy version for Open Ephys v0.5.
 
     Args:
@@ -617,37 +617,10 @@ def split_sessions(multisessionPath, debug=False):
     return (sessionsList, sessionsDirsList)
     
 
-def OLD_spikeshapes_from_templates(clusterFolder, save=False, ignorezero=True):
-    """
-    Extract a spike shape from each template.
-    """
-    templates = np.load(os.path.join(clusterFolder,'templates.npy'))
-    (nOrigClusters, nTimePoints, nChannels) = templates.shape
-    spikeShapes = np.empty([nOrigClusters, nTimePoints], dtype=templates.dtype)
-    bestChannel = np.empty(nOrigClusters, dtype=int)
-    for indt, oneTemplate in enumerate(templates):
-        indMax = np.argmax(np.abs(oneTemplate))
-        (rowMax, colMax) = np.unravel_index(indMax, oneTemplate.shape)
-        spikeShapes[indt,:] = oneTemplate[:,colMax]
-        bestChannel[indt] = colMax
-    if ignorezero:
-        nonzerosamples = (spikeShapes.sum(axis=0)!=0)
-        firstnonzero = np.flatnonzero(nonzerosamples)[0]
-        spikeShapes = spikeShapes[:,firstnonzero:]
-    if save:
-        spikeShapesFile = os.path.join(clusterFolder, 'spike_shapes.npy')
-        bestChannelFile = os.path.join(clusterFolder, 'cluster_bestChannel.npy')
-        np.save(spikeShapesFile, spikeShapes)
-        print(f'Saved {spikeShapesFile}')
-        np.save(bestChannelFile, bestChannel)
-        print(f'Saved {bestChannelFile}\n')
-    return (spikeShapes, bestChannel)
-
-
 def spikeshapes_from_templates(clusterFolder, save=False):
     """
     Extract a spike shape from each template and save two files:
-    - cluster_waveform.npy: spike shape for the nest channel of each cluster.
+    - cluster_waveform.npy: spike shape for the best channel of each cluster.
     - cluster_bestChannel.npy: best channel for each cluster.
     """
     templates = np.load(os.path.join(clusterFolder,'templates.npy'))
@@ -693,6 +666,7 @@ def spikes_per_cluster(datadir, nClusters):
     for indc in range(nClusters):
         nSpikes[indc] = np.count_nonzero(spikeClusters==clusterID)
     return nSpikes
+
 
 def get_openephys_version(processedDataDir):
     """
