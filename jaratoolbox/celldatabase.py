@@ -736,7 +736,9 @@ def load_hdf(filename, columns=[], root='/'):
                 continue
         if varname=='index':
             indexArray = varvalue[...]
-        elif np.issubdtype(varvalue, np.integer) or np.issubdtype(varvalue, np.floating):
+        elif (np.issubdtype(varvalue, np.integer) or
+              np.issubdtype(varvalue, np.floating) or
+              np.issubdtype(varvalue, np.bool_)):
             if len(varvalue.shape) == 1:
                 dbDict[varname] = varvalue[...]
             else:
