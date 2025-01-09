@@ -25,6 +25,35 @@ def read_processor_info(infoDir, subProcessorIndex=0):
     return(startTime, samplingRate)
 
 
+def read_oebin(sessionDir, dataSource):
+    """
+    Read the structure.oebin file to get sampling rate and other recording parameters.
+    
+    Args:
+        sessionDir (str): raw data session directory (e.g, .../feat018/2024-06-14_11-20-22)
+        dataSource (str): name of the data source (e.g., 'Neuropix-PXI-100.1' for LFP)
+
+    Returns:
+        info (dict): dictionary with recording parameters.
+
+    This function assumes bitVolts are the same for all channels of a data source.
+    Note that multiplying by bit_volts yields either uV or V depending on the source. See:
+    https://open-ephys.github.io/gui-docs/User-Manual/Recording-data/Binary-format.html
+    """
+    recDataDir = os.path.join(sessionDir, 'Record Node 101/experiment1/recording1/')
+    rawDataFile = os.path.join(recDataDir, 'continuous', dataSource, 'continuous.dat')
+    structFile = os.path.join(recDataDir, 'structure.oebin')
+    info = {}
+    with open(structFile, 'r') as file:
+        stfile = json.load(file)
+    for dataSourceInfo in stfile['continuous']:
+        if dataSourceInfo['folder_name'].strip('/') == dataSource:
+            info['sample_rate'] = dataSourceInfo['sample_rate']
+            info['num_channels'] = dataSourceInfo['num_channels']
+            info['bit_volts'] = dataSourceInfo['channels'][0]['bit_volts']
+    return info
+
+
 def read_recording_info(processedDir, firstSampleFile='first_sample.csv'):
     """
     Note: before Open Ephys v0.6, firstSampleFile was 'first_timestamp.csv'
@@ -219,6 +248,85 @@ class Events_legacy():
         return eventOnsetTimes
         
 
+class Continuous():
+    """
+    Class for loading Neuropixels continuous data saved by Open Ephys.
+    """
+    def __init__(self, sessionDataDir, dataSource, memmap=True):
+        """
+        Args:
+            sessionDataDir (str): path to directory with raw data (e.g, feat018_raw/2024-06-14_11-20-22)
+            dataSource (str): 'Neuropix-PXI-100.1' for LFP, 'Neuropix-PXI-100.0' for spikes, etc
+            memmap (bool): if True, memory-map the data from the file instead of loading into RAM.
+        """
+        self.sessionDataDir = sessionDataDir
+        self.dataSource = dataSource
+        self.memmap = memmap
+        self.recDataDir = os.path.join(self.sessionDataDir, 'Record Node 101/experiment1/recording1/')
+        self.rawDataDir = os.path.join(self.recDataDir, 'continuous', self.dataSource)
+        self.rawDataFile = os.path.join(self.rawDataDir, 'continuous.dat')
+        self.timestampsFile = os.path.join(self.rawDataDir, 'timestamps.npy')
+        self.info = read_oebin(sessionDataDir, dataSource)
+        self.nChannels = self.info['num_channels']
+        self.bitVolts = self.info['bit_volts']
+        self.sampleRate = self.info['sample_rate']
+        self.data = None
+        self.timestamps = None
+        self.load_data()
+    def load_data(self, memmap=True):
+        self.memmap = memmap
+        if self.memmap:
+            self.data = np.memmap(self.rawDataFile, dtype='int16', mode='c')
+            samplesPerChan = self.data.shape[0]//self.nChannels
+            self.data = self.data.reshape((samplesPerChan, self.nChannels))
+            self.timestamps = np.load(self.timestampsFile)
+        else:
+            raise NotImplementedError('Loading data into RAM is not implemented yet.')
+
+
+class RawEvents():
+    """
+    Class for loading TTL events saved by Open Ephys.
+    """
+    def __init__(self, sessionDataDir, dataSource):
+        """
+        Args:
+            sessionDataDir (str): path to directory with raw data (e.g, feat018_raw/2024-06-14_11-20-22)
+            dataSource (str): 'Neuropix-PXI-100.1' for LFP, 'Neuropix-PXI-100.0' for spikes, etc
+        """
+        if dataSource == 'Neuropix-PXI-100.1':
+            TTLdir = 'TTL_2'
+        elif dataSource == 'Neuropix-PXI-100.0':
+            TTLdir = 'TTL_1'
+        else:
+            raise ValueError('Data source not recognized.')
+        self.sessionDataDir = sessionDataDir
+        self.dataSource = dataSource
+        self.recDataDir = os.path.join(self.sessionDataDir, 'Record Node 101/experiment1/recording1/')
+        self.eventsDir = os.path.join(self.recDataDir, 'events', self.dataSource, TTLdir)
+        channelsFile = 'channels.npy'
+        channelStatesFile = 'channel_states.npy'
+        fullWordsFile = 'full_words.npy'
+        timestampsFile = 'timestamps.npy'
+        self.channels = np.load(os.path.join(self.eventsDir, channelsFile))
+        self.states = np.load(os.path.join(self.eventsDir, channelStatesFile))
+        self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
+        self.timestamps = np.load(os.path.join(self.eventsDir, timestampsFile))
+    def get_onset_times(self, eventChannel=1, channelState=1):
+        """
+        Get the onset times for specific events.
+
+        Args:
+            eventChannel (int): The openEphys DIO channel that recieves the event.
+            channelState (int): 1 for onset, -1 for offset
+        Returns:
+            eventOnsetTimes (array): An array of the timestamps of the event onsets.
+        """
+        thisStateThisChannel = (self.states==channelState)&(self.fullWords==eventChannel)
+        eventOnsetTimes = self.timestamps[thisStateThisChannel]
+        return eventOnsetTimes
+    
+        
 def copy_events_and_info(dataDir, outputDir=None):
     """
     Copy events data and OpenEphys info files to the processed data folder for a session.
