@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import re
 import json
+import xml
 import shutil
 
 
@@ -293,25 +294,54 @@ class RawEvents():
         Args:
             sessionDataDir (str): path to directory with raw data (e.g, feat018_raw/2024-06-14_11-20-22)
             dataSource (str): 'Neuropix-PXI-100.1' for LFP, 'Neuropix-PXI-100.0' for spikes, etc
+
+        Attributes:
+            sessionDataDir (str): path to directory with raw data (e.g, feat018_raw/2024-06-14_11-20-22)
+            dataSource (str): 'Neuropix-PXI-100.1' for LFP, 'Neuropix-PXI-100.0' for spikes, etc
+            recDataDir (str): path to directory with raw data for the recording.
+            eventsDir (str): path to directory with events data.
+            rawDataDir (str): path to directory with raw data for the data source.
+            channels (array): DIO channel for each event.
+            states (array): 1 for onset, -1 for offset.
+            fullWords (array): full word for each event.
+            timestamps (array): sample index for each event (not timestamps)
+            firstSample (int): index of the first sample in the raw (main signal) data.
         """
         if dataSource == 'Neuropix-PXI-100.1':
             TTLdir = 'TTL_2'
+            self.NPversion = '1.0'
         elif dataSource == 'Neuropix-PXI-100.0':
             TTLdir = 'TTL_1'
+            self.NPversion = '1.0'
+        elif dataSource == 'Neuropix-PXI-100.ProbeA':
+            TTLdir = 'TTL'
+            self.NPversion = '2.0'
         else:
             raise ValueError('Data source not recognized.')
         self.sessionDataDir = sessionDataDir
         self.dataSource = dataSource
         self.recDataDir = os.path.join(self.sessionDataDir, 'Record Node 101/experiment1/recording1/')
         self.eventsDir = os.path.join(self.recDataDir, 'events', self.dataSource, TTLdir)
-        channelsFile = 'channels.npy'
-        channelStatesFile = 'channel_states.npy'
-        fullWordsFile = 'full_words.npy'
-        timestampsFile = 'timestamps.npy'
-        self.channels = np.load(os.path.join(self.eventsDir, channelsFile))
-        self.states = np.load(os.path.join(self.eventsDir, channelStatesFile))
-        self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
-        self.timestamps = np.load(os.path.join(self.eventsDir, timestampsFile))
+        self.rawDataDir = os.path.join(self.recDataDir, 'continuous', self.dataSource)
+        if self.NPversion == '1.0':
+            channelsFile = 'channels.npy'
+            channelStatesFile = 'channel_states.npy'
+            fullWordsFile = 'full_words.npy'
+            timestampsFile = 'timestamps.npy'
+            self.channels = np.load(os.path.join(self.eventsDir, channelsFile))
+            self.states = np.load(os.path.join(self.eventsDir, channelStatesFile))
+            self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
+            self.timestamps = np.load(os.path.join(self.eventsDir, timestampsFile))
+            self.firstSample = np.load(os.path.join(self.rawDataDir, 'timestamps.npy'))[0]
+        elif self.NPversion == '2.0':
+            samplesFile = 'sample_numbers.npy'
+            statesFile = 'states.npy'
+            fullWordsFile = 'full_words.npy'
+            timestampsFile = 'timestamps.npy'
+            self.states = np.load(os.path.join(self.eventsDir, statesFile))
+            self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
+            self.timestamps = np.load(os.path.join(self.eventsDir, samplesFile))
+            self.firstSample = np.load(os.path.join(self.rawDataDir, 'sample_numbers.npy'))[0]
     def get_onset_times(self, eventChannel=1, channelState=1):
         """
         Get the onset times for specific events.
@@ -785,3 +815,97 @@ def get_openephys_version(processedDataDir):
         openEphysParams = json.loads(sfile.read())
     version = openEphysParams['GUI version']
     return version
+
+
+class ProbeMap():
+    """
+    Class to handle the probe map for Neuropixels probes.
+    """
+    def __init__(self, xmlfile):
+        """
+        Parse the XML file with the probe map.
+        """
+        # Parse the XML file
+        tree = xml.etree.ElementTree.parse(xmlfile)
+        root = tree.getroot()
+
+        probe = root.find('.//NP_PROBE')
+
+        channelStr = list(probe.find('.//CHANNELS').attrib.keys())
+        channelShankStr = list(probe.find('.//CHANNELS').attrib.values())
+        xposStr = list(probe.find('.//ELECTRODE_XPOS').attrib.values())
+        yposStr = list(probe.find('.//ELECTRODE_YPOS').attrib.values())
+        xpos = [int(x) for x in xposStr]
+        ypos = [int(y) for y in yposStr]
+        channelID = [int(x.split('CH')[1]) for x in channelStr]
+        if probe.attrib['probe_name'] == 'Neuropixels 1.0':
+            channelShank = np.zeros(len(channelID))
+        elif probe.attrib['probe_name'] == 'Neuropixels 2.0 - Multishank':
+            channelShank = [int(x.split(':')[1]) for x in channelShankStr]
+        else:
+            raise ValueError(f'Unknown probe name: {probe.attrib["probe_name"]}')
+
+        self.nActiveChannels = len(channelID)
+        self.channelID = np.array(channelID)
+        self.channelShank = np.array(channelShank)
+        self.xpos = np.array(xpos)
+        self.ypos = np.array(ypos)
+        self.probeName = probe.attrib['probe_name']
+
+    def create_dict_for_kilosort(self):
+        """
+        Create a dictionary with the probe map for Kilosort.
+        """
+        kcoords = np.zeros(self.nActiveChannels)
+        probeMap = {
+            'chanMap': self.channelID,
+            'xc': self.xpos,
+            'yc': self.ypos,
+            'kcoords': kcoords,
+            'n_chan': self.nActiveChannels
+        }
+
+    def save_probe(self, filepath):
+        """
+        Save a probe dictionary to a .json text file.
+        Based on kilosort4/lib/python3.10/site-packages/kilosort/io.py
+
+        Parameters
+        ----------
+        probe_dict : dict
+            A dictionary containing probe information in the format expected by
+            Kilosort4, with keys 'chanMap', 'xc', 'yc', and 'kcoords'.
+        filepath : str or pathlib.Path
+            Location where .json file should be stored.
+
+        Raises
+        ------
+        RuntimeWarning
+            If filepath does not end in '.json'
+
+        """
+
+        if Path(filepath).suffix != '.json':
+            raise RuntimeWarning(
+                'Saving json probe to a file whose suffix is not .json.'
+                'kilosort.io.load_probe will not recognize this file.' 
+            )
+
+        d = self.create_dict_for_kilosort()
+        #d = probe_dict.copy()
+        # Convert arrays to lists, since arrays aren't json-able
+        for k in list(d.keys()):
+            v = d[k]
+            if isinstance(v, np.ndarray):
+                d[k] = v.tolist()
+
+        with open(filepath, 'w') as f:
+            f.write(json.dumps(d))
+
+        def save_probemap_for_kilosort(outputFile):
+            """
+            Save the probe map for Kilosort.
+            """
+            with open(outputFile, 'w') as f:
+                json.dump(probeMap, f)
+
