@@ -20,8 +20,9 @@ VIDEO_PATH = '/mnt/jarahubdata/video'
 FIGURES_DATA_PATH = '/mnt/jarahubdata/figuresdata' # Intermediate data for subfigures
 
 INFOREC_PATH = '/home/jarauser/src/jarainfo/inforecordings/'
-
 INFOHIST_PATH = '/home/jarauser/src/jarainfo/infohistology/'
+INFOVIDEO_PATH = '/home/jarauser/src/jarainfo/infovideos/'
+INFOWIDEFIELD_PATH = '/home/jarauser/src/jarainfo/infowidefield/'
 
 DATABASE_PATH = '/mnt/jarahubdata/figuresdata'
 
