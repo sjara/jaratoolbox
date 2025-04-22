@@ -41,14 +41,14 @@ def read_oebin(sessionDir, dataSource):
     Note that multiplying by bit_volts yields either uV or V depending on the source. See:
     https://open-ephys.github.io/gui-docs/User-Manual/Recording-data/Binary-format.html
     """
-    recDataDir = os.path.join(sessionDir, 'Record Node 101/experiment1/recording1/')
+    recDataDir = os.path.join(sessionDir, 'Record Node 101', 'experiment1', 'recording1')
     rawDataFile = os.path.join(recDataDir, 'continuous', dataSource, 'continuous.dat')
     structFile = os.path.join(recDataDir, 'structure.oebin')
     info = {}
     with open(structFile, 'r') as file:
         stfile = json.load(file)
     for dataSourceInfo in stfile['continuous']:
-        if dataSourceInfo['folder_name'].strip('/') == dataSource:
+        if dataSourceInfo['folder_name'].strip('/') == dataSource or dataSourceInfo['folder_name'].strip('\\') == dataSource:
             info['sample_rate'] = dataSourceInfo['sample_rate']
             info['num_channels'] = dataSourceInfo['num_channels']
             info['bit_volts'] = dataSourceInfo['channels'][0]['bit_volts']
