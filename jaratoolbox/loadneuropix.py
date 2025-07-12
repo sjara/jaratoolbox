@@ -14,8 +14,8 @@ import shutil
 
 def read_processor_info(infoDir, subProcessorIndex=0):
     syncFile = os.path.join(infoDir, 'sync_messages.txt')
-    pattern = (f'Processor: Neuropix-PXI Id: 100 subProcessor: {subProcessorIndex} ' +
-               'start time: (\d*)@(\d*)Hz')
+    pattern = (rf'Processor: Neuropix-PXI Id: 100 subProcessor: {subProcessorIndex} ' +
+               r'start time: (\d*)@(\d*)Hz')
     with open(syncFile) as sfile:
         syncInfo = sfile.readlines()
     for oneline in syncInfo:
