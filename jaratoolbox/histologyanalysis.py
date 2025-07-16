@@ -586,13 +586,35 @@ class AllenAverageCoronalAtlas(object):
             theseXvals = xvals[theseInds]
             theseYvals = yvals[theseInds]
             self.pCoords[int(zval)] = np.vstack((theseXvals, theseYvals))
-
+            
+    def reset_points(self):
+        self.pCoords = {}  # Reset the points
+        
     def add_points_from_db(self, cellDB):
         validPoints = cellDB['z_coord'].notnull()
         self.add_points(cellDB['x_coord'][validPoints].to_numpy(),
                         cellDB['y_coord'][validPoints].to_numpy(),
                         cellDB['z_coord'][validPoints].to_numpy())
 
+    def show_single_slice(self, slice=None, areas=[]):
+        if len(areas):
+            atlasAnnot = AllenAnnotation()
+        if slice is None:
+            zval = list(self.pCoords.keys())[0]
+        else:
+            zval = slice
+        plt.imshow(self.atlas[:, :, zval], cmap='gray', vmax=self.maxValue, aspect='equal')
+        for oneArea in areas:
+            areaImage = atlasAnnot.get_pixels_from_acronym(zval, oneArea)
+            areaMask = np.ma.masked_array(areaImage, ~areaImage)
+            plt.imshow(areaMask.T, cmap='Set3', alpha=0.15, aspect='equal')
+        points, = plt.plot(self.pCoords[zval][0], self.pCoords[zval][1], '.r')
+        labelXpos = np.diff(plt.xlim())[0]/2 + plt.xlim()[0]
+        labelYpos = plt.ylim()[0] - 20
+        label = plt.text(labelXpos, labelYpos, f'z = {zval}', color='0.5', ha='center', va='bottom')
+        plt.axis(False)
+        return (points, label)
+    
     def show_all_sites(self, nRows=None, areas=[]):
         fig = plt.gcf()
         fig.clf()
