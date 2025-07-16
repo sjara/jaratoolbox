@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jaratoolbox"
+version = "2.1"
+authors = [
+  { name="Santiago Jaramillo", email="sjara@uoregon.edu" },
+]
+description = "Data analysis package for the Jaramillo lab"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "pandas",
+    "h5py",
+    "matplotlib",
+    "scipy",
+    "ipython"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools.packages.find]
+exclude = ["oldjaratest*"]  # Explicitly exclude this directory
