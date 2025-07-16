@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import re
 import json
-import xml
+import xml.etree.ElementTree as ET
 import shutil
 
 
@@ -826,7 +826,7 @@ class ProbeMap():
         Parse the XML file with the probe map.
         """
         # Parse the XML file
-        tree = xml.etree.ElementTree.parse(xmlfile)
+        tree = ET.parse(xmlfile)
         root = tree.getroot()
 
         probe = root.find('.//NP_PROBE')
