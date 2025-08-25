@@ -49,7 +49,37 @@ def find_trials_each_combination(parameter1,parameterPossibleValues1,parameter2,
         trialsEachComb[:,:,ind2] = trialsEachType1 & trialsEachType2[:,ind2][:,np.newaxis]
     return trialsEachComb
 
+def find_trials_each_combination_n(parameters, possibleValues):
+    '''
+    Returns a boolean n+1 dimensional array of shape [nTrials,nValues1,nValues2,...nValuesn]. 
+    True for each combination.
+    '''
+    # -- Get number of parameters/trials --
+    nParams = len(parameters)
+    if nParams == 0:
+        raise ValueError("At least one parameter must be provided.")
+    
+    nTrials = len(parameters[0])
 
+    # -- Check that al parameters are equal length --
+    for param in parameters:
+        if len(param) != nTrials:
+            raise ValueError("All parameters must have the same length.")
+    
+    # -- Recursively expand trialsEachComb array --
+    if nParams > 1:
+        rest_comb = find_trials_each_combination_n(parameters[1:], possibleValues[1:])
+        first_trials = find_trials_each_type(parameters[0], possibleValues[0])
+        
+        first_expanded = first_trials.reshape((nTrials, -1) + (1,) * (rest_comb.ndim - 1))
+        rest_expanded = rest_comb.reshape((nTrials, 1) + rest_comb.shape[1:])
+        
+        return first_expanded & rest_expanded
+    
+    # -- Terminate when nParams == 1 --
+    else:
+        return find_trials_each_type(parameters[0], possibleValues[0])
+    
 '''    
 ,validTrials=[]
     if(not len(validTrials)):
