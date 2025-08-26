@@ -49,10 +49,15 @@ def find_trials_each_combination(parameter1,parameterPossibleValues1,parameter2,
         trialsEachComb[:,:,ind2] = trialsEachType1 & trialsEachType2[:,ind2][:,np.newaxis]
     return trialsEachComb
 
-def find_trials_each_combination_n(parameters, possibleValues):
+def find_trials_each_combination_n(parameters, possibleValuesEachParameter):
     '''
     Returns a boolean n+1 dimensional array of shape [nTrials,nValues1,nValues2,...nValuesn]. 
     True for each combination.
+
+    Inputs:
+        parameters (list): list of ndarrays (each of length nTrials) containing the values of 
+                                each parameter for each trial
+        possibleValuesEachParameter (list): list of ndarrays containing the possible values of each parameter
     '''
     # -- Get number of parameters/trials --
     nParams = len(parameters)
@@ -68,8 +73,8 @@ def find_trials_each_combination_n(parameters, possibleValues):
     
     # -- Recursively expand trialsEachComb array --
     if nParams > 1:
-        rest_comb = find_trials_each_combination_n(parameters[1:], possibleValues[1:])
-        first_trials = find_trials_each_type(parameters[0], possibleValues[0])
+        rest_comb = find_trials_each_combination_n(parameters[1:], possibleValuesEachParameter[1:])
+        first_trials = find_trials_each_type(parameters[0], possibleValuesEachParameter[0])
         
         first_expanded = first_trials.reshape((nTrials, -1) + (1,) * (rest_comb.ndim - 1))
         rest_expanded = rest_comb.reshape((nTrials, 1) + rest_comb.shape[1:])
@@ -78,7 +83,7 @@ def find_trials_each_combination_n(parameters, possibleValues):
     
     # -- Terminate when nParams == 1 --
     else:
-        return find_trials_each_type(parameters[0], possibleValues[0])
+        return find_trials_each_type(parameters[0], possibleValuesEachParameter[0])
     
 '''    
 ,validTrials=[]
