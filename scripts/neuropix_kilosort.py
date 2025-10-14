@@ -7,6 +7,7 @@ import sys
 import importlib
 import numpy as np
 from jaratoolbox import settings
+from jaratoolbox import celldatabase
 from jaratoolbox import loadneuropix
 
 
@@ -28,34 +29,17 @@ multisessionProcessedDir = os.path.join(sessionsRootPath, f'multisession_{dateSt
 rawFilename = os.path.join(multisessionRawDir , 'multisession_continuous.dat')
 
 # -- Load inforec file --
-inforecFile = os.path.join(settings.INFOREC_PATH, f'{subject}_inforec.py')
-spec = importlib.util.spec_from_file_location('inforec_module', inforecFile)
-inforec = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(inforec)
-
-# -- Find sessions for this site --
-siteToProcess = None
-for experiment in inforec.experiments:
-    if experiment.date==dateStr:
-        for site in experiment.sites:
-            if site.pdepth==pdepth:
-                probeStr = experiment.probe
-                siteToProcess = site
-if siteToProcess is None:
-    print(f'Recording for {subject} on {dateStr} at {pdepth}um not found.')
-    sys.exit()
-sessions = siteToProcess.session_ephys_dirs()
+inforec = celldatabase.Inforec(subject)
+sessions = inforec.find_site_ephys_dirs(dateStr, pdepth)  # Folder of each ephys session
 
 # -- Get probe map --
 xmlpath = os.path.join(multisessionProcessedDir , sessions[0] , 'info' , 'settings.xml')
 pmap = loadneuropix.ProbeMap(xmlpath)
 
-probe = {
-        'chanMap': pmap.channelID,
-        'xc': pmap.xpos,
-        'yc': pmap.ypos,
-        'kcoords': np.zeros(pmap.nActiveChannels)
-    }
+probe = {'chanMap': pmap.channelID,
+         'xc': pmap.xpos,
+         'yc': pmap.ypos,
+         'kcoords': np.zeros(pmap.nActiveChannels)}
 
 # -- Run kilosort --
 settings = {'n_chan_bin': pmap.nActiveChannels}
@@ -73,5 +57,5 @@ else:
     print(f'Probe name: {pmap.probeName}')
     print(f'Raw data file: {rawFilename}')
     print(f'Results directory: {multisessionProcessedDir}')
-print('Since you are running in debug mode, no files wwere created or modified.')
+print('Since you are running in debug mode, no files were created or modified.')
 
