@@ -593,13 +593,6 @@ def generate_cell_database(inforecFile, singleSession=None, onlyGood=True, minim
     return celldb
 
 
-def read_inforec(inforecFile):
-    spec = importlib.util.spec_from_file_location('inforec_module', inforecFile)
-    inforec = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(inforec)
-    return inforec
-
-
 def generate_cell_database_from_subjects(subjects, onlyGood=True):
     """
     This function generates a database for multiple subjects.
@@ -788,3 +781,54 @@ def load_hdf(filename, columns=[], root='/'):
 class NotClusteredError(Exception):
     pass
 
+
+def read_inforec(inforecFile):
+    spec = importlib.util.spec_from_file_location('inforec_module', inforecFile)
+    inforec = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(inforec)
+    return inforec
+
+
+class Inforec():
+    """
+    Inforec is a container of experiments defined in an inforec file.
+    """
+    def __init__(self, subject, filepath=None):
+        """
+        Args:
+            subject (str): Name of the subject.
+            filepath (str or None): Path to the inforec file. If None, the default path is used.
+        """
+        if filepath is None:
+            filepath = os.path.join(settings.INFOREC_PATH, f'{subject}_inforec.py')
+        self.filepath = filepath
+        self.inforec_module = read_inforec(filepath)
+        assert self.inforec_module.subject == subject, "Subject name does not match inforec file."
+        self.subject = subject
+        self.experiments = self.inforec_module.experiments
+    def find_site(self, date, pdepth):
+        """
+        Find a site in the inforec by date and depth.
+        Returns:
+            site (celldatabase.Site): The matching site object.
+        """
+        for experiment in self.experiments:
+            if experiment.date == date:
+                for site in experiment.sites:
+                    if site.pdepth == pdepth:
+                        return site
+        raise ValueError(f'No site found for {self.subject} on {date} at {pdepth}um.')
+    def find_site_ephys_dirs(self, date, pdepth):
+        """
+        Find a site in the inforec by date and depth and return its ephys directories.
+        Returns:
+            dirs (list): List of ephys directories for the matching site.
+        """
+        site = self.find_site(date, pdepth)
+        return site.session_ephys_dirs()
+    def __str__(self):
+        message = []
+        message.append(f'Inforec for subject {self.subject}:\n')
+        for indExp, experiment in enumerate(self.experiments):
+            message.append(f'[{indExp+1}] ' + experiment.pretty_print(sites=True))
+        return ''.join(message)
