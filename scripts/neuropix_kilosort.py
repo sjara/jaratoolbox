@@ -9,7 +9,7 @@ import numpy as np
 from jaratoolbox import settings
 from jaratoolbox import celldatabase
 from jaratoolbox import loadneuropix
-
+from kilosort import run_kilosort
 
 scriptName = os.path.basename(__file__)
 
@@ -51,11 +51,12 @@ if not debug:
                      probe_name=pmap.probeName,
                      probe=probe,
                      results_dir=multisessionProcessedDir)
+    print(f'Results saved to: {multisessionProcessedDir}')
 else:
     print('This script will run Kilosort with the following parameters:')
     print(f'Number of channels: {pmap.nActiveChannels}')
     print(f'Probe name: {pmap.probeName}')
     print(f'Raw data file: {rawFilename}')
     print(f'Results directory: {multisessionProcessedDir}')
-print('Since you are running in debug mode, no files were created or modified.')
+    print('Since you are running in debug mode, no files were created or modified.')
 
