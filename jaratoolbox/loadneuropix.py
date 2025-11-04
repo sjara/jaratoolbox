@@ -149,7 +149,7 @@ class Events():
         """
         self.convertUnits = convert
         self.openEphysVersion = get_openephys_version(processedDataDir)
-        if self.openEphysVersion[:3] == '0.6':
+        if (self.openEphysVersion[:3] == '0.6') or (self.openEphysVersion[:3] == '1.0'):
             self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.ProbeA/TTL/')
             #self.eventsDir = os.path.join(processedDataDir,'events/NI-DAQmx-104.PXI-6255/TTL/')
             samplesFile = 'sample_numbers.npy'
@@ -193,7 +193,7 @@ class Events():
         Returns:
             eventOnsetTimes (array): An array of the timestamps of the event onsets.
         """
-        if self.openEphysVersion[:3] == '0.6':
+        if (self.openEphysVersion[:3] == '0.6') or (self.openEphysVersion[:3] == '1.0'):
             thisStateThisChannel = (self.states==(channelState*eventChannel))
         elif self.openEphysVersion[:3] == '0.5':
             thisStateThisChannel = (self.states==channelState)&(self.fullWords==eventChannel)
