@@ -99,7 +99,7 @@ def trials_each_cond_inds(trialsEachCond, nTrials):
 
 
 def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trialsEachCond=None,
-                colorEachCond=None, fillWidth=None, labels=None, rasterized=True):
+                colorEachCond=None, fillWidth=None, labels=None, colorDots=False, rasterized=True):
     """
     Plot spikes raster plot grouped by condition
     Returns (pRaster,hcond,zline)
@@ -144,9 +144,10 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
     # plt.hold(True)  # As of matplotlib 2.0, plt.hold is unecessary and was completely removed as axes are held until specified not to be
 
     for indcond in range(nCond):
+        pColor = colorEachCond[indcond] if colorDots else 'k'
         pRasterOne, = plt.plot(spikeTimesEachCond[indcond],
-                               trialIndexEachCond[indcond]+firstTrialEachCond[indcond], '.k',
-                               rasterized=rasterized)
+                               trialIndexEachCond[indcond]+firstTrialEachCond[indcond], '.',
+                               color=pColor, rasterized=rasterized)
         pRaster.append(pRasterOne)
         ypos = np.array([firstTrialEachCond[indcond],firstTrialEachCond[indcond],
                          lastTrialEachCond[indcond],lastTrialEachCond[indcond]])-0.5
@@ -164,6 +165,85 @@ def raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, trial
         ax.set_yticklabels(labels)
 
     return pRaster, hcond, zline
+
+
+def raster_plot_multicond(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange, 
+                          trialsEachComb=None, colorEachCond=None, fillWidth=None, 
+                          labels=None, colorDots=False, rasterized=True):
+    """
+    Plot spikes raster plot grouped by multiple conditions (e.g., stimulus and laser on/off).
+    
+    This function extends raster_plot() to handle multiple conditions by stacking trials
+    from different condition combinations. For example, it can show trials grouped by 
+    sound frequency for laser-on trials stacked above laser-off trials.
+    
+    Args:
+        spikeTimesFromEventOnset: array of spike times relative to event onset
+        indexLimitsEachTrial: [2, nTrials] array with start/end indices for each trial
+        timeRange: [start, end] time range for the raster
+        trialsEachComb: boolean array of shape [nTrials, nStim, nCond] indicating which
+                        trials belong to each stimulus/condition combination.
+                        For example, trialsEachComb[trial, freq, laser] where laser has
+                        dimension 2 (off=0, on=1). Trials will be stacked with condition 
+                        nCond-1 at the top down to condition 0 at the bottom.
+        colorEachCond: list of colors for each condition (length nCond). Each condition
+                       gets a base color, and stimuli within that condition alternate
+                       between alpha=1.0 and alpha=0.5 of that color.
+        fillWidth: width of colored bars at edges (default: 5% of time range)
+        labels: list of labels for each stimulus condition
+        colorDots: if True, color dots by condition; if False, use black
+        rasterized: if True, rasterize the spike dots for smaller file size
+    
+    Returns:
+        (pRaster, hcond, zline): plot handles for rasters, condition bars, and zero line
+    """
+    if trialsEachComb is None:
+        # If no combination provided, use standard raster_plot
+        return raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange,
+                          trialsEachCond=None, colorEachCond=colorEachCond, fillWidth=fillWidth,
+                          labels=labels, colorDots=colorDots, rasterized=rasterized)
+    
+    # Get dimensions: nTrials, nStim (e.g., frequencies), nCond (e.g., laser on/off)
+    nTrials, nStim, nCond = trialsEachComb.shape
+    
+    # Stack trials from each condition
+    trialsEachGroup = []
+    for indCond in range(nCond):
+        for indStim in range(nStim):
+            trialsThisGroup = trialsEachComb[:, indStim, indCond]
+            trialsEachGroup.append(trialsThisGroup)
+    
+    # Convert list to array [nTrials, nStim*nCond]
+    trialsEachGroupStacked = np.column_stack(trialsEachGroup)
+    
+    # Prepare colors: for each condition, use its base color with alternating alpha
+    # Alpha alternates between 1.0 and 0.5 for different stimuli within each condition
+    import matplotlib.colors as mcolors
+    colorEachGroupStacked = []
+    if colorEachCond is None:
+        colorEachCond = ['0.5', '0.75'] * int(np.ceil(nCond/2.0))
+    
+    for indCond in range(nCond):
+        baseColor = colorEachCond[indCond]
+        # Convert color to RGBA
+        rgba = mcolors.to_rgba(baseColor)
+        for indStim in range(nStim):
+            # Alternate alpha: even indices get 1.0, odd indices get 0.5
+            alpha = 1.0 if indStim % 2 == 0 else 0.5
+            colorWithAlpha = (rgba[0], rgba[1], rgba[2], alpha)
+            colorEachGroupStacked.append(colorWithAlpha)
+    
+    # Prepare labels: repeat for each condition (optional enhancement)
+    if labels is not None:
+        labelsStacked = labels * nCond
+    else:
+        labelsStacked = None
+    
+    # Call the standard raster_plot with stacked data
+    return raster_plot(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRange,
+                      trialsEachCond=trialsEachGroupStacked, colorEachCond=colorEachGroupStacked,
+                      fillWidth=fillWidth, labels=labelsStacked, colorDots=colorDots, 
+                      rasterized=rasterized)
 
 
 def plot_psth(spikeCountMat, smoothWinSize, binsStartTime, trialsEachCond=[],
