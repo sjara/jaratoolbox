@@ -8,6 +8,9 @@ from jaratoolbox import loadbehavior
 from jaratoolbox import settings
 import tifffile
 
+# Default resolution in mm/pixel
+DEFAULT_RESOLUTION = 0.0156
+
 def load_timestamps(timestamps_filename):
     timestamps = np.load(timestamps_filename)
     sound_onset = timestamps['ts_sound_rising']
@@ -77,7 +80,7 @@ def load_stimulus(subject, date, session, paradigm='2afc'):
     return bdata
 
 
-class Widefield:
+class WidefieldData:
     """
     Class to load and manage widefield imaging data for a single session.
     
@@ -94,16 +97,17 @@ class Widefield:
         bdata (BehaviorData): Behavioral data object.
     
     Example:
-        >>> wfs = WidefieldSession('wifi008', '20241219', '161007', suffix='LG')
-        >>> wfs.load_frames(memmap=True)
-        >>> wfs.load_timestamps()
-        >>> wfs.load_behavior()
-        >>> print(wfs.frames.shape)
+        >>> wfdata = WidefieldData('wifi008', '20241219', '161007', suffix='LG')
+        >>> wfdata.load_frames(memmap=True)
+        >>> wfdata.load_timestamps()
+        >>> wfdata.load_behavior()
+        >>> print(wfdata.frames.shape)
     """
     
-    def __init__(self, subject, date, session, suffix='', paradigm='am_tuning_curve'):
+    def __init__(self, subject, date, session, suffix='', paradigm='am_tuning_curve',
+                 camera_rotation=1, hemisphere='right', resolution=None):
         """
-        Initialize a WidefieldSession object.
+        Initialize a WidefieldData object.
         
         Args:
             subject (str): Subject identifier.
@@ -111,12 +115,27 @@ class Widefield:
             session (str): Session identifier. Usually a time string (e.g., '161007').
             suffix (str): Suffix for the TIFF filename (e.g., 'LG' for left-green).
             paradigm (str): Behavioral paradigm name (default: 'am_tuning_curve').
+            camera_rotation (int): Physical rotation of the camera in units of 
+                90-degree CCW rotations. Default is 1 (camera rotated 90° CCW).
+                Use 0 if camera is not rotated.
+            hemisphere (str): Which side of the brain is being imaged. 
+                'right' (default) or 'left'. This affects the anterior-posterior
+                orientation in the final image.
+            resolution (float): Image resolution in mm/pixel. If None, uses
+                DEFAULT_RESOLUTION (0.0156 mm/pixel).
         """
         self.subject = subject
         self.date = date
         self.session = session
         self.suffix = suffix
         self.paradigm = paradigm
+        self.camera_rotation = camera_rotation
+        self.hemisphere = hemisphere
+        self.resolution = resolution if resolution is not None else DEFAULT_RESOLUTION
+        
+        # Calculate the rotation needed to correct for camera orientation
+        # We rotate by the same amount as the camera to undo its effect
+        self.rotate = camera_rotation
         
         # Data attributes (loaded on demand)
         self.frames = None
@@ -124,6 +143,30 @@ class Widefield:
         self.sound_offset = None
         self.ts_frames = None
         self.bdata = None
+        
+        # Image orientation after rotation (anatomical directions)
+        # Base orientation for camera_rotation=1, hemisphere='right':
+        #   top=dorsal, bottom=ventral, left=posterior, right=anterior
+        # For left hemisphere, anterior-posterior are swapped
+        orientation_map = {
+            0: ('posterior', 'anterior', 'ventral', 'dorsal'),  # No camera rotation
+            1: ('dorsal', 'ventral', 'posterior', 'anterior'),  # Camera 90° CCW
+            2: ('anterior', 'posterior', 'dorsal', 'ventral'),  # Camera 180°
+            3: ('ventral', 'dorsal', 'anterior', 'posterior'),  # Camera 270° CCW
+        }
+        top, bottom, left, right = orientation_map.get(camera_rotation % 4, orientation_map[1])
+        
+        # Swap anterior-posterior for left hemisphere
+        if hemisphere == 'left':
+            left, right = right, left
+        
+        self.orientation = {
+            'top': top,
+            'bottom': bottom,
+            'left': left,
+            'right': right,
+            'hemisphere': hemisphere
+        }
         
         # File paths
         self.data_path = os.path.join(settings.WIDEFIELD_PATH, subject, date)
@@ -149,6 +192,9 @@ class Widefield:
             self.subject, self.date, self.session, 
             suffix=self.suffix, memmap=memmap
         )
+        # Apply rotation to correct for camera orientation
+        if self.rotate != 0:
+            self.frames = np.rot90(self.frames, k=self.rotate, axes=(1, 2))
         return self.frames
     
     def load_timestamps(self):
@@ -215,7 +261,7 @@ if __name__ == '__main__':
     suffix = 'LG'
 
     # Using the class
-    wfobj = Widefield(subject, date, session, suffix=suffix)
+    wfobj = WidefieldData(subject, date, session, suffix=suffix)
     wfobj.load_timestamps()
     wfobj.load_frames(memmap=True)
     wfobj.load_behavior()

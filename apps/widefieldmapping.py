@@ -16,9 +16,13 @@ from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 from jaratoolbox import widefieldanalysis
+from jaratoolbox.widefieldanalysis import CHANNEL_COLORS, CHANNEL_NAMES
 
+SCALE_BAR_LENGTH = 1.0  # in mm
+SCALE_BAR_POS = 'lower left'
 
 class WidefieldMergedViewer(QMainWindow):
     """
@@ -42,24 +46,17 @@ class WidefieldMergedViewer(QMainWindow):
         self.wfavg = wfavg
         self.roi = roi
         
-        # Channel names and colors
-        self.channel_names = ['Red', 'Green', 'Blue']
-        self.channel_colors = [
-            [1, 0, 0],       # Red
-            [0, 1, 0],       # Green
-            [0.25, 0.5, 1],  # Light blue
-        ]
-        
-        # Normalize signal change
+        # Normalize signal change and compute clim
         self.normed_signal_change = wfavg.normalize_signal_change(roi=roi)
-        
-        # Calculate clim based on standard deviation
-        global_std = np.std(self.normed_signal_change[:3])
-        self.clim = (-2 * global_std, 8 * global_std)
+        self.clim = wfavg.compute_clim(self.normed_signal_change)
         
         # Initialize thresholds and enabled states
         self.thresholds = [0.5, 0.5, 0.5]
         self.enabled = [True, True, True]
+        
+        # Track scale bar artists for easy removal
+        self.scale_bar_artists = None
+        self.show_scale_bar = True  # Whether to show the scale bar
         
         # Flag to prevent recursive updates
         self._updating_plots = False
@@ -100,7 +97,7 @@ class WidefieldMergedViewer(QMainWindow):
         self.checkboxes = []
         
         for ind in range(3):
-            group = QGroupBox(f'{self.channel_names[ind]} Channel ({self.wfavg.possible_freq[ind]:.0f} Hz)')
+            group = QGroupBox(f'{CHANNEL_NAMES[ind]} Channel ({self.wfavg.possible_freq[ind]:.0f} Hz)')
             group_layout = QGridLayout(group)
             
             # Enable checkbox
@@ -155,6 +152,17 @@ class WidefieldMergedViewer(QMainWindow):
         
         controls_layout.addWidget(roi_group)
         
+        # Display options
+        display_group = QGroupBox('Display Options')
+        display_layout = QGridLayout(display_group)
+        
+        self.scale_bar_checkbox = QCheckBox('Show scale bar')
+        self.scale_bar_checkbox.setChecked(True)
+        self.scale_bar_checkbox.stateChanged.connect(self.on_scale_bar_toggled)
+        display_layout.addWidget(self.scale_bar_checkbox, 0, 0)
+        
+        controls_layout.addWidget(display_group)
+        
         # Add stretch to push controls to top
         controls_layout.addStretch()
         
@@ -183,6 +191,15 @@ class WidefieldMergedViewer(QMainWindow):
         self.enabled[channel_idx] = (state == Qt.CheckState.Checked.value)
         self.update_plots()
     
+    def on_scale_bar_toggled(self, state):
+        """Handle scale bar checkbox toggle."""
+        self.show_scale_bar = (state == Qt.CheckState.Checked.value)
+        if self.show_scale_bar:
+            self.add_scale_bar()
+        else:
+            self.remove_scale_bar()
+        self.canvas.draw_idle()
+    
     def on_roi_changed(self):
         """Handle ROI change from edit boxes."""
         try:
@@ -202,13 +219,9 @@ class WidefieldMergedViewer(QMainWindow):
             self.normed_signal_change = self.wfavg.normalize_signal_change(roi=self.roi)
             
             # Recalculate clim
-            global_std = np.std(self.normed_signal_change[:3])
-            self.clim = (-2 * global_std, 8 * global_std)
+            self.clim = self.wfavg.compute_clim(self.normed_signal_change)
             
-            # Set flag to prevent callback from overwriting ROI
-            self._updating_plots = True
             self.update_plots(reset_zoom=True)
-            self._updating_plots = False
         except ValueError:
             print("Invalid ROI values: please enter integers")
     
@@ -232,12 +245,54 @@ class WidefieldMergedViewer(QMainWindow):
         self.roi = [[int(round(x_min)), int(round(x_max))], 
                     [int(round(y_min)), int(round(y_max))]]
         
+        # Redraw scale bar on merged image to reflect new zoom
+        self.redraw_scale_bar()
+    
+    def add_scale_bar(self):
+        """Add a scale bar to the merged image axis."""
+        if not hasattr(self, 'figure') or not self.figure.axes:
+            return
+        
+        # Find the merged axis (last one created)
+        ax_merged = self.figure.axes[-1]
+        
+        # Add scale bar and store artists for later removal
+        self.scale_bar_artists = self.wfavg.add_scale_bar(
+            ax_merged, bar_length_mm=SCALE_BAR_LENGTH, location=SCALE_BAR_POS
+        )
+    
+    def remove_scale_bar(self):
+        """Remove the scale bar if it exists."""
+        if self.scale_bar_artists is not None:
+            line, text = self.scale_bar_artists
+            line.remove()
+            text.remove()
+            self.scale_bar_artists = None
+    
+    def redraw_scale_bar(self):
+        """Redraw the scale bar on the merged image axis after zoom/pan."""
+        # Skip if we're programmatically updating the plots
+        if self._updating_plots:
+            print('  -> skipping (updating plots)')
+            return
+        
+        if not hasattr(self, 'figure') or not self.figure.axes:
+            return
+        
+        self.remove_scale_bar()
+        if self.show_scale_bar:
+            self.add_scale_bar()
+        self.canvas.draw_idle()
+        
     def update_plots(self, reset_zoom=False):
         """Update all plots based on current slider and checkbox states.
         
         Args:
             reset_zoom (bool): If True, reset zoom to ROI. Otherwise preserve current zoom.
         """
+        # Set flag to prevent callbacks from triggering during update
+        self._updating_plots = True
+        
         # Store current axis limits if axes exist and we're not resetting
         stored_limits = None
         if not reset_zoom and hasattr(self, 'figure') and self.figure.axes:
@@ -245,37 +300,18 @@ class WidefieldMergedViewer(QMainWindow):
                 ax = self.figure.axes[0]
                 stored_limits = (ax.get_xlim(), ax.get_ylim())
             except:
-                pass
+                raise  #pass
         
         self.figure.clear()
         
-        # Get first three channels
-        first_three = self.normed_signal_change[:3].copy()
-        
-        # Apply thresholds to each channel for the merged image
-        thresholded = first_three.copy()
-        for i in range(3):
-            if not self.enabled[i]:
-                thresholded[i] = -np.inf  # Disable channel by setting to -inf
-            else:
-                # Set values below threshold to -inf so they don't win max comparison
-                thresholded[i] = np.where(first_three[i] >= self.thresholds[i], 
-                                          first_three[i], -np.inf)
-        
-        # Find which channel has max value at each pixel
-        max_channel = np.argmax(thresholded, axis=0)
-        max_values = np.max(thresholded, axis=0)
-        
-        # Create RGB image
-        merged_image = np.zeros((*self.normed_signal_change.shape[1:], 3))
-        for channel in range(3):
-            if self.enabled[channel]:
-                mask = (max_channel == channel) & (max_values > -np.inf)
-                for c in range(3):
-                    merged_image[mask, c] = max_values[mask] * self.channel_colors[channel][c]
-        
-        # Clip merged image values
-        merged_image = np.clip(merged_image, 0, 1)
+        # Compute merged image using the WidefieldAverage method
+        merged_image = self.wfavg.compute_merged_image(
+            self.normed_signal_change,
+            thresholds=self.thresholds,
+            enabled=self.enabled,
+            bg_image=self.wfavg.avg_baseline_each_freq[0],
+            alpha=0.5
+        )
         
         # Create subplots
         ax_first = self.figure.add_subplot(3, 2, 1)
@@ -297,7 +333,7 @@ class WidefieldMergedViewer(QMainWindow):
             
             # Add indicator if channel is disabled
             status = '' if self.enabled[indf] else ' [DISABLED]'
-            ax.set_ylabel(f'{self.wfavg.possible_freq[indf]:.0f} Hz\n({self.channel_names[indf]}){status}')
+            ax.set_ylabel(f'{self.wfavg.possible_freq[indf]:.0f} Hz\n({CHANNEL_NAMES[indf]}){status}')
             ax.set_aspect('equal')
             
             if indf == 0:
@@ -320,8 +356,15 @@ class WidefieldMergedViewer(QMainWindow):
             ax_first.set_xlim(x_min, x_max)
             ax_first.set_ylim(y_max, y_min)
         
+        # Add scale bar to merged image (after zoom is applied so it positions correctly)
+        if self.show_scale_bar:
+            self.add_scale_bar()
+
         self.figure.tight_layout()
         self.canvas.draw()
+        
+        # Reset flag after update is complete
+        self._updating_plots = False
 
 
 def main():
@@ -340,7 +383,7 @@ def main():
         parser.error('session_info must be in format: subject_date_session')
     subject, date, session = parts
     
-    roi = [[200, 400], [150, 350]]
+    roi = [[170, 370], [250, 450]]  #[[200, 400], [150, 350]]
     
     # Load precomputed averages
     wfavg = widefieldanalysis.WidefieldAverage(subject, date, session)
