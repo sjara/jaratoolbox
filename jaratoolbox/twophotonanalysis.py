@@ -291,7 +291,7 @@ if __name__ == "__main__":
     print(f"Loaded {data2p.roiF.shape[0]} ROIs from {data2p.data_path}")
     print(f"Sampling rate: {data2p.srate} Hz")
 
-    if 0:
+    if 1:
         time_range = [-1, 3.0]  # Time window around event in seconds
         # Filter cells with low probability
         data2p.filter_cells(prob_threshold=0.5)
@@ -321,7 +321,7 @@ if __name__ == "__main__":
         plt.ylabel(f'Avg signal\nacross cells ({signal_type})')
         plt.show()
 
-    if 1:
+    if 0:
         # -- Create frequency tuning curves for each cell --
         time_range = [0, 1.0]  # Time window for calculating response
         data2p.filter_cells(prob_threshold=0.5)
