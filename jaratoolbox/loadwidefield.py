@@ -74,7 +74,7 @@ def load_widefield(subject, date, session, suffix='', memmap=False):
     
     return frames
 
-def load_stimulus(subject, date, session, paradigm='2afc'):
+def load_stimulus(subject, date, session, paradigm='tuning_curve'):
     stimulus_filename = loadbehavior.path_to_behavior_data(subject, paradigm, f'{date}_{session}')
     bdata = loadbehavior.BehaviorData(stimulus_filename)
     return bdata
