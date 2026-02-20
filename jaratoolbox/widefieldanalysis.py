@@ -94,7 +94,7 @@ class Widefield(loadwidefield.WidefieldData):
             # Use behavioral data to group trials
             if self.bdata is None:
                 raise ValueError("Behavior data not loaded. Call load_behavior() first.")
-            n_trials = min(len(self.bdata[stim_param]), len(self.sound_onset))
+            n_trials = min(len(self.bdata[stim_param]), len(self.sound_offset))
             current_stim = self.bdata[stim_param][:n_trials]
             self.possible_freq = np.unique(current_stim)
         
