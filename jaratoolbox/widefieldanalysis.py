@@ -529,20 +529,20 @@ class WidefieldAverage:
         Compute the merged RGB image from normalized signal change data.
         
         Creates an RGB image where each pixel is colored according to which 
-        frequency channel has the maximum response. Red = freq[0], Green = freq[1], 
-        Blue = freq[2].
+        frequency channel has the maximum response. Uses the first N channels up to 3
+        (Red, Green, Blue). For fewer than 3 channels, missing channels are set to zero.
         
         Args:
             normed_signal_change (numpy.ndarray): Normalized signal change array.
-                Shape: (n_freq, height, width). Only the first 3 channels are used.
+                Shape: (n_freq, height, width). Uses up to the first 3 channels.
             thresholds (list or None): Per-channel thresholds. Pixels below threshold
                 won't contribute to the max comparison. If a single float, applies to
                 all channels. If None, no thresholding is applied.
-            enabled (list or None): List of 3 booleans indicating which channels are
+            enabled (list or None): List of booleans indicating which channels are
                 enabled. Disabled channels won't contribute. If None, all enabled.
-            weights (tuple or list): Weights to apply to each channel (R, G, B) before
-                finding the max. For example, weights=(1, 0.5, 1) would reduce the 
-                contribution of the green channel. If None, equal weights are used.
+                Length should match number of channels.
+            weights (tuple or list): Weights to apply to each channel before
+                finding the max. If None, equal weights are used.
             bg_image (numpy.ndarray or None): If provided, pixels below threshold
                 will show this grayscale image (normalized to 0-1) instead of black.
                 Shape should be (height, width).
@@ -553,18 +553,20 @@ class WidefieldAverage:
         Returns:
             numpy.ndarray: Merged RGB image with shape (height, width, 3), values clipped to [0, 1].
         """
-        if len(normed_signal_change) < 3:
-            raise ValueError("Need at least 3 frequencies to create RGB merged image.")
+        n_freq = len(normed_signal_change)
+        n_channels = min(n_freq, 3)  # Use up to 3 channels for RGB
         
         # Default values
         if thresholds is None:
-            thresholds = [None, None, None]
+            thresholds = [None] * n_freq
         elif isinstance(thresholds, (int, float)):
-            thresholds = [thresholds, thresholds, thresholds]
+            thresholds = [thresholds] * n_freq
         if enabled is None:
-            enabled = [True, True, True]
+            enabled = [True] * n_freq
         
-        first_three = normed_signal_change[:3].copy()
+        # Pad to ensure we have 3 channels (fill missing with zeros)
+        first_three = np.zeros((3, *normed_signal_change.shape[1:]))
+        first_three[:n_channels] = normed_signal_change[:n_channels].copy()
         
         # Apply weights if provided
         if weights is not None:
@@ -574,11 +576,16 @@ class WidefieldAverage:
         # Apply thresholds and enabled state
         thresholded = first_three.copy()
         for i in range(3):
-            if not enabled[i]:
+            # Only process channels that exist in the input
+            if i < n_freq:
+                if not enabled[i]:
+                    thresholded[i] = -np.inf
+                elif thresholds[i] is not None:
+                    thresholded[i] = np.where(first_three[i] >= thresholds[i],
+                                              first_three[i], -np.inf)
+            else:
+                # Non-existent channels set to -inf
                 thresholded[i] = -np.inf
-            elif thresholds[i] is not None:
-                thresholded[i] = np.where(first_three[i] >= thresholds[i],
-                                          first_three[i], -np.inf)
         
         # Find which channel has max value at each pixel
         max_channel = np.argmax(thresholded, axis=0)
@@ -587,7 +594,8 @@ class WidefieldAverage:
         # Create RGB image where each pixel gets the color of its max channel
         merged_image = np.zeros((*normed_signal_change.shape[1:], 3))
         for channel in range(3):
-            if enabled[channel]:
+            # Only process channels that exist and are enabled
+            if channel < n_freq and enabled[channel]:
                 mask = (max_channel == channel) & (max_values > -np.inf)
                 for c in range(3):
                     merged_image[mask, c] = max_values[mask] * CHANNEL_COLORS[channel][c]

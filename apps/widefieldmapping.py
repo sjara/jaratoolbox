@@ -12,7 +12,7 @@ import numpy as np
 from scipy import ndimage
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QSlider, QLabel, QCheckBox, QGroupBox, QGridLayout, QLineEdit, QPushButton
+    QSlider, QLabel, QCheckBox, QGroupBox, QGridLayout, QLineEdit, QPushButton, QDoubleSpinBox
 )
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -51,13 +51,16 @@ class WidefieldMergedViewer(QMainWindow):
         self.wfavg = wfavg
         self.roi = roi
         
+        # Get number of channels
+        self.n_channels = len(wfavg.possible_freq)
+        
         # Normalize signal change and compute clim
         self.normed_signal_change = wfavg.normalize_signal_change(roi=roi)
         self.clim = wfavg.compute_clim(self.normed_signal_change)
         
-        # Initialize thresholds and enabled states
-        self.thresholds = [0.5, 0.5, 0.5]
-        self.enabled = [True, True, True]
+        # Initialize thresholds and enabled states based on number of channels
+        self.thresholds = [0.5] * self.n_channels
+        self.enabled = [True] * self.n_channels
         
         # Track scale bar artists for easy removal
         self.scale_bar_artists = None
@@ -111,8 +114,10 @@ class WidefieldMergedViewer(QMainWindow):
         self.slider_labels = []
         self.checkboxes = []
         
-        for ind in range(3):
-            group = QGroupBox(f'{CHANNEL_NAMES[ind]} Channel ({self.wfavg.possible_freq[ind]:.0f} Hz)')
+        for ind in range(self.n_channels):
+            # Get channel name, use index if not enough names defined
+            channel_name = CHANNEL_NAMES[ind] if ind < len(CHANNEL_NAMES) else f'Ch{ind}'
+            group = QGroupBox(f'{channel_name} Channel ({self.wfavg.possible_freq[ind]:.0f} Hz)')
             group_layout = QGridLayout(group)
             
             # Enable checkbox
@@ -182,18 +187,21 @@ class WidefieldMergedViewer(QMainWindow):
         display_layout.addWidget(self.orientation_labels_checkbox, 1, 0)
         
         # Flip horizontal checkbox
-        self.flip_horizontal_checkbox = QCheckBox('Flip left/right')
+        self.flip_horizontal_checkbox = QCheckBox('Flip horizontally')
         self.flip_horizontal_checkbox.setChecked(False)
         self.flip_horizontal_checkbox.stateChanged.connect(self.on_flip_horizontal_toggled)
         display_layout.addWidget(self.flip_horizontal_checkbox, 2, 0)
         
         # Rotation angle control
         display_layout.addWidget(QLabel('Rotation (deg):'), 3, 0)
-        self.rotation_angle_input = QLineEdit()
-        self.rotation_angle_input.setText('0.0')
-        self.rotation_angle_input.setMaximumWidth(80)
-        self.rotation_angle_input.textChanged.connect(self.on_rotation_text_changed)
-        display_layout.addWidget(self.rotation_angle_input, 3, 1)
+        self.rotation_angle_spinbox = QDoubleSpinBox()
+        self.rotation_angle_spinbox.setRange(-360.0, 360.0)
+        self.rotation_angle_spinbox.setSingleStep(15.0)
+        self.rotation_angle_spinbox.setValue(0.0)
+        self.rotation_angle_spinbox.setDecimals(1)
+        self.rotation_angle_spinbox.setMaximumWidth(80)
+        self.rotation_angle_spinbox.valueChanged.connect(self.on_rotation_value_changed)
+        display_layout.addWidget(self.rotation_angle_spinbox, 3, 1)
         
         controls_layout.addWidget(display_group)
         
@@ -248,15 +256,10 @@ class WidefieldMergedViewer(QMainWindow):
         self.flip_horizontal = (state == Qt.CheckState.Checked.value)
         self.update_plots()
     
-    def on_rotation_text_changed(self, text):
-        """Handle rotation angle text change."""
-        try:
-            angle = float(text)
-            self.rotation_angle = angle
-            self.update_plots()
-        except ValueError:
-            # Invalid input, ignore
-            pass
+    def on_rotation_value_changed(self, value):
+        """Handle rotation angle spinbox value change."""
+        self.rotation_angle = value
+        self.update_plots()
     
     def on_roi_changed(self):
         """Handle ROI change from edit boxes."""
@@ -441,7 +444,7 @@ class WidefieldMergedViewer(QMainWindow):
         
         # Create subplots with GridSpec for better control over spacing
         # Use width_ratios to give more space to the merged image (right column)
-        gs = GridSpec(3, 2, figure=self.figure, width_ratios=[1, 2], 
+        gs = GridSpec(self.n_channels, 2, figure=self.figure, width_ratios=[1, 2], 
                      hspace=0.25, wspace=0.25, top=0.95, bottom=0.05, left=0.05, right=0.95)
         
         # Create first axis
@@ -452,7 +455,7 @@ class WidefieldMergedViewer(QMainWindow):
         ax_first.callbacks.connect('ylim_changed', self.on_axis_limits_changed)
         
         # Left column: individual normalized signal change images
-        for indf in range(3):
+        for indf in range(self.n_channels):
             if indf == 0:
                 ax = ax_first
             else:
@@ -464,7 +467,9 @@ class WidefieldMergedViewer(QMainWindow):
             
             # Add indicator if channel is disabled
             status = '' if self.enabled[indf] else ' [DISABLED]'
-            ax.set_ylabel(f'{self.wfavg.possible_freq[indf]:.0f} Hz\n({CHANNEL_NAMES[indf]}){status}')
+            # Get channel name for label
+            channel_name = CHANNEL_NAMES[indf] if indf < len(CHANNEL_NAMES) else f'Ch{indf}'
+            ax.set_ylabel(f'{self.wfavg.possible_freq[indf]:.0f} Hz\n({channel_name}){status}')
             ax.set_aspect('equal')
             
             if indf == 0:
