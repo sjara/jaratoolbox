@@ -167,7 +167,9 @@ class Widefield(loadwidefield.WidefieldData):
         np.savez(output_file, avg_evoked_each_freq=self.avg_evoked_each_freq,
                  avg_baseline_each_freq=self.avg_baseline_each_freq,
                  signal_change_each_freq=self.signal_change_each_freq, 
-                 possible_freq=self.possible_freq)
+                 possible_freq=self.possible_freq,
+                 camera_rotation=self.camera_rotation,
+                 hemisphere=self.hemisphere)
         print(f"Saved {output_file}")
 
     def add_scale_bar(self, ax, bar_length_mm=1.0, location='lower right', 
@@ -292,6 +294,9 @@ class WidefieldAverage:
         avg_baseline_each_freq (numpy.ndarray): Average baseline images for each stimulus.
         signal_change_each_freq (numpy.ndarray): dF/F images for each stimulus.
         possible_freq (numpy.ndarray): Unique stimulus values.
+        camera_rotation (int): Camera rotation in units of 90-degree CCW rotations.
+        hemisphere (str): Which hemisphere is being imaged ('right' or 'left').
+        orientation (dict): Anatomical directions for image sides (top, bottom, left, right).
     """
     
     def __init__(self, subject, date, session, resolution=None):
@@ -319,6 +324,15 @@ class WidefieldAverage:
         self.avg_baseline_each_freq = data['avg_baseline_each_freq']
         self.signal_change_each_freq = data['signal_change_each_freq']
         self.possible_freq = data['possible_freq']
+        self.camera_rotation = int(data['camera_rotation'])
+        self.hemisphere = str(data['hemisphere'])
+
+        # Load orientation information (with defaults for backward compatibility)
+        # self.hemisphere = str(data['hemisphere']) if 'hemisphere' in data else 'right'
+        # self.camera_rotation = int(data['camera_rotation']) if 'camera_rotation' in data else 1
+        
+        # Compute image orientation (anatomical directions)
+        self.orientation = loadwidefield.compute_orientation(self.camera_rotation, self.hemisphere)
         
         print(f"Loaded {input_file}")
 
@@ -729,7 +743,7 @@ if __name__ == '__main__':
     session = '161007'
     suffix = 'LG'
 
-    if 0:
+    if 1:
         # Using the extended class
         wfobj = Widefield(subject, date, session, suffix=suffix)
         wfobj.load_timestamps()

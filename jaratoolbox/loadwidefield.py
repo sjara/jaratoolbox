@@ -11,6 +11,41 @@ import tifffile
 # Default resolution in mm/pixel
 DEFAULT_RESOLUTION = 0.0156
 
+# Orientation mapping for different camera rotations
+# Maps camera rotation (in 90-degree CCW units) to (top, bottom, left, right) anatomical directions
+ORIENTATION_MAP = {
+    0: ('posterior', 'anterior', 'ventral', 'dorsal'),  # No camera rotation
+    1: ('dorsal', 'ventral', 'posterior', 'anterior'),  # Camera 90° CCW
+    2: ('anterior', 'posterior', 'dorsal', 'ventral'),  # Camera 180°
+    3: ('ventral', 'dorsal', 'anterior', 'posterior'),  # Camera 270° CCW
+}
+
+def compute_orientation(camera_rotation, hemisphere):
+    """
+    Compute image orientation (anatomical directions) based on camera rotation and hemisphere.
+    
+    Args:
+        camera_rotation (int): Physical rotation of the camera in units of 90-degree CCW rotations.
+        hemisphere (str): Which side of the brain is being imaged ('right' or 'left').
+    
+    Returns:
+        dict: Dictionary with keys 'top', 'bottom', 'left', 'right', 'hemisphere' and their
+              corresponding anatomical direction values.
+    """
+    top, bottom, left, right = ORIENTATION_MAP.get(camera_rotation % 4, ORIENTATION_MAP[1])
+    
+    # Swap anterior-posterior for left hemisphere
+    if hemisphere == 'left':
+        left, right = right, left
+    
+    return {
+        'top': top,
+        'bottom': bottom,
+        'left': left,
+        'right': right,
+        'hemisphere': hemisphere
+    }
+
 def load_timestamps(timestamps_filename):
     timestamps = np.load(timestamps_filename)
     sound_onset = timestamps['ts_sound_rising']
@@ -144,29 +179,8 @@ class WidefieldData:
         self.ts_frames = None
         self.bdata = None
         
-        # Image orientation after rotation (anatomical directions)
-        # Base orientation for camera_rotation=1, hemisphere='right':
-        #   top=dorsal, bottom=ventral, left=posterior, right=anterior
-        # For left hemisphere, anterior-posterior are swapped
-        orientation_map = {
-            0: ('posterior', 'anterior', 'ventral', 'dorsal'),  # No camera rotation
-            1: ('dorsal', 'ventral', 'posterior', 'anterior'),  # Camera 90° CCW
-            2: ('anterior', 'posterior', 'dorsal', 'ventral'),  # Camera 180°
-            3: ('ventral', 'dorsal', 'anterior', 'posterior'),  # Camera 270° CCW
-        }
-        top, bottom, left, right = orientation_map.get(camera_rotation % 4, orientation_map[1])
-        
-        # Swap anterior-posterior for left hemisphere
-        if hemisphere == 'left':
-            left, right = right, left
-        
-        self.orientation = {
-            'top': top,
-            'bottom': bottom,
-            'left': left,
-            'right': right,
-            'hemisphere': hemisphere
-        }
+        # Compute image orientation (anatomical directions)
+        self.orientation = compute_orientation(camera_rotation, hemisphere)
         
         # File paths
         self.data_path = os.path.join(settings.WIDEFIELD_PATH, subject, date)

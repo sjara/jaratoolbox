@@ -6,8 +6,10 @@ and a merged RGB image showing the dominant response at each pixel.
 """
 
 import sys
+import signal
 import argparse
 import numpy as np
+from scipy import ndimage
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QSlider, QLabel, QCheckBox, QGroupBox, QGridLayout, QLineEdit, QPushButton
@@ -17,12 +19,15 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 
 from jaratoolbox import widefieldanalysis
 from jaratoolbox.widefieldanalysis import CHANNEL_COLORS, CHANNEL_NAMES
 
 SCALE_BAR_LENGTH = 1.0  # in mm
 SCALE_BAR_POS = 'lower left'
+
+ORIENTATION_LABELS_COLOR = 'yellow'  # Color for anatomical direction labels
 
 class WidefieldMergedViewer(QMainWindow):
     """
@@ -57,6 +62,13 @@ class WidefieldMergedViewer(QMainWindow):
         # Track scale bar artists for easy removal
         self.scale_bar_artists = None
         self.show_scale_bar = True  # Whether to show the scale bar
+        
+        # Track orientation labels
+        self.orientation_label_artists = []  # List to store text artists
+        self.show_orientation_labels = True  # Whether to show orientation labels
+        
+        # Display rotation angle (in degrees, CCW)
+        self.rotation_angle = 0.0
         
         # Flag to prevent recursive updates
         self._updating_plots = False
@@ -161,6 +173,29 @@ class WidefieldMergedViewer(QMainWindow):
         self.scale_bar_checkbox.stateChanged.connect(self.on_scale_bar_toggled)
         display_layout.addWidget(self.scale_bar_checkbox, 0, 0)
         
+        self.orientation_labels_checkbox = QCheckBox('Show orientation labels')
+        self.orientation_labels_checkbox.setChecked(True)
+        self.orientation_labels_checkbox.stateChanged.connect(self.on_orientation_labels_toggled)
+        display_layout.addWidget(self.orientation_labels_checkbox, 1, 0)
+        
+        # Rotation angle control
+        display_layout.addWidget(QLabel('Rotation (deg):'), 2, 0)
+        rotation_widget = QWidget()
+        rotation_layout = QHBoxLayout(rotation_widget)
+        rotation_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.rotation_angle_input = QLineEdit()
+        self.rotation_angle_input.setText('0.0')
+        self.rotation_angle_input.setMaximumWidth(60)
+        rotation_layout.addWidget(self.rotation_angle_input)
+        
+        rotation_apply_btn = QPushButton('Apply')
+        rotation_apply_btn.clicked.connect(self.on_rotation_changed)
+        rotation_layout.addWidget(rotation_apply_btn)
+        rotation_layout.addStretch()
+        
+        display_layout.addWidget(rotation_widget, 2, 1)
+        
         controls_layout.addWidget(display_group)
         
         # Add stretch to push controls to top
@@ -199,6 +234,24 @@ class WidefieldMergedViewer(QMainWindow):
         else:
             self.remove_scale_bar()
         self.canvas.draw_idle()
+    
+    def on_orientation_labels_toggled(self, state):
+        """Handle orientation labels checkbox toggle."""
+        self.show_orientation_labels = (state == Qt.CheckState.Checked.value)
+        if self.show_orientation_labels:
+            self.add_orientation_labels()
+        else:
+            self.remove_orientation_labels()
+        self.canvas.draw_idle()
+    
+    def on_rotation_changed(self):
+        """Handle rotation angle change."""
+        try:
+            angle = float(self.rotation_angle_input.text())
+            self.rotation_angle = angle
+            self.update_plots()
+        except ValueError:
+            print(f"Invalid rotation angle: {self.rotation_angle_input.text()}")
     
     def on_roi_changed(self):
         """Handle ROI change from edit boxes."""
@@ -269,6 +322,57 @@ class WidefieldMergedViewer(QMainWindow):
             text.remove()
             self.scale_bar_artists = None
     
+    def add_orientation_labels(self):
+        """Add anatomical direction labels to the merged image axis."""
+        if not hasattr(self, 'figure') or not self.figure.axes:
+            return
+        
+        # Find the merged axis (last one created)
+        ax_merged = self.figure.axes[-1]
+        orientation = self.wfavg.orientation
+        label_offset = 0.04  # Offset from edge in axes coordinates
+        
+        # Define base label positions (before rotation)
+        # Note: imshow displays row 0 at top of axes, so orientation['top'] goes at y=1-label_offset
+        base_positions = [
+            (0.5, 1-label_offset, 'top'),      # Top
+            (0.5, label_offset, 'bottom'),     # Bottom
+            (label_offset, 0.5, 'left'),       # Left
+            (1-label_offset, 0.5, 'right'),    # Right
+        ]
+        
+        # Compute rotated label positions
+        angle_rad = np.radians(self.rotation_angle)
+        cos_a, sin_a = np.cos(angle_rad), np.sin(angle_rad)
+        
+        self.orientation_label_artists = []
+        for x, y, direction_key in base_positions:
+            # Convert to centered coordinates (-0.5 to 0.5)
+            x_centered = x - 0.5
+            y_centered = y - 0.5
+            
+            # Apply rotation matrix
+            x_rot = x_centered * cos_a - y_centered * sin_a
+            y_rot = x_centered * sin_a + y_centered * cos_a
+            
+            # Convert back to axes coordinates (0 to 1)
+            x_new = x_rot + 0.5
+            y_new = y_rot + 0.5
+            
+            # Create label with rotated position and rotation angle
+            # Counter-rotate text to keep letters upright
+            text = ax_merged.text(x_new, y_new, orientation[direction_key][0].upper(), 
+                                 transform=ax_merged.transAxes, ha='center', va='center',
+                                 fontsize=12, weight='bold', color=ORIENTATION_LABELS_COLOR,
+                                 rotation=0) #-self.rotation_angle)
+            self.orientation_label_artists.append(text)
+    
+    def remove_orientation_labels(self):
+        """Remove the orientation labels if they exist."""
+        for text_artist in self.orientation_label_artists:
+            text_artist.remove()
+        self.orientation_label_artists = []
+    
     def redraw_scale_bar(self):
         """Redraw the scale bar on the merged image axis after zoom/pan."""
         # Skip if we're programmatically updating the plots
@@ -313,8 +417,13 @@ class WidefieldMergedViewer(QMainWindow):
             alpha=0.5
         )
         
-        # Create subplots
-        ax_first = self.figure.add_subplot(3, 2, 1)
+        # Create subplots with GridSpec for better control over spacing
+        # Use width_ratios to give more space to the merged image (right column)
+        gs = GridSpec(3, 2, figure=self.figure, width_ratios=[1, 2], 
+                     hspace=0.25, wspace=0.25, top=0.95, bottom=0.05, left=0.05, right=0.95)
+        
+        # Create first axis
+        ax_first = self.figure.add_subplot(gs[0, 0])
         
         # Connect to axis limit change events to update ROI text boxes
         ax_first.callbacks.connect('xlim_changed', self.on_axis_limits_changed)
@@ -325,7 +434,7 @@ class WidefieldMergedViewer(QMainWindow):
             if indf == 0:
                 ax = ax_first
             else:
-                ax = self.figure.add_subplot(3, 2, 2 * indf + 1, 
+                ax = self.figure.add_subplot(gs[indf, 0], 
                                              sharex=ax_first, sharey=ax_first)
             
             im = ax.imshow(self.normed_signal_change[indf], cmap='viridis',
@@ -341,10 +450,20 @@ class WidefieldMergedViewer(QMainWindow):
             
             self.figure.colorbar(im, ax=ax)
         
-        # Right column: merged RGB image
-        ax_merged = self.figure.add_subplot(1, 2, 2, sharex=ax_first, sharey=ax_first)
-        ax_merged.imshow(merged_image)
-        ax_merged.set_title('Merged (RGB: max channel)')
+        # Right column: merged RGB image spanning all rows
+        ax_merged = self.figure.add_subplot(gs[:, 1], sharex=ax_first, sharey=ax_first)
+        
+        # Apply rotation if specified
+        if self.rotation_angle != 0:
+            # Rotate the RGB image (reshape=False keeps original dimensions)
+            merged_image_rotated = ndimage.rotate(merged_image, self.rotation_angle, 
+                                                   reshape=False, order=1, mode='constant', cval=0)
+            ax_merged.imshow(merged_image_rotated)
+        else:
+            ax_merged.imshow(merged_image)
+        
+        session_str = f'{self.wfavg.subject}_{self.wfavg.date}_{self.wfavg.session}'
+        ax_merged.set_title(f'{session_str}')
         ax_merged.set_aspect('equal')
         
         # Apply zoom: use stored limits if available, otherwise use ROI
@@ -356,11 +475,15 @@ class WidefieldMergedViewer(QMainWindow):
             ax_first.set_xlim(x_min, x_max)
             ax_first.set_ylim(y_max, y_min)
         
+        # Add orientation labels to merged image (if enabled)
+        if self.show_orientation_labels:
+            self.add_orientation_labels()
+        
         # Add scale bar to merged image (after zoom is applied so it positions correctly)
         if self.show_scale_bar:
             self.add_scale_bar()
 
-        self.figure.tight_layout()
+        #self.figure.tight_layout()
         self.canvas.draw()
         
         # Reset flag after update is complete
@@ -369,6 +492,9 @@ class WidefieldMergedViewer(QMainWindow):
 
 def main():
     """Main entry point for the application."""
+    # Enable Ctrl-C to exit the application
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    
     DEFAULT_SESSION = 'wifi008_20241219_161007'
     parser = argparse.ArgumentParser(
         description='Interactive viewer for widefield merged signal change images.'
