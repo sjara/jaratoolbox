@@ -10,13 +10,13 @@ import signal
 import argparse
 import numpy as np
 from scipy import ndimage
-from PyQt6.QtWidgets import (
+from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QSlider, QLabel, QCheckBox, QGroupBox, QGridLayout, QLineEdit, QPushButton, QDoubleSpinBox
 )
-from PyQt6.QtCore import Qt
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
+from PyQt5.QtCore import Qt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -132,7 +132,7 @@ class WidefieldMergedViewer(QMainWindow):
             group_layout.addWidget(slider_label, 1, 0)
             self.slider_labels.append(slider_label)
             
-            slider = QSlider(Qt.Orientation.Horizontal)
+            slider = QSlider(Qt.Horizontal)
             slider.setMinimum(0)
             slider.setMaximum(100)
             slider.setValue(25)  # 25/50 = 0.5 threshold
@@ -230,12 +230,12 @@ class WidefieldMergedViewer(QMainWindow):
             channel_idx (int): Index of the channel (0=Red, 1=Green, 2=Blue).
             state (int): Checkbox state.
         """
-        self.enabled[channel_idx] = (state == Qt.CheckState.Checked.value)
+        self.enabled[channel_idx] = (state == Qt.Checked)
         self.update_plots()
     
     def on_scale_bar_toggled(self, state):
         """Handle scale bar checkbox toggle."""
-        self.show_scale_bar = (state == Qt.CheckState.Checked.value)
+        self.show_scale_bar = (state == Qt.Checked)
         if self.show_scale_bar:
             self.add_scale_bar()
         else:
@@ -244,7 +244,7 @@ class WidefieldMergedViewer(QMainWindow):
     
     def on_orientation_labels_toggled(self, state):
         """Handle orientation labels checkbox toggle."""
-        self.show_orientation_labels = (state == Qt.CheckState.Checked.value)
+        self.show_orientation_labels = (state == Qt.Checked)
         if self.show_orientation_labels:
             self.add_orientation_labels()
         else:
@@ -253,7 +253,7 @@ class WidefieldMergedViewer(QMainWindow):
     
     def on_flip_horizontal_toggled(self, state):
         """Handle flip horizontal checkbox toggle."""
-        self.flip_horizontal = (state == Qt.CheckState.Checked.value)
+        self.flip_horizontal = (state == Qt.Checked)
         self.update_plots()
     
     def on_rotation_value_changed(self, value):
