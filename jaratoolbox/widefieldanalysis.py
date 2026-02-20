@@ -87,7 +87,7 @@ class Widefield(loadwidefield.WidefieldData):
         # -- Align trials with sound events --
         if stim_param is None:
             # Treat all trials as having the same stimulus
-            n_trials = len(self.sound_onset)
+            n_trials = len(self.sound_offset)
             current_stim = np.zeros(n_trials)  # All trials have the same value
             self.possible_freq = np.array([0])
         else:
