@@ -70,6 +70,9 @@ class WidefieldMergedViewer(QMainWindow):
         # Display rotation angle (in degrees, CCW)
         self.rotation_angle = 0.0
         
+        # Horizontal flip
+        self.flip_horizontal = False
+        
         # Flag to prevent recursive updates
         self._updating_plots = False
         
@@ -178,23 +181,19 @@ class WidefieldMergedViewer(QMainWindow):
         self.orientation_labels_checkbox.stateChanged.connect(self.on_orientation_labels_toggled)
         display_layout.addWidget(self.orientation_labels_checkbox, 1, 0)
         
-        # Rotation angle control
-        display_layout.addWidget(QLabel('Rotation (deg):'), 2, 0)
-        rotation_widget = QWidget()
-        rotation_layout = QHBoxLayout(rotation_widget)
-        rotation_layout.setContentsMargins(0, 0, 0, 0)
+        # Flip horizontal checkbox
+        self.flip_horizontal_checkbox = QCheckBox('Flip left/right')
+        self.flip_horizontal_checkbox.setChecked(False)
+        self.flip_horizontal_checkbox.stateChanged.connect(self.on_flip_horizontal_toggled)
+        display_layout.addWidget(self.flip_horizontal_checkbox, 2, 0)
         
+        # Rotation angle control
+        display_layout.addWidget(QLabel('Rotation (deg):'), 3, 0)
         self.rotation_angle_input = QLineEdit()
         self.rotation_angle_input.setText('0.0')
-        self.rotation_angle_input.setMaximumWidth(60)
-        rotation_layout.addWidget(self.rotation_angle_input)
-        
-        rotation_apply_btn = QPushButton('Apply')
-        rotation_apply_btn.clicked.connect(self.on_rotation_changed)
-        rotation_layout.addWidget(rotation_apply_btn)
-        rotation_layout.addStretch()
-        
-        display_layout.addWidget(rotation_widget, 2, 1)
+        self.rotation_angle_input.setMaximumWidth(80)
+        self.rotation_angle_input.textChanged.connect(self.on_rotation_text_changed)
+        display_layout.addWidget(self.rotation_angle_input, 3, 1)
         
         controls_layout.addWidget(display_group)
         
@@ -244,14 +243,20 @@ class WidefieldMergedViewer(QMainWindow):
             self.remove_orientation_labels()
         self.canvas.draw_idle()
     
-    def on_rotation_changed(self):
-        """Handle rotation angle change."""
+    def on_flip_horizontal_toggled(self, state):
+        """Handle flip horizontal checkbox toggle."""
+        self.flip_horizontal = (state == Qt.CheckState.Checked.value)
+        self.update_plots()
+    
+    def on_rotation_text_changed(self, text):
+        """Handle rotation angle text change."""
         try:
-            angle = float(self.rotation_angle_input.text())
+            angle = float(text)
             self.rotation_angle = angle
             self.update_plots()
         except ValueError:
-            print(f"Invalid rotation angle: {self.rotation_angle_input.text()}")
+            # Invalid input, ignore
+            pass
     
     def on_roi_changed(self):
         """Handle ROI change from edit boxes."""
@@ -332,7 +337,7 @@ class WidefieldMergedViewer(QMainWindow):
         orientation = self.wfavg.orientation
         label_offset = 0.04  # Offset from edge in axes coordinates
         
-        # Define base label positions (before rotation)
+        # Define base label positions (before any transformation)
         # Note: imshow displays row 0 at top of axes, so orientation['top'] goes at y=1-label_offset
         base_positions = [
             (0.5, 1-label_offset, 'top'),      # Top
@@ -341,12 +346,29 @@ class WidefieldMergedViewer(QMainWindow):
             (1-label_offset, 0.5, 'right'),    # Right
         ]
         
+        # Apply flip transformation to label positions if needed
+        if self.flip_horizontal:
+            # When flipped horizontally, left and right anatomical directions swap positions
+            # but the screen positions stay the same
+            flipped_positions = []
+            for x, y, direction_key in base_positions:
+                # Keep x position the same (screen position doesn't change)
+                # But swap left and right direction keys (anatomy changes sides)
+                if direction_key == 'left':
+                    direction_key = 'right'
+                elif direction_key == 'right':
+                    direction_key = 'left'
+                flipped_positions.append((x, y, direction_key))
+            positions_to_use = flipped_positions
+        else:
+            positions_to_use = base_positions
+        
         # Compute rotated label positions
         angle_rad = np.radians(self.rotation_angle)
         cos_a, sin_a = np.cos(angle_rad), np.sin(angle_rad)
         
         self.orientation_label_artists = []
-        for x, y, direction_key in base_positions:
+        for x, y, direction_key in positions_to_use:
             # Convert to centered coordinates (-0.5 to 0.5)
             x_centered = x - 0.5
             y_centered = y - 0.5
@@ -359,12 +381,12 @@ class WidefieldMergedViewer(QMainWindow):
             x_new = x_rot + 0.5
             y_new = y_rot + 0.5
             
-            # Create label with rotated position and rotation angle
-            # Counter-rotate text to keep letters upright
+            # Create label with rotated position
+            # Keep text rotation at 0 for readability
             text = ax_merged.text(x_new, y_new, orientation[direction_key][0].upper(), 
                                  transform=ax_merged.transAxes, ha='center', va='center',
                                  fontsize=12, weight='bold', color=ORIENTATION_LABELS_COLOR,
-                                 rotation=0) #-self.rotation_angle)
+                                 rotation=0)
             self.orientation_label_artists.append(text)
     
     def remove_orientation_labels(self):
@@ -453,14 +475,19 @@ class WidefieldMergedViewer(QMainWindow):
         # Right column: merged RGB image spanning all rows
         ax_merged = self.figure.add_subplot(gs[:, 1], sharex=ax_first, sharey=ax_first)
         
-        # Apply rotation if specified
+        # Apply transformations: flip first, then rotate
+        transformed_image = merged_image
+        
+        if self.flip_horizontal:
+            # Flip left-right (along axis 1, which is the width dimension)
+            transformed_image = np.flip(transformed_image, axis=1)
+        
         if self.rotation_angle != 0:
             # Rotate the RGB image (reshape=False keeps original dimensions)
-            merged_image_rotated = ndimage.rotate(merged_image, self.rotation_angle, 
-                                                   reshape=False, order=1, mode='constant', cval=0)
-            ax_merged.imshow(merged_image_rotated)
-        else:
-            ax_merged.imshow(merged_image)
+            transformed_image = ndimage.rotate(transformed_image, self.rotation_angle, 
+                                              reshape=False, order=1, mode='constant', cval=0)
+        
+        ax_merged.imshow(transformed_image)
         
         session_str = f'{self.wfavg.subject}_{self.wfavg.date}_{self.wfavg.session}'
         ax_merged.set_title(f'{session_str}')
