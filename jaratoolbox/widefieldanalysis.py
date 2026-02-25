@@ -108,11 +108,11 @@ class Widefield(loadwidefield.WidefieldData):
         
         # -- Calculate timing parameters --
         sound_duration = np.mean(sound_offset - sound_onset)
-        frame_rate = 1 / np.mean(np.diff(self.ts_frames))
+        frame_rate = 1 / np.mean(np.diff(self.timestamps))
         sound_duration_in_frames = int(round(sound_duration * frame_rate))
         
         # Find frames corresponding to sound onset
-        frame_after_onset = np.searchsorted(self.ts_frames, sound_onset, side='left')
+        frame_after_onset = np.searchsorted(self.timestamps, sound_onset, side='left')
         
         # -- Compute evoked response for each stimulus type --
         avg_evoked_each_freq = []

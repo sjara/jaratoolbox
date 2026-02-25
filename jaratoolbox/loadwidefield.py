@@ -47,11 +47,11 @@ def compute_orientation(camera_rotation, hemisphere):
     }
 
 def load_timestamps(timestamps_filename):
-    timestamps = np.load(timestamps_filename)
-    sound_onset = timestamps['ts_sound_rising']
-    sound_offset = timestamps['ts_sound_falling']
-    ts_frames = timestamps['ts_trigger_rising']
-    return sound_onset, sound_offset, ts_frames
+    ts_data = np.load(timestamps_filename)
+    sound_onset = ts_data['ts_sound_rising']
+    sound_offset = ts_data['ts_sound_falling']
+    timestamps = ts_data['ts_trigger_rising']
+    return sound_onset, sound_offset, timestamps
     
 def load_widefield(subject, date, session, suffix='', memmap=False):
     """
@@ -62,13 +62,17 @@ def load_widefield(subject, date, session, suffix='', memmap=False):
         date (str): Date string (e.g., '20241219').
         session (str): Session identifier. Usually a time string (e.g., '161007').
         suffix (str): Optional suffix for the filename.
-        memmap (bool): If True, return a memory-mapped array instead of loading
-            the entire file into RAM. Useful for large files. Note that memmap
-            only works efficiently for a single TIFF file; multiple files will
-            still be concatenated in memory.
+        memmap (bool): If True, attempt to return a memory-mapped array instead 
+            of loading the entire file into RAM. Useful for large files. Note 
+            that memory mapping only works if TIFF files are uncompressed and 
+            stored contiguously. If memory mapping fails, falls back to loading 
+            into RAM. For single file: returns memory-mapped array. For multiple 
+            files: returns list of memory-mapped arrays (one per file).
     
     Returns:
-        numpy.ndarray: Array of frames (or memory-mapped array if memmap=True).
+        numpy.ndarray or list: Array of frames (or memory-mapped array/list if memmap=True).
+            If memmap=True and multiple files exist, returns a list of memory-mapped arrays.
+            If memmap fails (e.g., compressed TIFF), returns regular numpy array(s) loaded into RAM.
     """
     frames_filename = os.path.join(settings.WIDEFIELD_PATH, subject, date, f'{subject}_{date}_{session}_{suffix}.tif')
 
@@ -86,29 +90,64 @@ def load_widefield(subject, date, session, suffix='', memmap=False):
         else:
             break
 
-    #print(f"Found {len(frames_filenames)} TIFF files to load.")
-    #print(frames_filenames)
-
-    # -- Load TIFF files --    
-    frames = None  # A numpy array to store all frames
     n_files = len(frames_filenames)
-    for indf, filename in enumerate(frames_filenames):
-        print(f"Loading TIFF file {indf+1}/{n_files}: {filename}")
-        with tifffile.TiffFile(filename) as tif:
-            # NOTE: Memory mapping is not working so it's disabled for now
-            # if memmap and n_frames_files == 1:
-            #     # Use memory mapping for single file (more efficient for large files)
-            #     print('Using memory mapping to load TIFF file...')
-            #     frames = tif.asarray(out='memmap')
-            # else:
-            if 1:
-                chunk = tif.asarray()
-                # image = tif.asarray()[0] #If I want to see a single image 
-                axes = tif.series[0].axes
-                if frames is None:
-                    frames = chunk
-                else:
-                    frames = np.concatenate((frames, chunk), axis=0)
+    print(f"Found {n_files} TIFF file(s) to load.")
+
+    # -- Handle memory mapping --
+    if memmap:
+        try:
+            if n_files == 1:
+                # Single file: use tifffile's memory mapping
+                print(f"Using memory mapping for single TIFF file: {frames_filenames[0]}")
+                frames = tifffile.memmap(frames_filenames[0])
+            else:
+                # Multiple files: return list of memory-mapped arrays
+                print(f"Multiple TIFF files detected. Returning list of {n_files} memory-mapped arrays.")
+                frames = [tifffile.memmap(filename) for filename in frames_filenames]
+            return frames
+        except ValueError as e:
+            if 'not memory-mappable' in str(e):
+                print(f"Warning: TIFF file(s) are not memory-mappable (likely compressed).")
+                print(f"Falling back to loading into RAM...")
+                # Fall through to regular loading below
+            else:
+                raise
+    
+    # -- Load TIFF files into memory --
+    if n_files == 1:
+        # Single file: load directly
+        print(f"Loading TIFF file: {frames_filenames[0]}")
+        with tifffile.TiffFile(frames_filenames[0]) as tif:
+            frames = tif.asarray()
+    else:
+        # Multiple files: pre-allocate array and fill in place for efficiency
+        # First, get the shape and total number of frames
+        frame_counts = []
+        frame_shape = None
+        dtype = None
+        
+        for filename in frames_filenames:
+            with tifffile.TiffFile(filename) as tif:
+                if frame_shape is None:
+                    # Get shape from first file
+                    frame_shape = tif.series[0].shape
+                    dtype = tif.series[0].dtype
+                frame_counts.append(tif.series[0].shape[0])
+        
+        total_frames = sum(frame_counts)
+        full_shape = (total_frames,) + frame_shape[1:]
+        
+        print(f"Pre-allocating array for {total_frames} frames with shape {full_shape}...")
+        frames = np.empty(full_shape, dtype=dtype)
+        
+        # Load each file and copy directly into the pre-allocated array
+        current_frame = 0
+        for indf, filename in enumerate(frames_filenames):
+            n_frames_in_file = frame_counts[indf]
+            print(f"Loading TIFF file {indf+1}/{n_files}: {filename} ({n_frames_in_file} frames)")
+            with tifffile.TiffFile(filename) as tif:
+                frames[current_frame:current_frame + n_frames_in_file] = tif.asarray()
+            current_frame += n_frames_in_file
     
     return frames
 
@@ -131,12 +170,12 @@ class WidefieldData:
         frames (numpy.ndarray): Widefield imaging frames (loaded on demand).
         sound_onset (numpy.ndarray): Timestamps of sound onset events.
         sound_offset (numpy.ndarray): Timestamps of sound offset events.
-        ts_frames (numpy.ndarray): Timestamps for each imaging frame.
+        timestamps (numpy.ndarray): Timestamps for each imaging frame.
         bdata (BehaviorData): Behavioral data object.
     
     Example:
         >>> wfdata = WidefieldData('wifi008', '20241219', '161007', suffix='LG')
-        >>> wfdata.load_frames(memmap=True)
+        >>> wfdata.load_frames()
         >>> wfdata.load_timestamps()
         >>> wfdata.load_behavior()
         >>> print(wfdata.frames.shape)
@@ -179,7 +218,7 @@ class WidefieldData:
         self.frames = None
         self.sound_onset = None
         self.sound_offset = None
-        self.ts_frames = None
+        self.timestamps = None
         self.bdata = None
         
         # Compute image orientation (anatomical directions)
@@ -199,11 +238,15 @@ class WidefieldData:
         Load widefield imaging frames from TIFF file(s).
         
         Args:
-            memmap (bool): If True, use memory mapping instead of loading
-                the entire file into RAM. Useful for large files.
+            memmap (bool): If True, attempt to use memory mapping instead of 
+                loading the entire file into RAM. Useful for large files. 
+                Memory mapping only works for uncompressed TIFF files; if it 
+                fails, automatically falls back to loading into RAM. For multiple
+                TIFF files, returns a list of memory-mapped arrays.
         
         Returns:
-            numpy.ndarray: Array of frames (also stored in self.frames).
+            numpy.ndarray or list: Array of frames (also stored in self.frames).
+                If memmap=True and multiple files exist, may return a list.
         """
         self.frames = load_widefield(
             self.subject, self.date, self.session, 
@@ -211,7 +254,12 @@ class WidefieldData:
         )
         # Apply rotation to correct for camera orientation
         if self.rotate != 0:
-            self.frames = np.rot90(self.frames, k=self.rotate, axes=(1, 2))
+            if isinstance(self.frames, list):
+                # Rotate each memory-mapped array in the list
+                self.frames = [np.rot90(arr, k=self.rotate, axes=(1, 2)) for arr in self.frames]
+            else:
+                # Rotate single array
+                self.frames = np.rot90(self.frames, k=self.rotate, axes=(1, 2))
         return self.frames
     
     def load_timestamps(self):
@@ -219,12 +267,12 @@ class WidefieldData:
         Load timestamps for sound events and imaging frames.
         
         Returns:
-            tuple: (sound_onset, sound_offset, ts_frames) arrays.
+            tuple: (sound_onset, sound_offset, timestamps) arrays.
         """
-        self.sound_onset, self.sound_offset, self.ts_frames = load_timestamps(
+        self.sound_onset, self.sound_offset, self.timestamps = load_timestamps(
             self.timestamps_filename
         )
-        return self.sound_onset, self.sound_offset, self.ts_frames
+        return self.sound_onset, self.sound_offset, self.timestamps
     
     def load_behavior(self):
         """
@@ -253,14 +301,22 @@ class WidefieldData:
     def n_frames(self):
         """Return the number of frames, or None if frames not loaded."""
         if self.frames is not None:
-            return self.frames.shape[0]
+            if isinstance(self.frames, list):
+                # Sum frames from all memory-mapped arrays
+                return sum(arr.shape[0] for arr in self.frames)
+            else:
+                return self.frames.shape[0]
         return None
     
     @property
     def frame_shape(self):
         """Return the shape of a single frame (height, width), or None if not loaded."""
         if self.frames is not None:
-            return self.frames.shape[1:]
+            if isinstance(self.frames, list):
+                # Return shape from first array (all should be same)
+                return self.frames[0].shape[1:]
+            else:
+                return self.frames.shape[1:]
         return None
     
     def __repr__(self):
