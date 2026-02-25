@@ -72,25 +72,28 @@ def load_widefield(subject, date, session, suffix='', memmap=False):
     """
     frames_filename = os.path.join(settings.WIDEFIELD_PATH, subject, date, f'{subject}_{date}_{session}_{suffix}.tif')
 
-    # FIXME: Set to 1 for debugging (we'll implement multi-file loading later)
-    n_frames_files = 1  
-
-    print(f"Loading data from {frames_filename}...")
+    #print(f"Loading data from {frames_filename}...")
 
     # -- Create list of TIFF files --
     frames_filenames = [frames_filename]
-    suffix_pattern = '_@{0:04g}'
-    for indf in range(1, n_frames_files):
-        new_suffix = suffix_pattern.format(indf)
-        new_filename = frames_filename.replace('.tif', new_suffix+'.tif')
-        frames_filenames.append(new_filename)
+    # Check for additional TIFF files with pattern @0001, @0002, etc.
+    indf = 1
+    while True:
+        new_filename = frames_filename.replace('.tif', f'@{indf:04d}.tif')
+        if os.path.exists(new_filename):
+            frames_filenames.append(new_filename)
+            indf += 1
+        else:
+            break
 
-    print(f"Found {len(frames_filenames)} TIFF files to load.")
-    print(frames_filenames)
+    #print(f"Found {len(frames_filenames)} TIFF files to load.")
+    #print(frames_filenames)
 
     # -- Load TIFF files --    
     frames = None  # A numpy array to store all frames
-    for indf, filename in enumerate(frames_filenames):    
+    n_files = len(frames_filenames)
+    for indf, filename in enumerate(frames_filenames):
+        print(f"Loading TIFF file {indf+1}/{n_files}: {filename}")
         with tifffile.TiffFile(filename) as tif:
             # NOTE: Memory mapping is not working so it's disabled for now
             # if memmap and n_frames_files == 1:
