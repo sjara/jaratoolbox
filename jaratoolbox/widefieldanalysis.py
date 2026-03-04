@@ -3,6 +3,7 @@ Classes and methods for analysis of widefield imaging data.
 """
 
 import os
+import importlib
 import numpy as np
 import matplotlib.pyplot as plt
 from jaratoolbox import loadwidefield
@@ -16,6 +17,88 @@ CHANNEL_COLORS = [
     [0.25, 0.5, 1],  # Light blue (adjusted for similar perceived luminosity)
 ]
 CHANNEL_NAMES = ['Red', 'Green', 'Blue']
+
+def load_infowidefield(subject):
+    """
+    Load the infowidefield file for a given subject.
+
+    The file is expected to be located at settings.INFOWIDEFIELD_PATH and named
+    '{subject}_infowidefield.py'. It must define a list called 'sessions', where
+    each element is a dictionary with keys: 'subject', 'date', 'session',
+    'suffix', and 'paradigm'.
+
+    Args:
+        subject (str): Subject identifier (e.g., 'test000').
+
+    Returns:
+        module: The loaded infowidefield module (access sessions via module.sessions).
+    """
+    infowidefield_file = os.path.join(settings.INFOWIDEFIELD_PATH,
+                                      f'{subject}_infowidefield.py')
+    if not os.path.isfile(infowidefield_file):
+        raise FileNotFoundError(f'Infowidefield file not found: {infowidefield_file}')
+    spec = importlib.util.spec_from_file_location('infowidefield_module', infowidefield_file)
+    infowidefield = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(infowidefield)
+    return infowidefield
+
+
+def preprocess_widefield(subject, date='', time='', suffix='', paradigm='am_tuning_curve',
+                         camera_rotation=1, hemisphere='right'):
+    """
+    Preprocess widefield data and save results to disk.
+    
+    This function loads the widefield data, computes the evoked response for each
+    stimulus type, and saves the results in a .npz file for later use.
+
+    If only 'subject' is provided (date and time are empty), the function loads
+    the infowidefield file for that subject and processes all sessions listed in it.
+    If 'subject' and 'date' are provided but 'time' is empty, all sessions for
+    that date are processed from the infowidefield file.
+    Each session dictionary must contain 'date', 'session', 'suffix', and 'paradigm' keys.
+    
+    Args:
+        subject (str): Subject identifier.
+        date (str): Date string (e.g., '20241219'). If empty, all sessions from the
+            infowidefield file will be processed. If provided without 'time', all
+            sessions for that date will be processed.
+        time (str): Start time of the session (e.g., '161007'). If empty, all
+            sessions matching the given date will be processed.
+        suffix (str): Suffix for the TIFF filename (e.g., 'LG' for left-green).
+        paradigm (str): Behavioral paradigm name (default: 'am_tuning_curve').
+        camera_rotation (int): Physical rotation of the camera in units of 
+            90-degree CCW rotations. Default is 1 (camera rotated 90° CCW).
+            Use 0 if camera is not rotated.
+        hemisphere (str): Which side of the brain is being imaged.
+            'right' (default) or 'left'.
+    """
+    if not date or not time:
+        infowidefield = load_infowidefield(subject)
+        for sessionInfo in infowidefield.sessions:
+            if date and sessionInfo['date'] != date:
+                continue
+            print(f"\nProcessing {sessionInfo['subject']} {sessionInfo['date']} "
+                  f"{sessionInfo['time']}")
+            preprocess_widefield(sessionInfo['subject'],
+                                 date=sessionInfo['date'],
+                                 time=sessionInfo['time'],
+                                 suffix=sessionInfo.get('suffix', suffix),
+                                 paradigm=sessionInfo.get('paradigm', paradigm),
+                                 camera_rotation=camera_rotation,
+                                 hemisphere=hemisphere)
+        return
+
+    # -- Load data --
+    wfobj = Widefield(subject, date, time, suffix=suffix, paradigm=paradigm,
+                     camera_rotation=camera_rotation, hemisphere=hemisphere)
+    wfobj.load_timestamps()
+    wfobj.load_frames()
+    wfobj.load_behavior()
+
+    # -- Compute evoked responses --
+    signal_change = wfobj.compute_evoked_response()
+    print(f"Computed responses for {len(wfobj.possible_freq)} frequencies")
+    wfobj.save()
 
 
 class Widefield(loadwidefield.WidefieldData):
@@ -34,7 +117,7 @@ class Widefield(loadwidefield.WidefieldData):
             subject (str): Subject identifier.
             date (str): Date string (e.g., '20241219').
             session (str): Session identifier. Usually a time string (e.g., '161007').
-            suffix (str): Suffix for the TIFF filename (e.g., 'LG' for left-green).
+            suffix (str): Suffix for the TIFF filename (e.g., 'SJ' initials).
             paradigm (str): Behavioral paradigm name (default: 'am_tuning_curve').
             camera_rotation (int): Physical rotation of the camera in units of 
                 90-degree CCW rotations. Default is 1 (camera rotated 90° CCW).
