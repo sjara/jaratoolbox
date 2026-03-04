@@ -97,7 +97,7 @@ def preprocess_widefield(subject, date='', time='', suffix='', paradigm='am_tuni
 
     # -- Compute evoked responses --
     signal_change = wfobj.compute_evoked_response()
-    print(f"Computed responses for {len(wfobj.possible_freq)} frequencies")
+    print(f"Computed responses for {len(wfobj.possible_values[0])} frequencies")
     wfobj.save()
 
 
@@ -131,8 +131,7 @@ class Widefield(loadwidefield.WidefieldData):
         
         # Analysis results (computed on demand)
         self.stim_param_names = None  # str, list of str, or None; mirrors stim_param passed to compute_evoked_response
-        self.possible_values = None   # list of arrays, one per param: [possible_freq] or [possible_freq, possible_intensity]
-        self.possible_freq = None     # shortcut to possible_values[0] for single-param backward compatibility
+        self.possible_values = None   # list of arrays, one per param: [values_param0] or [values_param0, values_param1, ...]
         self.trials_each_cond = None  # bool array (n_trials, n_v1) or (n_trials, n_v1, n_v2, ...)
         self.avg_evoked_each_cond = None    # (n_v1[, n_v2, ...], H, W)
         self.avg_baseline_each_cond = None  # (n_v1[, n_v2, ...], H, W)
@@ -170,7 +169,6 @@ class Widefield(loadwidefield.WidefieldData):
             - self.possible_values: list of arrays with unique values per parameter;
               e.g. [array([4k,8k,16k]), array([30,50,70])] for freq x intensity.
               Use this to map indices back to physical values.
-            - self.possible_freq: shortcut to possible_values[0]
             - self.trials_each_cond: bool array (n_trials, n_v1[, n_v2, ...])
             - self.avg_evoked_each_cond: average evoked image per condition
             - self.avg_baseline_each_cond: average baseline image per condition
@@ -213,8 +211,6 @@ class Widefield(loadwidefield.WidefieldData):
             self.trials_each_cond = behavioranalysis.find_trials_each_type(
                 current_stim, self.possible_values[0]
             )
-
-        self.possible_freq = self.possible_values[0]
 
         # Fix the length of sound onsets to match bdata trials
         sound_onset = self.sound_onset[:n_trials]
@@ -274,12 +270,27 @@ class Widefield(loadwidefield.WidefieldData):
 
         output_file = os.path.join(save_dir , f'{self.subject}_{self.date}_{self.session}_processed.npz')
 
-        np.savez(output_file, avg_evoked_each_cond=self.avg_evoked_each_cond,
-                 avg_baseline_each_cond=self.avg_baseline_each_cond,
-                 signal_change_each_cond=self.signal_change_each_cond, 
-                 possible_freq=self.possible_freq,
-                 camera_rotation=self.camera_rotation,
-                 hemisphere=self.hemisphere)
+        # Encode stim_param_names as a numpy string array so it survives npz round-trips.
+        # None -> empty array; str -> 1-element array; list -> array of strings.
+        if self.stim_param_names is None:
+            param_names_arr = np.array([], dtype=str)
+        elif isinstance(self.stim_param_names, str):
+            param_names_arr = np.array([self.stim_param_names])
+        else:
+            param_names_arr = np.array(self.stim_param_names)
+
+        # Build keyword arguments: one array per parameter (possible_values_0, _1, ...)
+        save_kwargs = dict(
+            avg_evoked_each_cond=self.avg_evoked_each_cond,
+            avg_baseline_each_cond=self.avg_baseline_each_cond,
+            signal_change_each_cond=self.signal_change_each_cond,
+            stim_param_names=param_names_arr,
+            possible_values=np.array(self.possible_values, dtype=object),
+            camera_rotation=self.camera_rotation,
+            hemisphere=self.hemisphere,
+        )
+
+        np.savez(output_file, **save_kwargs)
         print(f"Saved {output_file}")
 
     def add_scale_bar(self, ax, bar_length_mm=1.0, location='lower right', 
@@ -342,52 +353,70 @@ class Widefield(loadwidefield.WidefieldData):
 
     def show_response_summary(self, clim=None):
         """
-        Display baseline, evoked, and signal change (dF/F) images for all frequencies.
-        
-        Shows three columns: Baseline (pre-stimulus average), Evoked (during-stimulus 
-        average), and dF/F (relative fluorescence change). Each row corresponds to
-        one frequency.
-        
+        Display baseline, evoked, and signal change (dF/F) images for all conditions.
+
+        Rows correspond to frequencies (possible_values[0]). Columns are grouped in
+        sets of three (Baseline, Evoked, dF/F) — one group per intensity level
+        (possible_values[1]). When only one parameter was used the grid is simply
+        (n_freq, 3).
+
         Args:
-            clim (tuple): Color limits for the dF/F colorbar (vmin, vmax). 
+            clim (tuple): Color limits for the dF/F colorbar (vmin, vmax).
                 If None, uses auto scaling.
-        
+
         Returns:
-            numpy.ndarray: Array of axes objects.
+            numpy.ndarray: Array of axes with shape (n_freq, 3 * n_intensity).
         """
         if self.signal_change_each_cond is None:
             raise ValueError("No computed results. Call compute_evoked_response() first.")
-        
-        n_freq = len(self.possible_freq)
+
+        n_params = len(self.possible_values)
+        n_freq = len(self.possible_values[0])
+        n_intensity = len(self.possible_values[1]) if n_params > 1 else 1
+
         fig = plt.gcf()
         fig.clf()
-        axes = fig.subplots(n_freq, 3, sharex=True, sharey=True, squeeze=False)
-        
+        axes = fig.subplots(n_freq, 3 * n_intensity, sharex=True, sharey=True, squeeze=False)
+
+        for indt in range(n_intensity):
+            col_offset = indt * 3
+            intensity_label = (f' ({self.possible_values[1][indt]:.0f} dB)'
+                               if n_intensity > 1 else '')
+            # Always use a 2nd index when data has 2 param dimensions
+            idx_suffix = (indt,) if n_params > 1 else ()
+
+            for indf in range(n_freq):
+                idx = (indf,) + idx_suffix
+
+                # Baseline average
+                im0 = axes[indf, col_offset + 0].imshow(
+                    self.avg_baseline_each_cond[idx], cmap='gray')
+                axes[indf, col_offset + 0].set_aspect('equal')
+                plt.colorbar(im0, ax=axes[indf, col_offset + 0])
+
+                # Evoked average
+                im1 = axes[indf, col_offset + 1].imshow(
+                    self.avg_evoked_each_cond[idx], cmap='gray')
+                axes[indf, col_offset + 1].set_aspect('equal')
+                plt.colorbar(im1, ax=axes[indf, col_offset + 1])
+
+                # Signal change
+                im2 = axes[indf, col_offset + 2].imshow(
+                    self.signal_change_each_cond[idx], cmap='viridis',
+                    vmin=clim[0] if clim else None,
+                    vmax=clim[1] if clim else None)
+                axes[indf, col_offset + 2].set_aspect('equal')
+                plt.colorbar(im2, ax=axes[indf, col_offset + 2], label='dF/F')
+
+            # Column group titles on the first row
+            axes[0, col_offset + 0].set_title(f'Baseline{intensity_label}')
+            axes[0, col_offset + 1].set_title(f'Evoked{intensity_label}')
+            axes[0, col_offset + 2].set_title(f'dF/F{intensity_label}')
+
+        # Row labels: frequency values
         for indf in range(n_freq):
-            # Baseline average
-            im0 = axes[indf, 0].imshow(self.avg_baseline_each_cond[indf], cmap='gray')
-            axes[indf, 0].set_aspect('equal')
-            plt.colorbar(im0, ax=axes[indf, 0])
-            
-            # Evoked average
-            im1 = axes[indf, 1].imshow(self.avg_evoked_each_cond[indf], cmap='gray')
-            axes[indf, 1].set_aspect('equal')
-            plt.colorbar(im1, ax=axes[indf, 1])
-            
-            # Signal change
-            im2 = axes[indf, 2].imshow(self.signal_change_each_cond[indf], cmap='viridis',
-                           vmin=clim[0] if clim else None,
-                           vmax=clim[1] if clim else None)
-            axes[indf, 2].set_aspect('equal')
-            plt.colorbar(im2, ax=axes[indf, 2], label='dF/F')
-            
-            # Add frequency label on the left
-            axes[indf, 0].set_ylabel(f'{self.possible_freq[indf]:.0f} Hz')
-        
-        # Column titles on first row
-        axes[0, 0].set_title('Baseline')
-        axes[0, 1].set_title('Evoked')
-        axes[0, 2].set_title('dF/F')
+            axes[indf, 0].set_ylabel(f'{self.possible_values[0][indf]:.0f} Hz')
+
         plt.tight_layout()
         return axes
 
@@ -403,7 +432,9 @@ class WidefieldAverage:
         avg_evoked_each_cond (numpy.ndarray): Average evoked images for each stimulus.
         avg_baseline_each_cond (numpy.ndarray): Average baseline images for each stimulus.
         signal_change_each_cond (numpy.ndarray): dF/F images for each stimulus.
-        possible_freq (numpy.ndarray): Unique stimulus values.
+        stim_param_names (str, list of str, or None): Parameter name(s) used to group trials.
+        possible_values (list of numpy.ndarray): Unique values for each parameter;
+            e.g. [array([4k,8k,16k]), array([30,50,70])] for freq x intensity.
         camera_rotation (int): Camera rotation in units of 90-degree CCW rotations.
         hemisphere (str): Which hemisphere is being imaged ('right' or 'left').
         orientation (dict): Anatomical directions for image sides (top, bottom, left, right).
@@ -429,13 +460,27 @@ class WidefieldAverage:
         save_dir = os.path.join(settings.WIDEFIELD_PATH, self.subject+'_processed')
         input_file = os.path.join(save_dir , f'{self.subject}_{self.date}_{self.session}_processed.npz')
         
-        data = np.load(input_file)
+        data = np.load(input_file, allow_pickle=True)
         self.avg_evoked_each_cond = data['avg_evoked_each_cond']
         self.avg_baseline_each_cond = data['avg_baseline_each_cond']
         self.signal_change_each_cond = data['signal_change_each_cond']
-        self.possible_freq = data['possible_freq']
         self.camera_rotation = int(data['camera_rotation'])
         self.hemisphere = str(data['hemisphere'])
+
+        # possible_values is stored as a numpy object array; convert back to a plain list.
+        self.possible_values = list(data['possible_values'])
+
+        # Reconstruct stim_param_names (None / str / list of str).
+        if 'stim_param_names' in data:
+            names = data['stim_param_names']
+            if names.size == 0:
+                self.stim_param_names = None
+            elif names.size == 1:
+                self.stim_param_names = str(names[0])
+            else:
+                self.stim_param_names = names.tolist()
+        else:
+            self.stim_param_names = None  # legacy file
 
         # Load orientation information (with defaults for backward compatibility)
         # self.hemisphere = str(data['hemisphere']) if 'hemisphere' in data else 'right'
@@ -448,33 +493,45 @@ class WidefieldAverage:
 
     def show_signal_change(self, clim=None):
         """
-        Display the signal change (dF/F) images for all frequencies.
-        
+        Display the signal change (dF/F) images for all conditions.
+
+        Rows correspond to frequencies (possible_values[0]). Columns correspond to
+        intensity levels (possible_values[1]). When only one parameter was used the
+        grid is simply (n_freq, 1).
+
         Args:
             clim (tuple): Color limits for the colorbar (vmin, vmax). If None, uses auto scaling.
+
+        Returns:
+            numpy.ndarray: Array of axes with shape (n_freq, n_intensity).
         """
-        n_freq = len(self.possible_freq)
+        n_params = len(self.possible_values)
+        n_freq = len(self.possible_values[0])
+        n_intensity = len(self.possible_values[1]) if n_params > 1 else 1
+
         fig = plt.gcf()
         fig.clf()
-        axes = fig.subplots(n_freq, 1, sharex=True, sharey=True, squeeze=False)
-        
-        if 0:
-            # Normalize signal change by the standard deviation for each frequency
-            normed_signal_change = self.signal_change_each_cond / np.std(self.signal_change_each_cond,
-                                                                          axis=(1,2), keepdims=True)
-            signal_change = normed_signal_change
-        else:
-            signal_change = self.signal_change_each_cond
-    
+        axes = fig.subplots(n_freq, n_intensity, sharex=True, sharey=True, squeeze=False)
+
+        for indt in range(n_intensity):
+            intensity_label = (f'{self.possible_values[1][indt]:.0f} dB'
+                               if n_intensity > 1 else 'dF/F')
+            idx_suffix = (indt,) if n_params > 1 else ()
+
+            for indf in range(n_freq):
+                idx = (indf,) + idx_suffix
+                im = axes[indf, indt].imshow(
+                    self.signal_change_each_cond[idx], cmap='viridis',
+                    vmin=clim[0] if clim else None,
+                    vmax=clim[1] if clim else None)
+                axes[indf, indt].set_aspect('equal')
+                plt.colorbar(im, ax=axes[indf, indt], label='dF/F')
+
+            axes[0, indt].set_title(intensity_label)
+
         for indf in range(n_freq):
-            im = axes[indf, 0].imshow(signal_change[indf], cmap='viridis',
-                           vmin=clim[0] if clim else None,
-                           vmax=clim[1] if clim else None)
-            axes[indf, 0].set_ylabel(f'{self.possible_freq[indf]:.0f} Hz')
-            axes[indf, 0].set_aspect('equal')
-            plt.colorbar(im, ax=axes[indf, 0], label='dF/F')
-        
-        axes[0, 0].set_title('dF/F')
+            axes[indf, 0].set_ylabel(f'{self.possible_values[0][indf]:.0f} Hz')
+
         plt.tight_layout()
         return axes
 
@@ -540,44 +597,65 @@ class WidefieldAverage:
 
     def show_response_summary(self, clim=None):
         """
-        Display baseline, evoked, and signal change (dF/F) images for all frequencies.
-        
-        Shows three columns: Baseline (pre-stimulus average), Evoked (during-stimulus 
-        average), and dF/F (relative fluorescence change). Each row corresponds to
-        one frequency.
-        
+        Display baseline, evoked, and signal change (dF/F) images for all conditions.
+
+        Rows correspond to frequencies (possible_values[0]). Columns are grouped in
+        sets of three (Baseline, Evoked, dF/F) — one group per intensity level
+        (possible_values[1]). When only one parameter was used the grid is simply
+        (n_freq, 3).
+
         Args:
-            clim (tuple): Color limits for the dF/F colorbar (vmin, vmax). 
+            clim (tuple): Color limits for the dF/F colorbar (vmin, vmax).
                 If None, uses auto scaling.
+
+        Returns:
+            numpy.ndarray: Array of axes with shape (n_freq, 3 * n_intensity).
         """
-        n_freq = len(self.possible_freq)
+        n_params = len(self.possible_values)
+        n_freq = len(self.possible_values[0])
+        n_intensity = len(self.possible_values[1]) if n_params > 1 else 1
+
         fig = plt.gcf()
         fig.clf()
-        axes = fig.subplots(n_freq, 3, sharex=True, sharey=True, squeeze=False)
-        
+        axes = fig.subplots(n_freq, 3 * n_intensity, sharex=True, sharey=True, squeeze=False)
+
+        for indt in range(n_intensity):
+            col_offset = indt * 3
+            intensity_label = (f' ({self.possible_values[1][indt]:.0f} dB)'
+                               if n_intensity > 1 else '')
+            # Always use a 2nd index when data has 2 param dimensions
+            idx_suffix = (indt,) if n_params > 1 else ()
+
+            for indf in range(n_freq):
+                idx = (indf,) + idx_suffix
+
+                # Baseline average
+                axes[indf, col_offset + 0].imshow(
+                    self.avg_baseline_each_cond[idx], cmap='gray')
+                axes[indf, col_offset + 0].set_aspect('equal')
+
+                # Evoked average
+                axes[indf, col_offset + 1].imshow(
+                    self.avg_evoked_each_cond[idx], cmap='gray')
+                axes[indf, col_offset + 1].set_aspect('equal')
+
+                # Signal change
+                im = axes[indf, col_offset + 2].imshow(
+                    self.signal_change_each_cond[idx], cmap='viridis',
+                    vmin=clim[0] if clim else None,
+                    vmax=clim[1] if clim else None)
+                axes[indf, col_offset + 2].set_aspect('equal')
+                plt.colorbar(im, ax=axes[indf, col_offset + 2], label='dF/F')
+
+            # Column group titles on the first row
+            axes[0, col_offset + 0].set_title(f'Baseline{intensity_label}')
+            axes[0, col_offset + 1].set_title(f'Evoked{intensity_label}')
+            axes[0, col_offset + 2].set_title(f'dF/F{intensity_label}')
+
+        # Row labels: frequency values
         for indf in range(n_freq):
-            # Baseline average
-            axes[indf, 0].imshow(self.avg_baseline_each_cond[indf], cmap='gray')
-            axes[indf, 0].set_aspect('equal')
-            
-            # Evoked average
-            axes[indf, 1].imshow(self.avg_evoked_each_cond[indf], cmap='gray')
-            axes[indf, 1].set_aspect('equal')
-            
-            # Signal change
-            im = axes[indf, 2].imshow(self.signal_change_each_cond[indf], cmap='viridis',
-                           vmin=clim[0] if clim else None,
-                           vmax=clim[1] if clim else None)
-            axes[indf, 2].set_aspect('equal')
-            plt.colorbar(im, ax=axes[indf, 2], label='dF/F')
-            
-            # Add frequency label on the left
-            axes[indf, 0].set_ylabel(f'{self.possible_freq[indf]:.0f} Hz')
-        
-        # Column titles on first row
-        axes[0, 0].set_title('Baseline')
-        axes[0, 1].set_title('Evoked')
-        axes[0, 2].set_title('dF/F')
+            axes[indf, 0].set_ylabel(f'{self.possible_values[0][indf]:.0f} Hz')
+
         plt.tight_layout()
         return axes
 
@@ -587,9 +665,9 @@ class WidefieldAverage:
         
         Args:
             method (str): Normalization method. Options:
-                - 'std': Divide each frequency's signal by its standard deviation.
-                - 'percentile': Normalize using 10-90 percentile range. Values are
-                  scaled so that the 10th percentile maps to 0 and 90th to 1.
+                - 'std': Divide each condition's signal by its standard deviation.
+                - 'percentile': Normalize using 1-99 percentile range. Values are
+                  scaled so that the 1st percentile maps to 0 and 99th to 1.
             roi (tuple or None): Region of interest for calculating normalization
                 parameters. Format: ((x_min, x_max), (y_min, y_max)). 
                 If None, uses the entire image.
@@ -599,9 +677,10 @@ class WidefieldAverage:
                 signal_change_each_cond.
         """
         normed = np.zeros_like(self.signal_change_each_cond)
-        
-        for indf in range(len(self.possible_freq)):
-            img = self.signal_change_each_cond[indf]
+        condition_shape = tuple(len(v) for v in self.possible_values)
+
+        for idx in np.ndindex(*condition_shape):
+            img = self.signal_change_each_cond[idx]
             
             # Extract ROI for normalization calculation if specified
             if roi is not None:
@@ -613,21 +692,16 @@ class WidefieldAverage:
             if method == 'std':
                 std_val = np.std(roi_data)
                 if std_val != 0:
-                    normed[indf] = img / std_val
+                    normed[idx] = img / std_val
                 else:
-                    normed[indf] = img
+                    normed[idx] = img
             elif method == 'percentile':
-                # Calculate 10th and 90th percentiles
-                # p10 = np.min(roi_data)
-                # p90 = np.max(roi_data)
                 p10 = np.percentile(roi_data, 1)
                 p90 = np.percentile(roi_data, 99)
-                
-                # Normalize: map p10 to 0, p90 to 1
                 if p90 != p10:
-                    normed[indf] = (img - p10) / (p90 - p10)
+                    normed[idx] = (img - p10) / (p90 - p10)
                 else:
-                    normed[indf] = img - p10  # Avoid division by zero
+                    normed[idx] = img - p10  # Avoid division by zero
             else:
                 raise ValueError(f"Unknown normalization method: {method}")
         
@@ -663,6 +737,13 @@ class WidefieldAverage:
         Returns:
             numpy.ndarray: Merged RGB image with shape (height, width, 3), values clipped to [0, 1].
         """
+        if normed_signal_change.ndim != 3:
+            raise ValueError(
+                f"normed_signal_change must be 3D (n_freq, H, W), "
+                f"got shape {normed_signal_change.shape}. "
+                "If the data has a second stimulus parameter, slice it first "
+                "(e.g. normed[:, param2_idx])."
+            )
         n_freq = len(normed_signal_change)
         n_channels = min(n_freq, 3)  # Use up to 3 channels for RGB
         
@@ -749,75 +830,95 @@ class WidefieldAverage:
         global_std = np.std(normed_signal_change[:3])
         return (-n_std_low * global_std, n_std_high * global_std)
 
-    def show_merged_signal_change(self, fig=None, clim=None, weights=None, roi=None, 
+    def show_merged_signal_change(self, fig=None, clim=None, weights=None, roi=None,
                                   threshold=None, thresholds=None, enabled=None,
-                                  bg=True, alpha=1.0):
+                                  bg=True, alpha=1.0, param2_idx=0):
         """
-        Display merged signal change (dF/F) images for all frequencies.
-        
+        Display merged signal change (dF/F) images for the first three frequencies.
+
         Shows two columns: the left column displays the normalized signal change
         for each of the first three frequencies, and the right column shows
-        a merged RGB image where each pixel is colored according to which 
+        a merged RGB image where each pixel is colored according to which
         frequency has the maximum response. Red = freq[0], Green = freq[1], Blue = freq[2].
-        
+
+        When data has a second stimulus parameter (e.g. intensity, AM depth, …),
+        use ``param2_idx`` to select which value of that parameter to display.
+
         Args:
             fig (matplotlib.figure.Figure or None): Figure to plot into. If None,
                 uses plt.gcf() and clears it.
-            clim (tuple): Color limits for the individual frequency images (vmin, vmax). 
-                If None, it estimates it from standard deviations of the normalized data.
+            clim (tuple): Color limits for the individual frequency images (vmin, vmax).
+                If None, estimated from standard deviations of the normalized data.
             weights (tuple or list): Weights to apply to each channel (R, G, B) before
-                finding the max. For example, weights=(1, 0.5, 1) would reduce the 
-                contribution of the green channel. If None, equal weights are used.
-            roi (tuple or None): Region of interest for calculating normalization
-                parameters. Format: ((x_min, x_max), (y_min, y_max)). 
-                If None, uses the entire image.
-            threshold (float or None): If provided, applies same threshold to all channels.
-                Pixels below threshold will be black. (Legacy parameter, use thresholds instead.)
+                finding the max. If None, equal weights are used.
+            roi (tuple or None): Region of interest for normalization.
+                Format: ((x_min, x_max), (y_min, y_max)). If None, uses the entire image.
+            threshold (float or None): Applies the same threshold to all channels.
+                Pixels below threshold will be black. (Legacy; prefer thresholds.)
             thresholds (list or None): Per-channel thresholds [red, green, blue].
                 Overrides threshold if both are provided.
             enabled (list or None): List of 3 booleans indicating which channels are enabled.
-            bg (bool): If True, pixels below threshold will show the average
-                baseline image (grayscale) as background instead of black. Default is False.
-            alpha (float): Transparency of color channels (0-1). When less than 1,
-                the baseline image will show through the colored pixels. Requires
-                bg=True. Default is 1.0 (fully opaque).
-        
+            bg (bool): If True, pixels below threshold show the average baseline image
+                (grayscale) instead of black. Default is True.
+            alpha (float): Transparency of color channels (0–1). Requires bg=True.
+                Default is 1.0 (fully opaque).
+            param2_idx (int): Index into possible_values[1] selecting which value of the
+                second stimulus parameter to display (e.g., which intensity to show).
+                Ignored when there is only one parameter. Default is 0.
+
         Returns:
-            tuple: (axes_left, ax_merged) - list of left column axes and merged image axis.
+            tuple: (axes_left, ax_merged) — list of left-column axes and merged image axis.
         """
-        n_freq = len(self.possible_freq)
+        n_params = len(self.possible_values)
+        n_freq = len(self.possible_values[0])
         if n_freq < 3:
             raise ValueError("Need at least 3 frequencies to create RGB merged image.")
-        
-        # Normalize signal change for merging
-        normed_signal_change = self.normalize_signal_change(roi=roi)
-        
+
+        # Build a human-readable label for the second parameter value, if present.
+        param2_label = ''
+        if n_params > 1:
+            param2_name = (self.stim_param_names[1]
+                           if isinstance(self.stim_param_names, list)
+                           else 'param2')
+            param2_val = self.possible_values[1][param2_idx]
+            param2_label = f'{param2_name}={param2_val:.4g}'
+
+        # Normalize all conditions, then slice to the requested second-param value.
+        normed_all = self.normalize_signal_change(roi=roi)
+        if n_params > 1:
+            normed_signal_change = normed_all[:, param2_idx]   # (n_freq, H, W)
+        else:
+            normed_signal_change = normed_all                  # (n_freq, H, W)
+
         # Set clim based on standard deviation if not provided
         if clim is None:
             clim = self.compute_clim(normed_signal_change)
-        
+
         # Handle legacy threshold parameter
         if thresholds is None and threshold is not None:
             thresholds = threshold  # Will be expanded in compute_merged_image
-        
-        # Compute average baseline image if needed
+
+        # Average baseline image for the selected second-param slice
         baseline_image = None
         if bg:
-            baseline_image = np.mean(self.avg_baseline_each_cond[:3], axis=0)
-        
+            if n_params > 1:
+                baseline_image = np.mean(self.avg_baseline_each_cond[:3, param2_idx], axis=0)
+            else:
+                baseline_image = np.mean(self.avg_baseline_each_cond[:3], axis=0)
+
         # Compute merged image
         merged_image = self.compute_merged_image(normed_signal_change, thresholds=thresholds,
                                                   enabled=enabled, weights=weights,
                                                   bg_image=baseline_image, alpha=alpha)
-        
+
         # Create figure with 3 rows, 2 columns
         if fig is None:
             fig = plt.gcf()
             fig.clf()
-        
+
         # Create first axis to use as reference for sharing
         ax_first = fig.add_subplot(3, 2, 1)
-        
+
         # Left column: individual normalized signal change images
         axes_left = []
         for indf in range(3):
@@ -826,31 +927,36 @@ class WidefieldAverage:
             else:
                 ax = fig.add_subplot(3, 2, 2 * indf + 1, sharex=ax_first, sharey=ax_first)
             im = ax.imshow(normed_signal_change[indf], cmap='viridis',
-                          vmin=clim[0], vmax=clim[1])
-            
-            # Add indicator if channel is disabled
+                           vmin=clim[0], vmax=clim[1])
+
             status = ''
             if enabled is not None and not enabled[indf]:
                 status = ' [DISABLED]'
-            ax.set_ylabel(f'{self.possible_freq[indf]:.0f} Hz\n({CHANNEL_NAMES[indf]}){status}')
+            ax.set_ylabel(f'{self.possible_values[0][indf]:.0f} Hz\n({CHANNEL_NAMES[indf]}){status}')
             ax.set_aspect('equal')
             if indf == 0:
-                ax.set_title('Normalized dF/F')
+                title = 'Normalized dF/F'
+                if param2_label:
+                    title += f'\n{param2_label}'
+                ax.set_title(title)
             fig.colorbar(im, ax=ax)
             axes_left.append(ax)
-        
+
         # Right column: merged RGB image (spanning all 3 rows, sharing axes)
         ax_merged = fig.add_subplot(1, 2, 2, sharex=ax_first, sharey=ax_first)
         ax_merged.imshow(merged_image)
-        ax_merged.set_title('Merged (RGB: max channel)')
+        merged_title = 'Merged (RGB: max channel)'
+        if param2_label:
+            merged_title += f'\n{param2_label}'
+        ax_merged.set_title(merged_title)
         ax_merged.set_aspect('equal')
-        
+
         # Zoom into ROI if provided
         if roi is not None:
             (x_min, x_max), (y_min, y_max) = roi
             ax_first.set_xlim(x_min, x_max)
             ax_first.set_ylim(y_max, y_min)  # Inverted for image coordinates
-        
+
         fig.tight_layout()
         return axes_left, ax_merged
 
@@ -871,14 +977,14 @@ if __name__ == '__main__':
 
         # Compute evoked responses
         signal_change = wfobj.compute_evoked_response()
-        print(f"Computed responses for {len(wfobj.possible_freq)} frequencies")
+        print(f"Computed responses for {len(wfobj.possible_values[0])} frequencies")
         print(f"Signal change shape: {wfobj.signal_change_each_cond.shape}")
         wfobj.save()
 
     if 0:
         # Load precomputed averages
         wfavg = WidefieldAverage(subject, date, session)
-        #print(f"Loaded averages for {len(wfavg.possible_freq)} frequencies")
+        #print(f"Loaded averages for {len(wfavg.possible_values[0])} frequencies")
         print(f"Signal change shape: {wfavg.signal_change_each_cond.shape}")
         # Display all frequencies
         #wfavg.show_signal_change() #clim=(-0.1, 0.3))

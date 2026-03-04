@@ -12,7 +12,8 @@ import numpy as np
 from scipy import ndimage
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QSlider, QLabel, QCheckBox, QGroupBox, QGridLayout, QLineEdit, QPushButton, QDoubleSpinBox
+    QSlider, QLabel, QCheckBox, QGroupBox, QGridLayout, QLineEdit, QPushButton, QDoubleSpinBox,
+    QComboBox
 )
 from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -51,12 +52,14 @@ class WidefieldMergedViewer(QMainWindow):
         self.wfavg = wfavg
         self.roi = roi
         
-        # Get number of channels
-        self.n_channels = len(wfavg.possible_freq)
+        # Get number of channels and parameters
+        self.n_channels = len(wfavg.possible_values[0])
+        self.n_params = len(wfavg.possible_values)
+        self.param2_idx = 0  # Index into possible_values[1] (e.g. which intensity)
         
-        # Normalize signal change and compute clim
+        # Normalize signal change (full array, sliced per param2_idx in update_plots)
         self.normed_signal_change = wfavg.normalize_signal_change(roi=roi)
-        self.clim = wfavg.compute_clim(self.normed_signal_change)
+        self.clim = wfavg.compute_clim(self._get_normed_slice())
         
         # Initialize thresholds and enabled states based on number of channels
         self.thresholds = [0.5] * self.n_channels
@@ -117,7 +120,7 @@ class WidefieldMergedViewer(QMainWindow):
         for ind in range(self.n_channels):
             # Get channel name, use index if not enough names defined
             channel_name = CHANNEL_NAMES[ind] if ind < len(CHANNEL_NAMES) else f'Ch{ind}'
-            group = QGroupBox(f'{channel_name} Channel ({self.wfavg.possible_freq[ind]:.0f} Hz)')
+            group = QGroupBox(f'{channel_name} Channel ({self.wfavg.possible_values[0][ind]:.0f} Hz)')
             group_layout = QGridLayout(group)
             
             # Enable checkbox
@@ -172,6 +175,25 @@ class WidefieldMergedViewer(QMainWindow):
         
         controls_layout.addWidget(roi_group)
         
+        # Second stimulus parameter selector (e.g. intensity), only shown when relevant
+        self.param2_group = QGroupBox('Second Parameter')
+        param2_layout = QGridLayout(self.param2_group)
+        if self.n_params > 1:
+            param2_name = (self.wfavg.stim_param_names[1]
+                           if isinstance(self.wfavg.stim_param_names, list)
+                           else 'param2')
+            param2_layout.addWidget(QLabel(f'{param2_name}:'), 0, 0)
+            self.param2_combo = QComboBox()
+            for val in self.wfavg.possible_values[1]:
+                self.param2_combo.addItem(f'{val:.4g}')
+            self.param2_combo.currentIndexChanged.connect(self.on_param2_changed)
+            param2_layout.addWidget(self.param2_combo, 0, 1)
+            self.param2_group.setVisible(True)
+        else:
+            self.param2_combo = None
+            self.param2_group.setVisible(False)
+        controls_layout.addWidget(self.param2_group)
+        
         # Display options
         display_group = QGroupBox('Display Options')
         display_layout = QGridLayout(display_group)
@@ -208,6 +230,15 @@ class WidefieldMergedViewer(QMainWindow):
         # Add stretch to push controls to top
         controls_layout.addStretch()
         
+    def _get_normed_slice(self):
+        """
+        Return the normalized signal change for the currently selected second parameter
+        value, always as a 3D array (n_freq, H, W).
+        """
+        if self.n_params > 1:
+            return self.normed_signal_change[:, self.param2_idx]  # (n_freq, H, W)
+        return self.normed_signal_change  # already (n_freq, H, W)
+
     def on_slider_changed(self, channel_idx, value):
         """
         Handle slider value change.
@@ -261,6 +292,12 @@ class WidefieldMergedViewer(QMainWindow):
         self.rotation_angle = value
         self.update_plots()
     
+    def on_param2_changed(self, index):
+        """Handle second parameter combobox selection change."""
+        self.param2_idx = index
+        self.clim = self.wfavg.compute_clim(self._get_normed_slice())
+        self.update_plots()
+
     def on_roi_changed(self):
         """Handle ROI change from edit boxes."""
         try:
@@ -279,8 +316,8 @@ class WidefieldMergedViewer(QMainWindow):
             # Re-normalize with new ROI
             self.normed_signal_change = self.wfavg.normalize_signal_change(roi=self.roi)
             
-            # Recalculate clim
-            self.clim = self.wfavg.compute_clim(self.normed_signal_change)
+            # Recalculate clim using only the currently displayed slice
+            self.clim = self.wfavg.compute_clim(self._get_normed_slice())
             
             self.update_plots(reset_zoom=True)
         except ValueError:
@@ -433,12 +470,21 @@ class WidefieldMergedViewer(QMainWindow):
         
         self.figure.clear()
         
+        # Slice normalized data to the selected second-param value (always 3D: n_freq, H, W)
+        normed = self._get_normed_slice()
+        
+        # Corresponding baseline image (mean of first 3 freq channels for the selected slice)
+        if self.n_params > 1:
+            baseline_image = np.mean(self.wfavg.avg_baseline_each_cond[:3, self.param2_idx], axis=0)
+        else:
+            baseline_image = np.mean(self.wfavg.avg_baseline_each_cond[:3], axis=0)
+        
         # Compute merged image using the WidefieldAverage method
         merged_image = self.wfavg.compute_merged_image(
-            self.normed_signal_change,
+            normed,
             thresholds=self.thresholds,
             enabled=self.enabled,
-            bg_image=self.wfavg.avg_baseline_each_freq[0],
+            bg_image=baseline_image,
             alpha=0.5
         )
         
@@ -462,14 +508,14 @@ class WidefieldMergedViewer(QMainWindow):
                 ax = self.figure.add_subplot(gs[indf, 0], 
                                              sharex=ax_first, sharey=ax_first)
             
-            im = ax.imshow(self.normed_signal_change[indf], cmap='viridis',
+            im = ax.imshow(normed[indf], cmap='viridis',
                           vmin=self.clim[0], vmax=self.clim[1])
             
             # Add indicator if channel is disabled
             status = '' if self.enabled[indf] else ' [DISABLED]'
             # Get channel name for label
             channel_name = CHANNEL_NAMES[indf] if indf < len(CHANNEL_NAMES) else f'Ch{indf}'
-            ax.set_ylabel(f'{self.wfavg.possible_freq[indf]:.0f} Hz\n({channel_name}){status}')
+            ax.set_ylabel(f'{self.wfavg.possible_values[0][indf]:.0f} Hz\n({channel_name}){status}')
             ax.set_aspect('equal')
             
             if indf == 0:
