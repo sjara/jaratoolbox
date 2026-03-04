@@ -130,36 +130,51 @@ class Widefield(loadwidefield.WidefieldData):
                          camera_rotation=camera_rotation, hemisphere=hemisphere)
         
         # Analysis results (computed on demand)
-        self.possible_freq = None
-        self.trials_each_freq = None
-        self.avg_evoked_each_freq = None
-        self.avg_baseline_each_freq = None
-        self.signal_change_each_freq = None
+        self.stim_param_names = None  # str, list of str, or None; mirrors stim_param passed to compute_evoked_response
+        self.possible_values = None   # list of arrays, one per param: [possible_freq] or [possible_freq, possible_intensity]
+        self.possible_freq = None     # shortcut to possible_values[0] for single-param backward compatibility
+        self.trials_each_cond = None  # bool array (n_trials, n_v1) or (n_trials, n_v1, n_v2, ...)
+        self.avg_evoked_each_cond = None    # (n_v1[, n_v2, ...], H, W)
+        self.avg_baseline_each_cond = None  # (n_v1[, n_v2, ...], H, W)
+        self.signal_change_each_cond = None # (n_v1[, n_v2, ...], H, W)
     
     def compute_evoked_response(self, stim_param='currentFreq'):
         """
-        Compute average evoked response for each stimulus type.
+        Compute average evoked response for each stimulus condition.
         
         This method calculates the average fluorescence during the stimulus
         (evoked) and before the stimulus (baseline) for each unique stimulus
-        value, then computes the relative change in fluorescence (dF/F).
+        condition, then computes the relative change in fluorescence (dF/F).
         
         Args:
-            stim_param (str or None): Name of the behavioral parameter to group trials by
-                (default: 'currentFreq'). If None, treats all trials as having the same
-                stimulus (useful when there's no behavioral variation).
+            stim_param (str, list of str, or None): Behavioral parameter(s) used to
+                group trials.
+                - str (default: 'currentFreq'): group by a single parameter. Output
+                  arrays have shape (n_freq, H, W).
+                - list of str (e.g. ['currentFreq', 'currentIntensity']): group by
+                  all unique combinations of the listed parameters using
+                  behavioranalysis.find_trials_each_combination_n(). Output arrays
+                  have shape (n_v1, n_v2, ..., H, W), so indexing is natural:
+                  signal_change_each_cond[i_freq, i_intensity] corresponds to
+                  possible_values[0][i_freq] x possible_values[1][i_intensity].
+                - None: treat all trials as a single condition (no behavioural data
+                  required). Output shape is (1, H, W).
         
         Returns:
-            numpy.ndarray: Signal change (dF/F) for each stimulus type.
-                Shape: (n_stim_types, height, width)
+            numpy.ndarray: Signal change (dF/F) for each stimulus condition.
+                Shape: (n_v1[, n_v2, ...], height, width)
         
         Note:
             Results are also stored in:
-            - self.possible_freq: unique stimulus values
-            - self.trials_each_freq: boolean array of trials for each stimulus
-            - self.avg_evoked_each_freq: average evoked image for each stimulus
-            - self.avg_baseline_each_freq: average baseline image for each stimulus
-            - self.signal_change_each_freq: dF/F for each stimulus
+            - self.stim_param_names: the value of stim_param that was passed
+            - self.possible_values: list of arrays with unique values per parameter;
+              e.g. [array([4k,8k,16k]), array([30,50,70])] for freq x intensity.
+              Use this to map indices back to physical values.
+            - self.possible_freq: shortcut to possible_values[0]
+            - self.trials_each_cond: bool array (n_trials, n_v1[, n_v2, ...])
+            - self.avg_evoked_each_cond: average evoked image per condition
+            - self.avg_baseline_each_cond: average baseline image per condition
+            - self.signal_change_each_cond: dF/F per condition
         """
         # Ensure data is loaded
         if self.frames is None:
@@ -167,24 +182,40 @@ class Widefield(loadwidefield.WidefieldData):
         if self.sound_onset is None:
             raise ValueError("Timestamps not loaded. Call load_timestamps() first.")
         
-        # -- Align trials with sound events --
+        self.stim_param_names = stim_param
+        H, W = self.frames.shape[1], self.frames.shape[2]
+
+        # -- Build trials_each_cond and possible_values --
         if stim_param is None:
-            # Treat all trials as having the same stimulus
+            # Single condition: all trials treated the same
             n_trials = len(self.sound_offset)
-            current_stim = np.zeros(n_trials)  # All trials have the same value
-            self.possible_freq = np.array([0])
+            self.possible_values = [np.array([0])]
+            self.trials_each_cond = np.ones((n_trials, 1), dtype=bool)
+        elif isinstance(stim_param, list):
+            # Multi-parameter case: use find_trials_each_combination_n
+            if self.bdata is None:
+                raise ValueError("Behavior data not loaded. Call load_behavior() first.")
+            n_trials = min(len(self.bdata[stim_param[0]]), len(self.sound_offset))
+            param_arrays = [self.bdata[p][:n_trials] for p in stim_param]
+            self.possible_values = [np.unique(p) for p in param_arrays]
+            # trials_each_cond shape: (n_trials, n_v1, n_v2, ...)
+            self.trials_each_cond = behavioranalysis.find_trials_each_combination_n(
+                param_arrays, self.possible_values
+            )
         else:
-            # Use behavioral data to group trials
+            # Single-parameter case (original behaviour)
             if self.bdata is None:
                 raise ValueError("Behavior data not loaded. Call load_behavior() first.")
             n_trials = min(len(self.bdata[stim_param]), len(self.sound_offset))
             current_stim = self.bdata[stim_param][:n_trials]
-            self.possible_freq = np.unique(current_stim)
-        
-        self.trials_each_freq = behavioranalysis.find_trials_each_type(
-            current_stim, self.possible_freq
-        )
-        
+            self.possible_values = [np.unique(current_stim)]
+            # trials_each_cond shape: (n_trials, n_freq)
+            self.trials_each_cond = behavioranalysis.find_trials_each_type(
+                current_stim, self.possible_values[0]
+            )
+
+        self.possible_freq = self.possible_values[0]
+
         # Fix the length of sound onsets to match bdata trials
         sound_onset = self.sound_onset[:n_trials]
         sound_offset = self.sound_offset[:n_trials]
@@ -196,47 +227,43 @@ class Widefield(loadwidefield.WidefieldData):
         
         # Find frames corresponding to sound onset
         frame_after_onset = np.searchsorted(self.timestamps, sound_onset, side='left')
-        
-        # -- Compute evoked response for each stimulus type --
-        avg_evoked_each_freq = []
-        avg_baseline_each_freq = []
-        signal_change_each_freq = []
-        
-        for indf, freq in enumerate(self.possible_freq):
-            # Get frames after sound onset for this stimulus type
-            frame_after_onset_this_freq = frame_after_onset[self.trials_each_freq[:, indf]]
+
+        # -- Allocate output arrays with shape (n_v1[, n_v2, ...], H, W) --
+        condition_shape = tuple(len(v) for v in self.possible_values)
+        self.avg_evoked_each_cond = np.zeros(condition_shape + (H, W))
+        self.avg_baseline_each_cond = np.zeros(condition_shape + (H, W))
+        self.signal_change_each_cond = np.zeros(condition_shape + (H, W))
+
+        # -- Compute evoked response for each condition --
+        # np.ndindex iterates over (0,), (1,), ... for 1-param
+        # or (0,0), (0,1), ..., (n1-1,n2-1) for 2-param, etc.
+        for idx in np.ndindex(*condition_shape):
+            # Index into trials_each_cond: first axis is trials, rest are param dims
+            trials_this_cond = self.trials_each_cond[(slice(None),) + idx]
+            frame_after_onset_this_cond = frame_after_onset[trials_this_cond]
             
             # Create array of all evoked frame indices
-            evoked_frames_this_freq = np.tile(
-                frame_after_onset_this_freq, (sound_duration_in_frames, 1)
+            evoked_frames = np.tile(
+                frame_after_onset_this_cond, (sound_duration_in_frames, 1)
             )
-            evoked_frames_this_freq += np.arange(sound_duration_in_frames)[:, None]
-            evoked_frames_this_freq = np.sort(evoked_frames_this_freq.ravel())
+            evoked_frames += np.arange(sound_duration_in_frames)[:, None]
+            evoked_frames = np.sort(evoked_frames.ravel())
             
             # Handle case where video may be split into multiple recordings
-            final_frames = np.searchsorted(evoked_frames_this_freq, len(self.frames))
-            evoked_indices = evoked_frames_this_freq[:final_frames]
+            final_frames = np.searchsorted(evoked_frames, len(self.frames))
+            evoked_indices = evoked_frames[:final_frames]
             
-            # Compute average evoked fluorescence
-            avg_evoked_this_freq = np.mean(self.frames[evoked_indices], axis=0)
-            
-            # Compute average baseline fluorescence (same duration before onset)
+            # Compute average evoked and baseline fluorescence
+            avg_evoked = np.mean(self.frames[evoked_indices], axis=0)
             baseline_indices = evoked_indices - sound_duration_in_frames
-            avg_baseline_this_freq = np.mean(self.frames[baseline_indices], axis=0)
+            avg_baseline = np.mean(self.frames[baseline_indices], axis=0)
             
             # Compute relative change in fluorescence (dF/F)
-            signal_change = (avg_evoked_this_freq - avg_baseline_this_freq) / avg_baseline_this_freq
-            
-            avg_evoked_each_freq.append(avg_evoked_this_freq)
-            avg_baseline_each_freq.append(avg_baseline_this_freq)
-            signal_change_each_freq.append(signal_change)
+            self.avg_evoked_each_cond[idx] = avg_evoked
+            self.avg_baseline_each_cond[idx] = avg_baseline
+            self.signal_change_each_cond[idx] = (avg_evoked - avg_baseline) / avg_baseline
         
-        # Convert lists to arrays and store
-        self.avg_evoked_each_freq = np.array(avg_evoked_each_freq)
-        self.avg_baseline_each_freq = np.array(avg_baseline_each_freq)
-        self.signal_change_each_freq = np.array(signal_change_each_freq)
-        
-        return self.signal_change_each_freq
+        return self.signal_change_each_cond
 
     def save(self):
         """
@@ -247,9 +274,9 @@ class Widefield(loadwidefield.WidefieldData):
 
         output_file = os.path.join(save_dir , f'{self.subject}_{self.date}_{self.session}_processed.npz')
 
-        np.savez(output_file, avg_evoked_each_freq=self.avg_evoked_each_freq,
-                 avg_baseline_each_freq=self.avg_baseline_each_freq,
-                 signal_change_each_freq=self.signal_change_each_freq, 
+        np.savez(output_file, avg_evoked_each_cond=self.avg_evoked_each_cond,
+                 avg_baseline_each_cond=self.avg_baseline_each_cond,
+                 signal_change_each_cond=self.signal_change_each_cond, 
                  possible_freq=self.possible_freq,
                  camera_rotation=self.camera_rotation,
                  hemisphere=self.hemisphere)
@@ -328,7 +355,7 @@ class Widefield(loadwidefield.WidefieldData):
         Returns:
             numpy.ndarray: Array of axes objects.
         """
-        if self.signal_change_each_freq is None:
+        if self.signal_change_each_cond is None:
             raise ValueError("No computed results. Call compute_evoked_response() first.")
         
         n_freq = len(self.possible_freq)
@@ -338,17 +365,17 @@ class Widefield(loadwidefield.WidefieldData):
         
         for indf in range(n_freq):
             # Baseline average
-            im0 = axes[indf, 0].imshow(self.avg_baseline_each_freq[indf], cmap='gray')
+            im0 = axes[indf, 0].imshow(self.avg_baseline_each_cond[indf], cmap='gray')
             axes[indf, 0].set_aspect('equal')
             plt.colorbar(im0, ax=axes[indf, 0])
             
             # Evoked average
-            im1 = axes[indf, 1].imshow(self.avg_evoked_each_freq[indf], cmap='gray')
+            im1 = axes[indf, 1].imshow(self.avg_evoked_each_cond[indf], cmap='gray')
             axes[indf, 1].set_aspect('equal')
             plt.colorbar(im1, ax=axes[indf, 1])
             
             # Signal change
-            im2 = axes[indf, 2].imshow(self.signal_change_each_freq[indf], cmap='viridis',
+            im2 = axes[indf, 2].imshow(self.signal_change_each_cond[indf], cmap='viridis',
                            vmin=clim[0] if clim else None,
                            vmax=clim[1] if clim else None)
             axes[indf, 2].set_aspect('equal')
@@ -373,9 +400,9 @@ class WidefieldAverage:
         subject (str): Subject identifier.
         date (str): Date string (e.g., '20241219').
         session (str): Session identifier. Usually a time string (e.g., '161007').
-        avg_evoked_each_freq (numpy.ndarray): Average evoked images for each stimulus.
-        avg_baseline_each_freq (numpy.ndarray): Average baseline images for each stimulus.
-        signal_change_each_freq (numpy.ndarray): dF/F images for each stimulus.
+        avg_evoked_each_cond (numpy.ndarray): Average evoked images for each stimulus.
+        avg_baseline_each_cond (numpy.ndarray): Average baseline images for each stimulus.
+        signal_change_each_cond (numpy.ndarray): dF/F images for each stimulus.
         possible_freq (numpy.ndarray): Unique stimulus values.
         camera_rotation (int): Camera rotation in units of 90-degree CCW rotations.
         hemisphere (str): Which hemisphere is being imaged ('right' or 'left').
@@ -403,9 +430,9 @@ class WidefieldAverage:
         input_file = os.path.join(save_dir , f'{self.subject}_{self.date}_{self.session}_processed.npz')
         
         data = np.load(input_file)
-        self.avg_evoked_each_freq = data['avg_evoked_each_freq']
-        self.avg_baseline_each_freq = data['avg_baseline_each_freq']
-        self.signal_change_each_freq = data['signal_change_each_freq']
+        self.avg_evoked_each_cond = data['avg_evoked_each_cond']
+        self.avg_baseline_each_cond = data['avg_baseline_each_cond']
+        self.signal_change_each_cond = data['signal_change_each_cond']
         self.possible_freq = data['possible_freq']
         self.camera_rotation = int(data['camera_rotation'])
         self.hemisphere = str(data['hemisphere'])
@@ -433,11 +460,11 @@ class WidefieldAverage:
         
         if 0:
             # Normalize signal change by the standard deviation for each frequency
-            normed_signal_change = self.signal_change_each_freq / np.std(self.signal_change_each_freq,
+            normed_signal_change = self.signal_change_each_cond / np.std(self.signal_change_each_cond,
                                                                           axis=(1,2), keepdims=True)
             signal_change = normed_signal_change
         else:
-            signal_change = self.signal_change_each_freq
+            signal_change = self.signal_change_each_cond
     
         for indf in range(n_freq):
             im = axes[indf, 0].imshow(signal_change[indf], cmap='viridis',
@@ -530,15 +557,15 @@ class WidefieldAverage:
         
         for indf in range(n_freq):
             # Baseline average
-            axes[indf, 0].imshow(self.avg_baseline_each_freq[indf], cmap='gray')
+            axes[indf, 0].imshow(self.avg_baseline_each_cond[indf], cmap='gray')
             axes[indf, 0].set_aspect('equal')
             
             # Evoked average
-            axes[indf, 1].imshow(self.avg_evoked_each_freq[indf], cmap='gray')
+            axes[indf, 1].imshow(self.avg_evoked_each_cond[indf], cmap='gray')
             axes[indf, 1].set_aspect('equal')
             
             # Signal change
-            im = axes[indf, 2].imshow(self.signal_change_each_freq[indf], cmap='viridis',
+            im = axes[indf, 2].imshow(self.signal_change_each_cond[indf], cmap='viridis',
                            vmin=clim[0] if clim else None,
                            vmax=clim[1] if clim else None)
             axes[indf, 2].set_aspect('equal')
@@ -569,12 +596,12 @@ class WidefieldAverage:
         
         Returns:
             numpy.ndarray: Normalized signal change array with same shape as 
-                signal_change_each_freq.
+                signal_change_each_cond.
         """
-        normed = np.zeros_like(self.signal_change_each_freq)
+        normed = np.zeros_like(self.signal_change_each_cond)
         
         for indf in range(len(self.possible_freq)):
-            img = self.signal_change_each_freq[indf]
+            img = self.signal_change_each_cond[indf]
             
             # Extract ROI for normalization calculation if specified
             if roi is not None:
@@ -776,7 +803,7 @@ class WidefieldAverage:
         # Compute average baseline image if needed
         baseline_image = None
         if bg:
-            baseline_image = np.mean(self.avg_baseline_each_freq[:3], axis=0)
+            baseline_image = np.mean(self.avg_baseline_each_cond[:3], axis=0)
         
         # Compute merged image
         merged_image = self.compute_merged_image(normed_signal_change, thresholds=thresholds,
@@ -845,14 +872,14 @@ if __name__ == '__main__':
         # Compute evoked responses
         signal_change = wfobj.compute_evoked_response()
         print(f"Computed responses for {len(wfobj.possible_freq)} frequencies")
-        print(f"Signal change shape: {wfobj.signal_change_each_freq.shape}")
+        print(f"Signal change shape: {wfobj.signal_change_each_cond.shape}")
         wfobj.save()
 
     if 0:
         # Load precomputed averages
         wfavg = WidefieldAverage(subject, date, session)
         #print(f"Loaded averages for {len(wfavg.possible_freq)} frequencies")
-        print(f"Signal change shape: {wfavg.signal_change_each_freq.shape}")
+        print(f"Signal change shape: {wfavg.signal_change_each_cond.shape}")
         # Display all frequencies
         #wfavg.show_signal_change() #clim=(-0.1, 0.3))
         wfavg.show_response_summary() #clim=(-0.1, 0.3))
