@@ -12,12 +12,12 @@ import tifffile
 DEFAULT_RESOLUTION = 0.0156
 
 # Orientation mapping for different camera rotations
-# Maps camera rotation (in 90-degree CCW units) to (top, bottom, left, right) anatomical directions
+# Maps camera rotation (in degrees CCW) to (top, bottom, left, right) anatomical directions
 ORIENTATION_MAP = {
-    0: ('posterior', 'anterior', 'ventral', 'dorsal'),  # No camera rotation
-    1: ('dorsal', 'ventral', 'posterior', 'anterior'),  # Camera 90° CCW
-    2: ('anterior', 'posterior', 'dorsal', 'ventral'),  # Camera 180°
-    3: ('ventral', 'dorsal', 'anterior', 'posterior'),  # Camera 270° CCW
+      0: ('posterior', 'anterior', 'ventral', 'dorsal'),  # No camera rotation
+     90: ('dorsal', 'ventral', 'posterior', 'anterior'),  # Camera 90° CCW
+    180: ('anterior', 'posterior', 'dorsal', 'ventral'),  # Camera 180°
+    270: ('ventral', 'dorsal', 'anterior', 'posterior'),  # Camera 270° CCW
 }
 
 def compute_orientation(camera_rotation, hemisphere):
@@ -25,14 +25,16 @@ def compute_orientation(camera_rotation, hemisphere):
     Compute image orientation (anatomical directions) based on camera rotation and hemisphere.
     
     Args:
-        camera_rotation (int): Physical rotation of the camera in units of 90-degree CCW rotations.
+        camera_rotation (int or float): Physical rotation of the camera in degrees CCW.
+            Will be rounded to the nearest multiple of 90°.
         hemisphere (str): Which side of the brain is being imaged ('right' or 'left').
     
     Returns:
         dict: Dictionary with keys 'top', 'bottom', 'left', 'right', 'hemisphere' and their
               corresponding anatomical direction values.
     """
-    top, bottom, left, right = ORIENTATION_MAP.get(camera_rotation % 4, ORIENTATION_MAP[1])
+    key = round(camera_rotation / 90) % 4 * 90
+    top, bottom, left, right = ORIENTATION_MAP.get(key, ORIENTATION_MAP[90])
     
     # Swap anterior-posterior for left hemisphere
     if hemisphere == 'left':
@@ -182,7 +184,7 @@ class WidefieldData:
     """
     
     def __init__(self, subject, date, session, suffix='', paradigm='am_tuning_curve',
-                 camera_rotation=1, hemisphere='right', resolution=None):
+                 camera_rotation=90, hemisphere='right', resolution=None):
         """
         Initialize a WidefieldData object.
         
@@ -192,9 +194,8 @@ class WidefieldData:
             session (str): Session identifier. Usually a time string (e.g., '161007').
             suffix (str): Suffix for the TIFF filename (e.g., 'LG' for left-green).
             paradigm (str): Behavioral paradigm name (default: 'am_tuning_curve').
-            camera_rotation (int): Physical rotation of the camera in units of 
-                90-degree CCW rotations. Default is 1 (camera rotated 90° CCW).
-                Use 0 if camera is not rotated.
+            camera_rotation (int or float): Physical rotation of the camera in degrees CCW.
+                Default is 90 (camera rotated 90° CCW). Use 0 if camera is not rotated.
             hemisphere (str): Which side of the brain is being imaged. 
                 'right' (default) or 'left'. This affects the anterior-posterior
                 orientation in the final image.
@@ -212,7 +213,7 @@ class WidefieldData:
         
         # Calculate the rotation needed to correct for camera orientation
         # We rotate by the same amount as the camera to undo its effect
-        self.rotate = camera_rotation
+        self.rotate = round(camera_rotation / 90) % 4
         
         # Data attributes (loaded on demand)
         self.frames = None

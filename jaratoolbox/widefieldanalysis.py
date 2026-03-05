@@ -43,8 +43,8 @@ def load_infowidefield(subject):
     return infowidefield
 
 
-def preprocess_widefield(subject, date='', time='', suffix='', paradigm='am_tuning_curve',
-                         camera_rotation=1, hemisphere='right'):
+def preprocess_widefield(subject, date='', time='', suffix='wf', paradigm='am_tuning_curve',
+                         camera_rotation=90, hemisphere='right'):
     """
     Preprocess widefield data and save results to disk.
     
@@ -55,7 +55,9 @@ def preprocess_widefield(subject, date='', time='', suffix='', paradigm='am_tuni
     the infowidefield file for that subject and processes all sessions listed in it.
     If 'subject' and 'date' are provided but 'time' is empty, all sessions for
     that date are processed from the infowidefield file.
-    Each session dictionary must contain 'date', 'session', 'suffix', and 'paradigm' keys.
+    Each session dictionary must contain 'date', 'time', and 'subject' keys.
+    Optional keys: 'suffix' (default: 'wf'), 'paradigm' (default: 'am_tuning_curve'),
+    'cameraRotation' (default: 90), 'hemisphere' (default: 'right').
     
     Args:
         subject (str): Subject identifier.
@@ -64,13 +66,13 @@ def preprocess_widefield(subject, date='', time='', suffix='', paradigm='am_tuni
             sessions for that date will be processed.
         time (str): Start time of the session (e.g., '161007'). If empty, all
             sessions matching the given date will be processed.
-        suffix (str): Suffix for the TIFF filename (e.g., 'LG' for left-green).
+        suffix (str): Suffix for the TIFF filename.
         paradigm (str): Behavioral paradigm name (default: 'am_tuning_curve').
-        camera_rotation (int): Physical rotation of the camera in units of 
-            90-degree CCW rotations. Default is 1 (camera rotated 90° CCW).
-            Use 0 if camera is not rotated.
-        hemisphere (str): Which side of the brain is being imaged.
-            'right' (default) or 'left'.
+        camera_rotation (int or float): Physical rotation of the camera in degrees CCW.
+            Default is 90 (camera rotated 90° CCW). Used as fallback if 'cameraRotation'
+            is not present in the session dict.
+        hemisphere (str): Which side of the brain is being imaged, 'right' (default) or
+            'left'. Used as fallback if 'hemisphere' is not present in the session dict.
     """
     if not date or not time:
         infowidefield = load_infowidefield(subject)
@@ -84,8 +86,8 @@ def preprocess_widefield(subject, date='', time='', suffix='', paradigm='am_tuni
                                  time=sessionInfo['time'],
                                  suffix=sessionInfo.get('suffix', suffix),
                                  paradigm=sessionInfo.get('paradigm', paradigm),
-                                 camera_rotation=camera_rotation,
-                                 hemisphere=hemisphere)
+                                 camera_rotation=sessionInfo.get('cameraRotation', camera_rotation),
+                                 hemisphere=sessionInfo.get('hemisphere', hemisphere))
         return
 
     # -- Load data --
@@ -109,7 +111,7 @@ class Widefield(loadwidefield.WidefieldData):
     """
     
     def __init__(self, subject, date, session, suffix='', paradigm='am_tuning_curve',
-                 camera_rotation=1, hemisphere='right'):
+                 camera_rotation=90, hemisphere='right'):
         """
         Initialize a Widefield object.
         
@@ -119,9 +121,8 @@ class Widefield(loadwidefield.WidefieldData):
             session (str): Session identifier. Usually a time string (e.g., '161007').
             suffix (str): Suffix for the TIFF filename (e.g., 'SJ' initials).
             paradigm (str): Behavioral paradigm name (default: 'am_tuning_curve').
-            camera_rotation (int): Physical rotation of the camera in units of 
-                90-degree CCW rotations. Default is 1 (camera rotated 90° CCW).
-                Use 0 if camera is not rotated.
+            camera_rotation (int or float): Physical rotation of the camera in degrees CCW.
+                Default is 90 (camera rotated 90° CCW). Use 0 if camera is not rotated.
             hemisphere (str): Which side of the brain is being imaged. 
                 'right' (default) or 'left'. This affects the anterior-posterior
                 orientation in the final image.
@@ -435,7 +436,7 @@ class WidefieldAverage:
         stim_param_names (str, list of str, or None): Parameter name(s) used to group trials.
         possible_values (list of numpy.ndarray): Unique values for each parameter;
             e.g. [array([4k,8k,16k]), array([30,50,70])] for freq x intensity.
-        camera_rotation (int): Camera rotation in units of 90-degree CCW rotations.
+        camera_rotation (int or float): Camera rotation in degrees CCW.
         hemisphere (str): Which hemisphere is being imaged ('right' or 'left').
         orientation (dict): Anatomical directions for image sides (top, bottom, left, right).
     """
