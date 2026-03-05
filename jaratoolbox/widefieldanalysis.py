@@ -43,8 +43,8 @@ def load_infowidefield(subject):
     return infowidefield
 
 
-def preprocess_widefield(subject, date='', time='', suffix='wf', paradigm='am_tuning_curve',
-                         camera_rotation=90, hemisphere='right'):
+def preprocess_widefield(subject, date='', stime='', suffix='wf', paradigm='am_tuning_curve',
+                         camera_rotation=90, hemisphere='right', stim_param='currentFreq'):
     """
     Preprocess widefield data and save results to disk.
     
@@ -53,52 +53,83 @@ def preprocess_widefield(subject, date='', time='', suffix='wf', paradigm='am_tu
 
     If only 'subject' is provided (date and time are empty), the function loads
     the infowidefield file for that subject and processes all sessions listed in it.
-    If 'subject' and 'date' are provided but 'time' is empty, all sessions for
+    If 'subject' and 'date' are provided but 'stime' is empty, all sessions for
     that date are processed from the infowidefield file.
-    Each session dictionary must contain 'date', 'time', and 'subject' keys.
-    Optional keys: 'suffix' (default: 'wf'), 'paradigm' (default: 'am_tuning_curve'),
-    'cameraRotation' (default: 90), 'hemisphere' (default: 'right').
+    Each session dictionary must contain 'date', 'stime', and 'subject' keys.
+    Optional keys: 'suffix', 'paradigm', 'cameraRotation', 'hemisphere', 'intensities'.
     
     Args:
         subject (str): Subject identifier.
         date (str): Date string (e.g., '20241219'). If empty, all sessions from the
-            infowidefield file will be processed. If provided without 'time', all
+            infowidefield file will be processed. If provided without 'stime', all
             sessions for that date will be processed.
-        time (str): Start time of the session (e.g., '161007'). If empty, all
+        stime (str): Start time of the session (e.g., '161007'). If empty, all
             sessions matching the given date will be processed.
-        suffix (str): Suffix for the TIFF filename.
-        paradigm (str): Behavioral paradigm name (default: 'am_tuning_curve').
+        suffix (str): Suffix for the TIFF filename. Used as fallback (default: 'wf')
+            if 'suffix' is not present in the session dict.
+        paradigm (str): Behavioral paradigm name (default: 'am_tuning_curve'). Used
+            as fallback if 'paradigm' is not present in the session dict.
         camera_rotation (int or float): Physical rotation of the camera in degrees CCW.
             Default is 90 (camera rotated 90° CCW). Used as fallback if 'cameraRotation'
             is not present in the session dict.
         hemisphere (str): Which side of the brain is being imaged, 'right' (default) or
             'left'. Used as fallback if 'hemisphere' is not present in the session dict.
+        stim_param (str or list of str): Stimulus parameter(s) passed to
+            compute_evoked_response(). Default is 'currentFreq'. Used as fallback if
+            'intensities' is not present in the session dict. Automatically set to
+            ['currentFreq', 'currentIntensity'] if 'intensities' has more than one value.
     """
-    if not date or not time:
+    if not date or not stime:
         infowidefield = load_infowidefield(subject)
         for sessionInfo in infowidefield.sessions:
             if date and sessionInfo['date'] != date:
                 continue
             print(f"\nProcessing {sessionInfo['subject']} {sessionInfo['date']} "
                   f"{sessionInfo['time']}")
+            intensities = sessionInfo.get('intensities', [])
+            if len(intensities) > 1:
+                session_stim_param = ['currentFreq', 'currentIntensity']
+            else:
+                session_stim_param = stim_param
+            # print(f"***** Using stim_param={session_stim_param} for this session")
             preprocess_widefield(sessionInfo['subject'],
                                  date=sessionInfo['date'],
-                                 time=sessionInfo['time'],
+                                 stime=sessionInfo['time'],
                                  suffix=sessionInfo.get('suffix', suffix),
                                  paradigm=sessionInfo.get('paradigm', paradigm),
                                  camera_rotation=sessionInfo.get('cameraRotation', camera_rotation),
-                                 hemisphere=sessionInfo.get('hemisphere', hemisphere))
+                                 hemisphere=sessionInfo.get('hemisphere', hemisphere),
+                                 stim_param=session_stim_param)
         return
 
+    # -- Try to look up session in infowidefield to determine stim_param --
+    try:
+        infowidefield = load_infowidefield(subject)
+        matched_session = next(
+            (s for s in infowidefield.sessions if s['date'] == date and s['time'] == stime),
+            None
+        )
+        if matched_session is not None:
+            intensities = matched_session.get('intensities', [])
+            if len(intensities) > 1:
+                stim_param = ['currentFreq', 'currentIntensity']
+            print(f"Found infowidefield entry; using stim_param='{stim_param}'")
+        else:
+            print(f"No infowidefield entry found for {subject} {date} {stime}; "
+                  f"defaulting to stim_param='{stim_param}'")
+    except FileNotFoundError:
+        print(f"No infowidefield file found for {subject}; "
+              f"defaulting to stim_param='{stim_param}'")
+
     # -- Load data --
-    wfobj = Widefield(subject, date, time, suffix=suffix, paradigm=paradigm,
+    wfobj = Widefield(subject, date, stime, suffix=suffix, paradigm=paradigm,
                      camera_rotation=camera_rotation, hemisphere=hemisphere)
     wfobj.load_timestamps()
     wfobj.load_frames()
     wfobj.load_behavior()
 
     # -- Compute evoked responses --
-    signal_change = wfobj.compute_evoked_response()
+    signal_change = wfobj.compute_evoked_response(stim_param=stim_param)
     print(f"Computed responses for {len(wfobj.possible_values[0])} frequencies")
     wfobj.save()
 
