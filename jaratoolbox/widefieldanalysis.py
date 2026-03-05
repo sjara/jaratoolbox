@@ -124,9 +124,16 @@ def preprocess_widefield(subject, date='', stime='', suffix='wf', paradigm='am_t
     # -- Load data --
     wfobj = Widefield(subject, date, stime, suffix=suffix, paradigm=paradigm,
                      camera_rotation=camera_rotation, hemisphere=hemisphere)
+    wfobj.load_behavior()
+    if wfobj.bdata is not None:
+        if 'currentFreq' in wfobj.bdata:
+            unique_freqs = np.unique(wfobj.bdata['currentFreq'])
+            print(f"Frequencies found: {unique_freqs}")
+        if 'currentIntensity' in wfobj.bdata:
+            unique_intensities = np.unique(wfobj.bdata['currentIntensity'])
+            print(f"Intensities found: {unique_intensities}")
     wfobj.load_timestamps()
     wfobj.load_frames()
-    wfobj.load_behavior()
 
     # -- Compute evoked responses --
     signal_change = wfobj.compute_evoked_response(stim_param=stim_param)
