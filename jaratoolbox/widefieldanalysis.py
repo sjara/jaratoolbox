@@ -10,6 +10,10 @@ from jaratoolbox import loadwidefield
 from jaratoolbox import behavioranalysis
 from jaratoolbox import settings
 
+# Version of the analysis pipeline. Increment this when the algorithm or saved
+# data format changes in a way that makes old processed files incompatible.
+ANALYSIS_VERSION = '1.0'
+
 # Channel colors for RGB merged images (Red, Green, Light Blue)
 CHANNEL_COLORS = [
     [1, 0, 0],       # Red
@@ -327,6 +331,7 @@ class Widefield(loadwidefield.WidefieldData):
             possible_values=np.array(self.possible_values, dtype=object),
             camera_rotation=self.camera_rotation,
             hemisphere=self.hemisphere,
+            version=np.array([ANALYSIS_VERSION]),
         )
 
         np.savez(output_file, **save_kwargs)
@@ -505,6 +510,22 @@ class WidefieldAverage:
         self.signal_change_each_cond = data['signal_change_each_cond']
         self.camera_rotation = int(data['camera_rotation'])
         self.hemisphere = str(data['hemisphere'])
+
+        # Load and validate analysis version
+        if 'version' in data:
+            self.version = str(data['version'][0])
+        else:
+            self.version = None  # legacy file, pre-versioning
+        if self.version != ANALYSIS_VERSION:
+            print(f"WARNING: File was saved with version={self.version!r} but "
+                  f"current version is {ANALYSIS_VERSION!r}. "
+                  "Consider regenerating with preprocess_widefield().")
+            response = input("Continue loading anyway? [Y/n] ").strip().lower()
+            if response not in ('y', ''):
+                raise RuntimeError(
+                    f"Loading aborted due to version mismatch "
+                    f"(file={self.version!r}, current={ANALYSIS_VERSION!r})."
+                )
 
         # possible_values is stored as a numpy object array; convert back to a plain list.
         self.possible_values = list(data['possible_values'])
