@@ -82,10 +82,18 @@ class WidefieldMergedViewer(QMainWindow):
         
         # FOV rectangle
         self.show_fov = False
-        self.fov_width = 1.0
-        self.fov_height = 1.0
+        self.fov_width = 1.2
+        self.fov_height = 1.2
         self.fov_rect_artist = None
         self.image_shape = None  # (H, W) of the displayed merged image
+        
+        # Crosshair
+        self.show_crosshair = False
+        self.crosshair_artists = []
+        
+        # Lock overlays to data coordinates
+        self.overlays_locked = False
+        self.locked_center = None  # (cx, cy) in data coords when locked
         
         # Flag to prevent recursive updates
         self._updating_plots = False
@@ -211,7 +219,7 @@ class WidefieldMergedViewer(QMainWindow):
         self.scale_bar_checkbox.stateChanged.connect(self.on_scale_bar_toggled)
         display_layout.addWidget(self.scale_bar_checkbox, 0, 0)
         
-        self.orientation_labels_checkbox = QCheckBox('Show orientation labels')
+        self.orientation_labels_checkbox = QCheckBox('Show A/P labels')
         self.orientation_labels_checkbox.setChecked(True)
         self.orientation_labels_checkbox.stateChanged.connect(self.on_orientation_labels_toggled)
         display_layout.addWidget(self.orientation_labels_checkbox, 1, 0)
@@ -233,31 +241,42 @@ class WidefieldMergedViewer(QMainWindow):
         self.rotation_angle_spinbox.valueChanged.connect(self.on_rotation_value_changed)
         display_layout.addWidget(self.rotation_angle_spinbox, 3, 1)
         
+        # Crosshair
+        self.crosshair_checkbox = QCheckBox('Show crosshair')
+        self.crosshair_checkbox.setChecked(False)
+        self.crosshair_checkbox.stateChanged.connect(self.on_crosshair_toggled)
+        display_layout.addWidget(self.crosshair_checkbox, 4, 0)
+        
+        self.lock_checkbox = QCheckBox('Lock')
+        self.lock_checkbox.setChecked(False)
+        self.lock_checkbox.stateChanged.connect(self.on_lock_toggled)
+        display_layout.addWidget(self.lock_checkbox, 4, 1)
+        
         # FOV rectangle
-        self.fov_checkbox = QCheckBox('Show FOV (WxH in mm):')
+        self.fov_checkbox = QCheckBox('Show FOV (mm):')
         self.fov_checkbox.setChecked(False)
         self.fov_checkbox.stateChanged.connect(self.on_fov_toggled)
-        display_layout.addWidget(self.fov_checkbox, 4, 0)
+        display_layout.addWidget(self.fov_checkbox, 5, 0)
         
         # display_layout.addWidget(QLabel('W:'), 4, 1)
         self.fov_width_spinbox = QDoubleSpinBox()
         self.fov_width_spinbox.setRange(0.1, 100.0)
-        self.fov_width_spinbox.setValue(1.0)
+        self.fov_width_spinbox.setValue(1.2)
         self.fov_width_spinbox.setDecimals(1)
         self.fov_width_spinbox.setSingleStep(0.1)
         self.fov_width_spinbox.setMaximumWidth(70)
         self.fov_width_spinbox.valueChanged.connect(self.on_fov_size_changed)
-        display_layout.addWidget(self.fov_width_spinbox, 4, 1)
+        display_layout.addWidget(self.fov_width_spinbox, 5, 1)
         
         # display_layout.addWidget(QLabel('H:'), 4, 3)
         self.fov_height_spinbox = QDoubleSpinBox()
         self.fov_height_spinbox.setRange(0.1, 100.0)
-        self.fov_height_spinbox.setValue(1.0)
+        self.fov_height_spinbox.setValue(1.2)
         self.fov_height_spinbox.setDecimals(1)
         self.fov_height_spinbox.setSingleStep(0.1)
         self.fov_height_spinbox.setMaximumWidth(70)
         self.fov_height_spinbox.valueChanged.connect(self.on_fov_size_changed)
-        display_layout.addWidget(self.fov_height_spinbox, 4, 2)
+        display_layout.addWidget(self.fov_height_spinbox, 5, 2)
         
         controls_layout.addWidget(display_group)
         
@@ -379,6 +398,7 @@ class WidefieldMergedViewer(QMainWindow):
         
         # Redraw scale bar on merged image to reflect new zoom
         self.redraw_scale_bar()
+        self.redraw_crosshair()
         self.redraw_fov_rectangle()
     
     def add_scale_bar(self):
@@ -470,6 +490,76 @@ class WidefieldMergedViewer(QMainWindow):
             text_artist.remove()
         self.orientation_label_artists = []
 
+    def on_crosshair_toggled(self, state):
+        """Handle Show crosshair checkbox toggle."""
+        self.show_crosshair = (state == Qt.Checked)
+        if self.show_crosshair:
+            self.add_crosshair()
+        else:
+            self.remove_crosshair()
+        self.canvas.draw_idle()
+
+    def on_lock_toggled(self, state):
+        """Handle Lock checkbox toggle."""
+        self.overlays_locked = (state == Qt.Checked)
+        if self.overlays_locked:
+            # Capture current view center as the locked position
+            if hasattr(self, 'figure') and self.figure.axes and self.image_shape is not None:
+                ax_merged = self.figure.axes[-1]
+                x_min, x_max = ax_merged.get_xlim()
+                y_min, y_max = ax_merged.get_ylim()
+                self.locked_center = ((x_min + x_max) / 2.0, (y_min + y_max) / 2.0)
+        else:
+            # Clear locked position; overlays will re-center on next redraw
+            self.locked_center = None
+            self.remove_crosshair()
+            self.remove_fov_rectangle()
+            if self.show_crosshair:
+                self.add_crosshair()
+            if self.show_fov:
+                self.add_fov_rectangle()
+            self.canvas.draw_idle()
+
+    def _get_overlay_center(self):
+        """Return (cx, cy) for overlay placement.
+        
+        When locked, returns the stored locked center. Otherwise returns the
+        current view center from the merged axis.
+        """
+        if self.overlays_locked and self.locked_center is not None:
+            return self.locked_center
+        ax_merged = self.figure.axes[-1]
+        x_min, x_max = ax_merged.get_xlim()
+        y_min, y_max = ax_merged.get_ylim()
+        return (x_min + x_max) / 2.0, (y_min + y_max) / 2.0
+
+    def add_crosshair(self):
+        """Add a crosshair at the overlay center of the merged image axis."""
+        if not hasattr(self, 'figure') or not self.figure.axes or self.image_shape is None:
+            return
+        ax_merged = self.figure.axes[-1]
+        cx, cy = self._get_overlay_center()
+        hline = ax_merged.axhline(cy, color='lightyellow', linewidth=1, linestyle=':')
+        vline = ax_merged.axvline(cx, color='lightyellow', linewidth=1, linestyle=':')
+        self.crosshair_artists = [hline, vline]
+
+    def remove_crosshair(self):
+        """Remove the crosshair if it exists."""
+        for artist in self.crosshair_artists:
+            artist.remove()
+        self.crosshair_artists = []
+
+    def redraw_crosshair(self):
+        """Redraw the crosshair after zoom/pan (skipped when locked)."""
+        if self._updating_plots or self.overlays_locked:
+            return
+        if not hasattr(self, 'figure') or not self.figure.axes:
+            return
+        self.remove_crosshair()
+        if self.show_crosshair:
+            self.add_crosshair()
+        self.canvas.draw_idle()
+
     def on_fov_toggled(self, state):
         """Handle Show FOV checkbox toggle."""
         self.show_fov = (state == Qt.Checked)
@@ -492,15 +582,12 @@ class WidefieldMergedViewer(QMainWindow):
         """Add a centered FOV rectangle to the merged image axis.
         
         The rectangle is drawn in data (pixel) coordinates, centered on the
-        current view, and stays screen-aligned regardless of image rotation.
+        overlay center, and stays screen-aligned regardless of image rotation.
         """
         if not hasattr(self, 'figure') or not self.figure.axes or self.image_shape is None:
             return
         ax_merged = self.figure.axes[-1]
-        x_min, x_max = ax_merged.get_xlim()
-        y_min, y_max = ax_merged.get_ylim()
-        cx = (x_min + x_max) / 2.0
-        cy = (y_min + y_max) / 2.0
+        cx, cy = self._get_overlay_center()
         # Convert mm to pixels using the same resolution as the scale bar
         width_px = self.fov_width / self.wfavg.resolution
         height_px = self.fov_height / self.wfavg.resolution
@@ -519,8 +606,8 @@ class WidefieldMergedViewer(QMainWindow):
             self.fov_rect_artist = None
     
     def redraw_fov_rectangle(self):
-        """Redraw the FOV rectangle centered on the current view after zoom/pan."""
-        if self._updating_plots:
+        """Redraw the FOV rectangle after zoom/pan (skipped when locked)."""
+        if self._updating_plots or self.overlays_locked:
             return
         if not hasattr(self, 'figure') or not self.figure.axes:
             return
@@ -634,6 +721,8 @@ class WidefieldMergedViewer(QMainWindow):
         
         self.image_shape = transformed_image.shape[:2]  # (H, W)
         self.fov_rect_artist = None  # Cleared by figure.clear()
+        self.crosshair_artists = []  # Cleared by figure.clear()
+        self.fov_rect_artist = None   # (also reset above, belt-and-suspenders)
         ax_merged.imshow(transformed_image)
         
         session_str = f'{self.wfavg.subject}_{self.wfavg.date}_{self.wfavg.session}'
@@ -656,6 +745,10 @@ class WidefieldMergedViewer(QMainWindow):
         # Add scale bar to merged image (after zoom is applied so it positions correctly)
         if self.show_scale_bar:
             self.add_scale_bar()
+        
+        # Add crosshair if enabled
+        if self.show_crosshair:
+            self.add_crosshair()
         
         # Add FOV rectangle if enabled
         if self.show_fov:
