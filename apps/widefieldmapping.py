@@ -1,5 +1,5 @@
 """
-PyQt6 application for interactive widefield imaging analysis visualization.
+PyQt5 application for interactive widefield imaging analysis visualization.
 
 This application displays normalized signal change images for each frequency channel
 and a merged RGB image showing the dominant response at each pixel.
@@ -21,6 +21,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+from matplotlib.patches import Rectangle
 
 from jaratoolbox import widefieldanalysis
 from jaratoolbox.widefieldanalysis import CHANNEL_COLORS, CHANNEL_NAMES
@@ -78,6 +79,13 @@ class WidefieldMergedViewer(QMainWindow):
         
         # Horizontal flip
         self.flip_horizontal = False
+        
+        # FOV rectangle
+        self.show_fov = False
+        self.fov_width = 1.0
+        self.fov_height = 1.0
+        self.fov_rect_artist = None
+        self.image_shape = None  # (H, W) of the displayed merged image
         
         # Flag to prevent recursive updates
         self._updating_plots = False
@@ -225,6 +233,32 @@ class WidefieldMergedViewer(QMainWindow):
         self.rotation_angle_spinbox.valueChanged.connect(self.on_rotation_value_changed)
         display_layout.addWidget(self.rotation_angle_spinbox, 3, 1)
         
+        # FOV rectangle
+        self.fov_checkbox = QCheckBox('Show FOV (WxH in mm):')
+        self.fov_checkbox.setChecked(False)
+        self.fov_checkbox.stateChanged.connect(self.on_fov_toggled)
+        display_layout.addWidget(self.fov_checkbox, 4, 0)
+        
+        # display_layout.addWidget(QLabel('W:'), 4, 1)
+        self.fov_width_spinbox = QDoubleSpinBox()
+        self.fov_width_spinbox.setRange(0.1, 100.0)
+        self.fov_width_spinbox.setValue(1.0)
+        self.fov_width_spinbox.setDecimals(1)
+        self.fov_width_spinbox.setSingleStep(0.1)
+        self.fov_width_spinbox.setMaximumWidth(70)
+        self.fov_width_spinbox.valueChanged.connect(self.on_fov_size_changed)
+        display_layout.addWidget(self.fov_width_spinbox, 4, 1)
+        
+        # display_layout.addWidget(QLabel('H:'), 4, 3)
+        self.fov_height_spinbox = QDoubleSpinBox()
+        self.fov_height_spinbox.setRange(0.1, 100.0)
+        self.fov_height_spinbox.setValue(1.0)
+        self.fov_height_spinbox.setDecimals(1)
+        self.fov_height_spinbox.setSingleStep(0.1)
+        self.fov_height_spinbox.setMaximumWidth(70)
+        self.fov_height_spinbox.valueChanged.connect(self.on_fov_size_changed)
+        display_layout.addWidget(self.fov_height_spinbox, 4, 2)
+        
         controls_layout.addWidget(display_group)
         
         # Add stretch to push controls to top
@@ -345,6 +379,7 @@ class WidefieldMergedViewer(QMainWindow):
         
         # Redraw scale bar on merged image to reflect new zoom
         self.redraw_scale_bar()
+        self.redraw_fov_rectangle()
     
     def add_scale_bar(self):
         """Add a scale bar to the merged image axis."""
@@ -434,7 +469,66 @@ class WidefieldMergedViewer(QMainWindow):
         for text_artist in self.orientation_label_artists:
             text_artist.remove()
         self.orientation_label_artists = []
+
+    def on_fov_toggled(self, state):
+        """Handle Show FOV checkbox toggle."""
+        self.show_fov = (state == Qt.Checked)
+        if self.show_fov:
+            self.add_fov_rectangle()
+        else:
+            self.remove_fov_rectangle()
+        self.canvas.draw_idle()
+
+    def on_fov_size_changed(self, value):
+        """Handle FOV width or height spinbox change."""
+        self.fov_width = self.fov_width_spinbox.value()
+        self.fov_height = self.fov_height_spinbox.value()
+        if self.show_fov:
+            self.remove_fov_rectangle()
+            self.add_fov_rectangle()
+            self.canvas.draw_idle()
+
+    def add_fov_rectangle(self):
+        """Add a centered FOV rectangle to the merged image axis.
+        
+        The rectangle is drawn in data (pixel) coordinates, centered on the
+        current view, and stays screen-aligned regardless of image rotation.
+        """
+        if not hasattr(self, 'figure') or not self.figure.axes or self.image_shape is None:
+            return
+        ax_merged = self.figure.axes[-1]
+        x_min, x_max = ax_merged.get_xlim()
+        y_min, y_max = ax_merged.get_ylim()
+        cx = (x_min + x_max) / 2.0
+        cy = (y_min + y_max) / 2.0
+        # Convert mm to pixels using the same resolution as the scale bar
+        width_px = self.fov_width / self.wfavg.resolution
+        height_px = self.fov_height / self.wfavg.resolution
+        rect = Rectangle(
+            (cx - width_px / 2, cy - height_px / 2),
+            width_px, height_px,
+            linewidth=1, edgecolor='lightyellow', facecolor='none'
+        )
+        ax_merged.add_patch(rect)
+        self.fov_rect_artist = rect
+
+    def remove_fov_rectangle(self):
+        """Remove the FOV rectangle if it exists."""
+        if self.fov_rect_artist is not None:
+            self.fov_rect_artist.remove()
+            self.fov_rect_artist = None
     
+    def redraw_fov_rectangle(self):
+        """Redraw the FOV rectangle centered on the current view after zoom/pan."""
+        if self._updating_plots:
+            return
+        if not hasattr(self, 'figure') or not self.figure.axes:
+            return
+        self.remove_fov_rectangle()
+        if self.show_fov:
+            self.add_fov_rectangle()
+        self.canvas.draw_idle()
+
     def redraw_scale_bar(self):
         """Redraw the scale bar on the merged image axis after zoom/pan."""
         # Skip if we're programmatically updating the plots
@@ -538,6 +632,8 @@ class WidefieldMergedViewer(QMainWindow):
             transformed_image = ndimage.rotate(transformed_image, self.rotation_angle, 
                                               reshape=False, order=1, mode='constant', cval=0)
         
+        self.image_shape = transformed_image.shape[:2]  # (H, W)
+        self.fov_rect_artist = None  # Cleared by figure.clear()
         ax_merged.imshow(transformed_image)
         
         session_str = f'{self.wfavg.subject}_{self.wfavg.date}_{self.wfavg.session}'
@@ -560,6 +656,10 @@ class WidefieldMergedViewer(QMainWindow):
         # Add scale bar to merged image (after zoom is applied so it positions correctly)
         if self.show_scale_bar:
             self.add_scale_bar()
+        
+        # Add FOV rectangle if enabled
+        if self.show_fov:
+            self.add_fov_rectangle()
 
         #self.figure.tight_layout()
         self.canvas.draw()
