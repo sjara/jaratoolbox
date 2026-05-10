@@ -13,9 +13,9 @@ from scipy import ndimage
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QSlider, QLabel, QCheckBox, QGroupBox, QGridLayout, QLineEdit, QPushButton, QDoubleSpinBox,
-    QComboBox
+    QComboBox, QSpinBox
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -25,6 +25,12 @@ from matplotlib.patches import Rectangle
 
 from jaratoolbox import widefieldanalysis
 from jaratoolbox.widefieldanalysis import CHANNEL_COLORS, CHANNEL_NAMES
+
+try:
+    import zmq
+    ZMQ_AVAILABLE = True
+except ImportError:
+    ZMQ_AVAILABLE = False
 
 SCALE_BAR_LENGTH = 1.0  # in mm
 SCALE_BAR_POS = 'lower left'
@@ -94,7 +100,14 @@ class WidefieldMergedViewer(QMainWindow):
         # Lock overlays to data coordinates
         self.overlays_locked = False
         self.locked_center = None  # (cx, cy) in data coords when locked
-        
+
+        # ZMQ link to two-photon software
+        self.zmq_enabled = False
+        self.zmq_context = None
+        self.zmq_socket = None
+        self.zmq_timer = None
+        self.zmq_origin_px = None  # (cx, cy) pixels captured when yoke is enabled
+
         # Flag to prevent recursive updates
         self._updating_plots = False
         
@@ -279,7 +292,31 @@ class WidefieldMergedViewer(QMainWindow):
         display_layout.addWidget(self.fov_height_spinbox, 5, 2)
         
         controls_layout.addWidget(display_group)
-        
+
+        # Two-Photon Link group
+        tp_group = QGroupBox('Two-Photon Link')
+        tp_layout = QGridLayout(tp_group)
+
+        tp_layout.addWidget(QLabel('Server:'), 0, 0)
+        self.zmq_server_edit = QLineEdit('127.0.0.1')
+        tp_layout.addWidget(self.zmq_server_edit, 0, 1)
+
+        tp_layout.addWidget(QLabel('Port:'), 1, 0)
+        self.zmq_port_spinbox = QSpinBox()
+        self.zmq_port_spinbox.setRange(1, 65535)
+        self.zmq_port_spinbox.setValue(5556)
+        tp_layout.addWidget(self.zmq_port_spinbox, 1, 1)
+
+        self.zmq_yoke_checkbox = QCheckBox('Yoke FOV to two-photon')
+        if not ZMQ_AVAILABLE:
+            self.zmq_yoke_checkbox.setEnabled(False)
+            self.zmq_yoke_checkbox.setToolTip('zmq not installed')
+        else:
+            self.zmq_yoke_checkbox.stateChanged.connect(self.on_zmq_yoke_toggled)
+        tp_layout.addWidget(self.zmq_yoke_checkbox, 2, 0, 1, 2)
+
+        controls_layout.addWidget(tp_group)
+
         # Add stretch to push controls to top
         controls_layout.addStretch()
         
@@ -611,6 +648,81 @@ class WidefieldMergedViewer(QMainWindow):
             return
         if not hasattr(self, 'figure') or not self.figure.axes:
             return
+        self.remove_fov_rectangle()
+        if self.show_fov:
+            self.add_fov_rectangle()
+        self.canvas.draw_idle()
+
+    def on_zmq_yoke_toggled(self, state):
+        """Handle Yoke FOV to two-photon checkbox toggle."""
+        if state == Qt.Checked:
+            server = self.zmq_server_edit.text()
+            port = self.zmq_port_spinbox.value()
+            try:
+                self.zmq_context = zmq.Context()
+                self.zmq_socket = self.zmq_context.socket(zmq.SUB)
+                self.zmq_socket.connect(f'tcp://{server}:{port}')
+                self.zmq_socket.setsockopt_string(zmq.SUBSCRIBE, '')
+            except Exception as e:
+                print(f'ZMQ connection error: {e}')
+                self.zmq_yoke_checkbox.setChecked(False)
+                return
+            # Capture current overlay center as the pixel origin for delta computation
+            if hasattr(self, 'figure') and self.figure.axes and self.image_shape is not None:
+                self.zmq_origin_px = self._get_overlay_center()
+            # Engage lock so overlays stay fixed while ZMQ drives their position
+            self.overlays_locked = True
+            if self.locked_center is None and hasattr(self, 'figure') and self.figure.axes:
+                ax_merged = self.figure.axes[-1]
+                x_min, x_max = ax_merged.get_xlim()
+                y_min, y_max = ax_merged.get_ylim()
+                self.locked_center = ((x_min + x_max) / 2.0, (y_min + y_max) / 2.0)
+            self.lock_checkbox.blockSignals(True)
+            self.lock_checkbox.setChecked(True)
+            self.lock_checkbox.blockSignals(False)
+            self.lock_checkbox.setEnabled(False)
+            self.zmq_timer = QTimer()
+            self.zmq_timer.timeout.connect(self.poll_zmq)
+            self.zmq_timer.start(100)
+            self.zmq_enabled = True
+        else:
+            self.zmq_enabled = False
+            if self.zmq_timer is not None:
+                self.zmq_timer.stop()
+                self.zmq_timer = None
+            if self.zmq_socket is not None:
+                self.zmq_socket.close()
+                self.zmq_socket = None
+            if self.zmq_context is not None:
+                self.zmq_context.term()
+                self.zmq_context = None
+            self.zmq_origin_px = None
+            self.lock_checkbox.setEnabled(True)
+
+    def poll_zmq(self):
+        """Poll ZMQ socket for new position data (non-blocking)."""
+        try:
+            pos = self.zmq_socket.recv_json(flags=zmq.NOBLOCK)
+            self._update_fov_from_zmq(pos['x_rot'], pos['y_rot'])
+        except zmq.Again:
+            pass
+
+    def _update_fov_from_zmq(self, x_rot_um, y_rot_um):
+        """Update FOV box and crosshair position from ZMQ coordinates.
+
+        Args:
+            x_rot_um (float): x_rot coordinate in µm from two-photon software.
+            y_rot_um (float): y_rot coordinate in µm from two-photon software.
+        """
+        if self.zmq_origin_px is None or not hasattr(self, 'figure') or not self.figure.axes:
+            return
+        origin_cx, origin_cy = self.zmq_origin_px
+        delta_x_px = (x_rot_um / 1000.0) / self.wfavg.resolution
+        delta_y_px = (y_rot_um / 1000.0) / self.wfavg.resolution
+        self.locked_center = (origin_cx + delta_x_px, origin_cy + delta_y_px)
+        self.remove_crosshair()
+        if self.show_crosshair:
+            self.add_crosshair()
         self.remove_fov_rectangle()
         if self.show_fov:
             self.add_fov_rectangle()
