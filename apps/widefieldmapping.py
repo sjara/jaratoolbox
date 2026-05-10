@@ -25,6 +25,7 @@ from matplotlib.patches import Rectangle
 
 from jaratoolbox import widefieldanalysis
 from jaratoolbox.widefieldanalysis import CHANNEL_COLORS, CHANNEL_NAMES
+from jaratoolbox import settings
 
 try:
     import zmq
@@ -298,7 +299,8 @@ class WidefieldMergedViewer(QMainWindow):
         tp_layout = QGridLayout(tp_group)
 
         tp_layout.addWidget(QLabel('Server:'), 0, 0)
-        self.zmq_server_edit = QLineEdit('127.0.0.1')
+        default_server = getattr(settings, 'TWOPHOTON_ADDRESS', '127.0.0.1')
+        self.zmq_server_edit = QLineEdit(default_server)
         tp_layout.addWidget(self.zmq_server_edit, 0, 1)
 
         tp_layout.addWidget(QLabel('Port:'), 1, 0)
@@ -707,18 +709,51 @@ class WidefieldMergedViewer(QMainWindow):
         except zmq.Again:
             pass
 
+    def _anatomical_to_pixel_delta(self, dorsal_mm, posterior_mm):
+        """Convert anatomical deltas to pixel deltas in the displayed image.
+
+        Accounts for the image's base orientation, horizontal flip, and rotation.
+
+        Args:
+            dorsal_mm (float): Displacement in the dorsal direction (mm).
+            posterior_mm (float): Displacement in the posterior direction (mm).
+
+        Returns:
+            (dx_px, dy_px): Pixel deltas in displayed image coordinates.
+        """
+        orientation = self.wfavg.orientation
+        res = self.wfavg.resolution  # mm/pixel
+        # Base pixel unit vectors: +x = right (orientation['right']), +y = down (orientation['bottom'])
+        direction_map = {
+            orientation['right'].lower():  ( 1,  0),
+            orientation['left'].lower():   (-1,  0),
+            orientation['bottom'].lower(): ( 0,  1),
+            orientation['top'].lower():    ( 0, -1),
+        }
+        d_px = direction_map.get('dorsal',    (0, 0))
+        p_px = direction_map.get('posterior', (0, 0))
+        dx = (d_px[0] * dorsal_mm + p_px[0] * posterior_mm) / res
+        dy = (d_px[1] * dorsal_mm + p_px[1] * posterior_mm) / res
+        # Flip negates x (applied before rotation in update_plots)
+        if self.flip_horizontal:
+            dx = -dx
+        # Apply the same CCW rotation as the displayed image
+        angle_rad = np.radians(self.rotation_angle)
+        cos_a, sin_a = np.cos(angle_rad), np.sin(angle_rad)
+        return dx * cos_a - dy * sin_a, dx * sin_a + dy * cos_a
+
     def _update_fov_from_zmq(self, x_rot_um, y_rot_um):
         """Update FOV box and crosshair position from ZMQ coordinates.
 
         Args:
-            x_rot_um (float): x_rot coordinate in µm from two-photon software.
-            y_rot_um (float): y_rot coordinate in µm from two-photon software.
+            x_rot_um (float): x_rot coordinate in µm (positive = dorsal).
+            y_rot_um (float): y_rot coordinate in µm (positive = posterior).
         """
         if self.zmq_origin_px is None or not hasattr(self, 'figure') or not self.figure.axes:
             return
         origin_cx, origin_cy = self.zmq_origin_px
-        delta_x_px = (x_rot_um / 1000.0) / self.wfavg.resolution
-        delta_y_px = (y_rot_um / 1000.0) / self.wfavg.resolution
+        delta_x_px, delta_y_px = self._anatomical_to_pixel_delta(
+            x_rot_um / 1000.0, y_rot_um / 1000.0)
         self.locked_center = (origin_cx + delta_x_px, origin_cy + delta_y_px)
         self.remove_crosshair()
         if self.show_crosshair:
