@@ -740,7 +740,7 @@ class WidefieldMergedViewer(QMainWindow):
         # Apply the same CCW rotation as the displayed image
         angle_rad = np.radians(self.rotation_angle)
         cos_a, sin_a = np.cos(angle_rad), np.sin(angle_rad)
-        return dx * cos_a - dy * sin_a, dx * sin_a + dy * cos_a
+        return dx * cos_a + dy * sin_a, -dx * sin_a + dy * cos_a
 
     def _update_fov_from_zmq(self, x_rot_um, y_rot_um):
         """Update FOV box and crosshair position from ZMQ coordinates.
