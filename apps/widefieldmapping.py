@@ -309,13 +309,21 @@ class WidefieldMergedViewer(QMainWindow):
         self.zmq_port_spinbox.setValue(5556)
         tp_layout.addWidget(self.zmq_port_spinbox, 1, 1)
 
+        tp_layout.addWidget(QLabel('Interval (ms):'), 2, 0)
+        self.zmq_interval_spinbox = QSpinBox()
+        self.zmq_interval_spinbox.setRange(10, 10000)
+        self.zmq_interval_spinbox.setValue(50)
+        self.zmq_interval_spinbox.setSingleStep(10)
+        self.zmq_interval_spinbox.valueChanged.connect(self.on_zmq_interval_changed)
+        tp_layout.addWidget(self.zmq_interval_spinbox, 2, 1)
+
         self.zmq_yoke_checkbox = QCheckBox('Yoke FOV to two-photon')
         if not ZMQ_AVAILABLE:
             self.zmq_yoke_checkbox.setEnabled(False)
             self.zmq_yoke_checkbox.setToolTip('zmq not installed')
         else:
             self.zmq_yoke_checkbox.stateChanged.connect(self.on_zmq_yoke_toggled)
-        tp_layout.addWidget(self.zmq_yoke_checkbox, 2, 0, 1, 2)
+        tp_layout.addWidget(self.zmq_yoke_checkbox, 3, 0, 1, 2)
 
         controls_layout.addWidget(tp_group)
 
@@ -685,7 +693,7 @@ class WidefieldMergedViewer(QMainWindow):
             self.lock_checkbox.setEnabled(False)
             self.zmq_timer = QTimer()
             self.zmq_timer.timeout.connect(self.poll_zmq)
-            self.zmq_timer.start(100)
+            self.zmq_timer.start(self.zmq_interval_spinbox.value())
             self.zmq_enabled = True
         else:
             self.zmq_enabled = False
@@ -700,6 +708,11 @@ class WidefieldMergedViewer(QMainWindow):
                 self.zmq_context = None
             self.zmq_origin_px = None
             self.lock_checkbox.setEnabled(True)
+
+    def on_zmq_interval_changed(self, value):
+        """Handle polling interval spinbox change."""
+        if self.zmq_timer is not None and self.zmq_timer.isActive():
+            self.zmq_timer.setInterval(value)
 
     def poll_zmq(self):
         """Poll ZMQ socket for new position data (non-blocking)."""
@@ -927,7 +940,8 @@ def main():
         parser.error('session_info must be in format: subject_date_session')
     subject, date, session = parts
     
-    roi = [[170, 370], [250, 450]]  #[[200, 400], [150, 350]]
+    # roi = [[170, 370], [250, 450]]  #[[200, 400], [150, 350]]
+    roi = [[(420//2)-(420//6), (420//2)+(420//6)], [(480//2)-(480//6), (480//2)+(480//6)]]  # Centered 1/3 FOV
     
     # Load precomputed averages
     wfavg = widefieldanalysis.WidefieldAverage(subject, date, session)
