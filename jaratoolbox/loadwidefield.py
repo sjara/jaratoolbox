@@ -230,9 +230,16 @@ class WidefieldData:
         self.frames_filename = os.path.join(
             self.data_path, f'{subject}_{date}_{session}_{suffix}.tif'
         )
-        self.timestamps_filename = os.path.join(
+        new_timestamps_filename = os.path.join(
+            self.data_path, f'{subject}_{date}_{session}_timestamps.npz'
+        )
+        old_timestamps_filename = os.path.join(
             self.data_path, f'{subject}_timestamps_{date}_{session}.npz'
         )
+        if os.path.exists(new_timestamps_filename):
+            self.timestamps_filename = new_timestamps_filename
+        else:
+            self.timestamps_filename = old_timestamps_filename
     
     def load_frames(self, memmap=False):
         """
