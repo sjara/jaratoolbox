@@ -167,7 +167,7 @@ class WidefieldData:
         subject (str): Subject identifier.
         date (str): Date string (e.g., '20241219').
         session (str): Session identifier. Usually a time string (e.g., '161007').
-        suffix (str): Suffix for the TIFF filename (e.g., 'LG' for left-green).
+        suffix (str): Suffix for the TIFF filename (default: 'wf' for widefield).
         paradigm (str): Behavioral paradigm name.
         frames (numpy.ndarray): Widefield imaging frames (loaded on demand).
         sound_onset (numpy.ndarray): Timestamps of sound onset events.
@@ -183,7 +183,7 @@ class WidefieldData:
         >>> print(wfdata.frames.shape)
     """
     
-    def __init__(self, subject, date, session, suffix='', paradigm='am_tuning_curve',
+    def __init__(self, subject, date, session, suffix='wf', paradigm='am_tuning_curve',
                  camera_rotation=90, hemisphere='right', resolution=None):
         """
         Initialize a WidefieldData object.
@@ -192,7 +192,7 @@ class WidefieldData:
             subject (str): Subject identifier.
             date (str): Date string (e.g., '20241219').
             session (str): Session identifier. Usually a time string (e.g., '161007').
-            suffix (str): Suffix for the TIFF filename (e.g., 'LG' for left-green).
+            suffix (str): Suffix for the TIFF filename (default: 'wf' for widefield).
             paradigm (str): Behavioral paradigm name (default: 'am_tuning_curve').
             camera_rotation (int or float): Physical rotation of the camera in degrees CCW.
                 Default is 90 (camera rotated 90° CCW). Use 0 if camera is not rotated.
