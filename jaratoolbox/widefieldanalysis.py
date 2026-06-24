@@ -523,7 +523,19 @@ class WidefieldAverage:
             self.version = str(data['version'][0])
         else:
             self.version = None  # legacy file, pre-versioning
-        if self.version != ANALYSIS_VERSION:
+
+        if 'cond_values' not in data:
+            # Pre-2.0 files used a dense (n_freq, n_intensity, H, W) grid, which is
+            # a fundamentally different (and mostly-empty) schema from the current
+            # flat observed-conditions format. Trying to load it would crash later
+            # with confusing shape/KeyErrors, so fail clearly here instead.
+            raise RuntimeError(
+                f"File was saved with version={self.version!r}, which uses the old "
+                "grid-based format (no 'cond_values'). This format is no longer "
+                "supported; re-run preprocess_widefield() to regenerate this file "
+                f"in the current format (version={ANALYSIS_VERSION!r})."
+            )
+        elif self.version != ANALYSIS_VERSION:
             print(f"WARNING: File was saved with version={self.version!r} but "
                   f"current version is {ANALYSIS_VERSION!r}. "
                   "Consider regenerating with preprocess_widefield().")
