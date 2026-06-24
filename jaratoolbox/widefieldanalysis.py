@@ -22,6 +22,12 @@ CHANNEL_COLORS = [
 ]
 CHANNEL_NAMES = ['Red', 'Green', 'Blue']
 
+# Units to display for each behavioral parameter (used to label conditions).
+PARAM_UNITS = {
+    'currentFreq': 'Hz',
+    'currentIntensity': 'dB-SPL',
+}
+
 def load_infowidefield(subject):
     """
     Load the infowidefield file for a given subject.
@@ -315,13 +321,15 @@ class Widefield(loadwidefield.WidefieldData):
 
         return self.signal_change_each_cond
 
-    def _cond_label(self, ic):
-        """Human-readable label for condition `ic`, built from cond_values."""
+    def _cond_label(self, ic, sep='\n'):
+        """Human-readable label for condition `ic` (value + unit), built from cond_values."""
         if self.cond_values is None:
             return ''
         names = (self.stim_param_names if isinstance(self.stim_param_names, list)
                   else [self.stim_param_names])
-        return '\n'.join(f'{name}={val:.4g}' for name, val in zip(names, self.cond_values[ic]))
+        parts = [f'{val:.4g} {PARAM_UNITS.get(name, "")}'.strip()
+                 for name, val in zip(names, self.cond_values[ic])]
+        return sep.join(parts)
 
     def save(self):
         """
@@ -574,13 +582,15 @@ class WidefieldAverage:
         
         print(f"Loaded {input_file}")
 
-    def _cond_label(self, ic):
-        """Human-readable label for condition `ic`, built from cond_values."""
+    def _cond_label(self, ic, sep='\n'):
+        """Human-readable label for condition `ic` (value + unit), built from cond_values."""
         if self.cond_values is None:
             return ''
         names = (self.stim_param_names if isinstance(self.stim_param_names, list)
                   else [self.stim_param_names])
-        return '\n'.join(f'{name}={val:.4g}' for name, val in zip(names, self.cond_values[ic]))
+        parts = [f'{val:.4g} {PARAM_UNITS.get(name, "")}'.strip()
+                 for name, val in zip(names, self.cond_values[ic])]
+        return sep.join(parts)
 
     def show_signal_change(self, clim=None):
         """

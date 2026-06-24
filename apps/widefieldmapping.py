@@ -148,7 +148,7 @@ class WidefieldMergedViewer(QMainWindow):
         for ind in range(self.n_channels):
             # Get channel name, use index if not enough names defined
             channel_name = CHANNEL_NAMES[ind] if ind < len(CHANNEL_NAMES) else f'Ch{ind}'
-            group = QGroupBox(f'{channel_name} Channel\n({self.wfavg._cond_label(ind)})')
+            group = QGroupBox(f'{channel_name} Channel ({self.wfavg._cond_label(ind, sep=", ")})')
             group_layout = QGridLayout(group)
             
             # Enable checkbox
