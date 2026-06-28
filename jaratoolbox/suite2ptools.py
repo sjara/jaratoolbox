@@ -30,7 +30,8 @@ import os
 import numpy as np
 from jaratoolbox.loadtwophoton import SbxReader
 from suite2p.io import BinaryFile
-from suite2p.run_s2p import run_s2p
+from suite2p.run_s2p import run_s2p, get_save_folder, logger_setup
+from suite2p.parameters import default_db, default_settings
 
 
 def create_merged_binary(sbx_file_list, output_path, channel=0):
@@ -93,23 +94,54 @@ def run_suite2p(binary_path, Ly, Lx, save_path, extra_ops=None):
     Run Suite2p on a pre-built binary file.
 
     Args:
-        binary_path (str): Path to the .bin file created by create_merged_binary().
+        binary_path (str): Path to the .bin file created by create_merged_binary(),
+            on a fast disk. The parent directory is used as fast_disk.
         Ly (int): Frame height in pixels.
         Lx (int): Frame width in pixels.
-        save_path (str): Directory where Suite2p output will be saved.
+        save_path (str): Directory where Suite2p outputs (stat.npy, F.npy, etc.)
+            will be saved. Can be on a slow disk.
         extra_ops (dict, optional): Additional Suite2p ops to override defaults.
+            Pass {'keep_movie_raw': True} to preserve the original binary and write
+            registered frames to a separate data.bin.
 
     Returns:
-        str: Path to the Suite2p output directory (as returned by run_s2p).
+        list: Paths to per-plane db.npy files (as returned by run_s2p).
     """
+    logger_setup(save_path)
+    fast_disk = os.path.dirname(binary_path)
+    plane0_dir = os.path.join(save_path, 'suite2p', 'plane0')
+    os.makedirs(plane0_dir, exist_ok=True)
+
+    nframes = BinaryFile(Ly=Ly, Lx=Lx, filename=binary_path).n_frames
+
+    keep_raw = (extra_ops or {}).get('keep_movie_raw', False)
+    bin_name = 'data_raw.bin' if keep_raw else 'data.bin'
+    symlink_path = os.path.join(plane0_dir, bin_name)
+    if not os.path.exists(symlink_path):
+        os.symlink(os.path.abspath(binary_path), symlink_path)
+
     ops = {
-        'input_format': 'binary',
-        'data_path': [os.path.dirname(binary_path)],
-        'tiff_list': [os.path.basename(binary_path)],
+        'data_path': [fast_disk],
         'save_path0': save_path,
         'Ly': Ly,
         'Lx': Lx,
     }
     if extra_ops:
         ops.update(extra_ops)
-    return run_s2p(ops)
+
+    settings = default_settings()
+    db = {
+        **default_db(),
+        **ops,
+        'save_path': plane0_dir,
+        'reg_file': os.path.join(plane0_dir, 'data.bin'),
+        'db_path': os.path.join(plane0_dir, 'db.npy'),
+        'settings_path': os.path.join(plane0_dir, 'settings.npy'),
+        'nframes': nframes,
+    }
+    if keep_raw:
+        db['raw_file'] = symlink_path
+    np.save(os.path.join(plane0_dir, 'db.npy'), db)
+    np.save(os.path.join(plane0_dir, 'settings.npy'), settings)
+
+    return run_s2p(db=ops)
