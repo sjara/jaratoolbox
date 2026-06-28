@@ -28,7 +28,7 @@ slower I/O.
 
 import os
 import numpy as np
-from pyscanbox.io.sbx_reader import SbxReader
+from jaratoolbox.loadtwophoton import SbxReader
 from suite2p.io import BinaryFile
 from suite2p.run_s2p import run_s2p
 
