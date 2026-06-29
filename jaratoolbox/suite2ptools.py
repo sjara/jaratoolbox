@@ -74,6 +74,8 @@ def create_merged_binary(sbx_file_list, output_path, channel=0):
         total_frames = sum(r.num_frames for r in readers)
         frame_counts = [r.num_frames for r in readers]
 
+        if os.path.exists(output_path):
+            os.remove(output_path)
         with BinaryFile(Ly, Lx, output_path, n_frames=total_frames, write=True) as bf:
             frame_idx = 0
             for reader in readers:
@@ -89,7 +91,7 @@ def create_merged_binary(sbx_file_list, output_path, channel=0):
             'frame_counts': frame_counts}
 
 
-def run_suite2p(binary_path, Ly, Lx, save_path, extra_ops=None):
+def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None):
     """
     Run Suite2p on a pre-built binary file.
 
@@ -100,13 +102,25 @@ def run_suite2p(binary_path, Ly, Lx, save_path, extra_ops=None):
         Lx (int): Frame width in pixels.
         save_path (str): Directory where Suite2p outputs (stat.npy, F.npy, etc.)
             will be saved. Can be on a slow disk.
-        extra_ops (dict, optional): Additional Suite2p ops to override defaults.
-            Pass {'keep_movie_raw': True} to preserve the original binary and write
-            registered frames to a separate data.bin.
+        db (dict, optional): Override suite2p db parameters (I/O config:
+            nplanes, nchannels, keep_movie_raw, etc.). See suite2p docs "db" section.
+        settings (dict, optional): Override suite2p settings parameters
+            (pipeline: fs, tau, diameter, etc.). See suite2p docs "settings" section.
 
     Returns:
         list: Paths to per-plane db.npy files (as returned by run_s2p).
     """
+    valid_db_keys = set(default_db().keys())
+    valid_settings_keys = set(default_settings().keys())
+    for key in (db or {}):
+        if key not in valid_db_keys:
+            raise ValueError(f"'{key}' is not a valid db parameter. "
+                             f"Did you mean to pass it in settings?")
+    for key in (settings or {}):
+        if key not in valid_settings_keys:
+            raise ValueError(f"'{key}' is not a valid settings parameter. "
+                             f"Did you mean to pass it in db?")
+
     logger_setup(save_path)
     fast_disk = os.path.dirname(binary_path)
     plane0_dir = os.path.join(save_path, 'suite2p', 'plane0')
@@ -114,25 +128,18 @@ def run_suite2p(binary_path, Ly, Lx, save_path, extra_ops=None):
 
     nframes = BinaryFile(Ly=Ly, Lx=Lx, filename=binary_path).n_frames
 
-    keep_raw = (extra_ops or {}).get('keep_movie_raw', False)
+    keep_raw = (db or {}).get('keep_movie_raw', False)
     bin_name = 'data_raw.bin' if keep_raw else 'data.bin'
     symlink_path = os.path.join(plane0_dir, bin_name)
     if not os.path.exists(symlink_path):
         os.symlink(os.path.abspath(binary_path), symlink_path)
 
-    ops = {
+    db_params = {
+        **default_db(),
         'data_path': [fast_disk],
         'save_path0': save_path,
         'Ly': Ly,
         'Lx': Lx,
-    }
-    if extra_ops:
-        ops.update(extra_ops)
-
-    settings = default_settings()
-    db = {
-        **default_db(),
-        **ops,
         'save_path': plane0_dir,
         'reg_file': os.path.join(plane0_dir, 'data.bin'),
         'db_path': os.path.join(plane0_dir, 'db.npy'),
@@ -140,8 +147,22 @@ def run_suite2p(binary_path, Ly, Lx, save_path, extra_ops=None):
         'nframes': nframes,
     }
     if keep_raw:
-        db['raw_file'] = symlink_path
-    np.save(os.path.join(plane0_dir, 'db.npy'), db)
-    np.save(os.path.join(plane0_dir, 'settings.npy'), settings)
+        db_params['raw_file'] = symlink_path
+    if db:
+        db_params.update(db)
 
-    return run_s2p(db=ops)
+    settings_params = default_settings()
+    if settings:
+        for key, val in settings.items():
+            if isinstance(val, dict) and isinstance(settings_params.get(key), dict):
+                settings_params[key].update(val)
+            else:
+                settings_params[key] = val
+
+    db_path = os.path.join(plane0_dir, 'db.npy')
+    if not os.path.exists(db_path):
+        np.save(db_path, db_params)
+    np.save(os.path.join(plane0_dir, 'settings.npy'), settings_params)
+
+    ops_path = run_s2p(db=db_params, settings=settings_params)
+    return ops_path
