@@ -18,11 +18,10 @@ gets concatenated (e.g. channel selection, bad-frame exclusion).
 
 Memory note
 -----------
-``create_merged_binary`` currently calls ``SbxReader.get_channel()``, which
+By default ``create_merged_binary`` calls ``SbxReader.get_channel()``, which
 loads an entire session's frames into RAM at once before writing them to the
-binary.  For very large sessions this may exhaust memory.  If that becomes a
-problem, replace the ``get_channel()`` call with a frame-by-frame loop using
-``SbxReader.get_frame()`` and write one frame at a time at the cost of
+binary.  For very large sessions this may exhaust memory.  Pass
+``chunk_size=N`` to load and write N frames at a time instead, at the cost of
 slower I/O.
 """
 
@@ -34,7 +33,7 @@ from suite2p.run_s2p import run_s2p, get_save_folder, logger_setup
 from suite2p.parameters import default_db, default_settings
 
 
-def create_merged_binary(sbx_file_list, output_path, channel=0):
+def create_merged_binary(sbx_file_list, output_path, channel=0, chunk_size=None):
     """
     Concatenate frames from multiple .sbx sessions into a single Suite2p BinaryFile.
 
@@ -47,6 +46,10 @@ def create_merged_binary(sbx_file_list, output_path, channel=0):
             Each path must have a companion .mat metadata file.
         output_path (str): Path for the output .bin file.
         channel (int): PMT channel index to extract (0-based, default 0).
+        chunk_size (int or None): Number of frames to load into memory at a time.
+            None (default) loads each session all at once, which is fastest but
+            requires enough RAM to hold a full session.  Set to e.g. 1000 to
+            cap memory use at roughly chunk_size * Ly * Lx * 2 bytes.
 
     Returns:
         dict: {'Ly': int, 'Lx': int, 'n_frames': int} describing the binary.
@@ -80,9 +83,19 @@ def create_merged_binary(sbx_file_list, output_path, channel=0):
             frame_idx = 0
             for reader in readers:
                 nf = reader.num_frames
-                frames = reader.get_channel(channel)  # (nframes, Ly, Lx) uint16
-                bf[frame_idx:frame_idx + nf] = frames
-                frame_idx += nf
+                if chunk_size is None:
+                    frames = reader.get_channel(channel)  # (nframes, Ly, Lx) uint16
+                    bf[frame_idx:frame_idx + nf] = frames
+                    frame_idx += nf
+                else:
+                    for start in range(0, nf, chunk_size):
+                        end = min(start + chunk_size, nf)
+                        print(f"  Writing frames {start}–{end - 1} of {nf - 1}...")
+                        chunk = np.stack(
+                            [reader.get_frame(i)[channel] for i in range(start, end)]
+                        )
+                        bf[frame_idx:frame_idx + (end - start)] = chunk
+                        frame_idx += end - start
     finally:
         for r in readers:
             r.close()
