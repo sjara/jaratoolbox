@@ -245,6 +245,26 @@ def raster_plot_multicond(spikeTimesFromEventOnset, indexLimitsEachTrial, timeRa
                       fillWidth=fillWidth, labels=labelsStacked, colorDots=colorDots, 
                       rasterized=rasterized)
 
+def plot_stim(ax, stimDuration, yPos=0.05, stimLineWidth=6, stimColor='gold'):
+    """
+    Plot a stimulus line indicator above a plot.
+    
+    Args:
+        ax (matplotlib.axes.Axes): The axes to plot on.
+        stimDuration (float): Duration of the stimulus in the same units as the x-axis.
+        yPos (float, optional): Fraction of the y-axis range above the top to position the line. 
+                                Default is 0.05 (5% above the top).
+        stimLineWidth (int, optional): Width of the stimulus line in points. Default is 6.
+        stimColor (color, optional): Color of the stimulus line. Default is gold.
+    
+    Returns:
+        matplotlib.lines.Line2D: The stimulus line plot object.
+    """
+    yLims = ax.get_ylim()
+    yPosition = yLims[-1] + yPos*(yLims[-1]-yLims[0])
+    pstim = ax.plot([0, stimDuration], 2*[yPosition], lw=stimLineWidth, color=stimColor,
+                    clip_on=False, solid_capstyle='butt')
+    return pstim[0]
 
 def plot_psth(spikeCountMat, smoothWinSize, binsStartTime, trialsEachCond=[],
               colorEachCond=None, linestyle=None, linewidth=3, downsamplefactor=1, hidesamples=0):
