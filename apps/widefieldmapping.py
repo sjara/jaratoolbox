@@ -48,17 +48,19 @@ class WidefieldMergedViewer(QMainWindow):
     each channel.
     """
     
-    def __init__(self, wfavg, roi=None):
+    def __init__(self, wfavg, roi=None, max_threshold=3.0):
         """
         Initialize the viewer.
-        
+
         Args:
             wfavg (WidefieldAverage): Precomputed widefield averages object.
             roi (tuple or None): Region of interest. Format: ((x_min, x_max), (y_min, y_max)).
+            max_threshold (float): Upper bound of the threshold sliders.
         """
         super().__init__()
         self.wfavg = wfavg
         self.roi = roi
+        self.max_threshold = max_threshold
         
         # Number of observed conditions (each is a specific freq/intensity pairing)
         self.n_channels = wfavg.signal_change_each_cond.shape[0]
@@ -66,6 +68,10 @@ class WidefieldMergedViewer(QMainWindow):
         # Normalize signal change (full array, shape (n_cond, H, W))
         self.normed_signal_change = wfavg.normalize_signal_change(roi=roi)
         self.clim = wfavg.compute_clim(self._get_normed_slice())
+
+        if self.roi is None:
+            height, width = wfavg.signal_change_each_cond.shape[1:]
+            self.roi = [[0, width], [0, height]]
         
         # Initialize thresholds and enabled states based on number of channels
         self.thresholds = [0.5] * self.n_channels
@@ -165,8 +171,8 @@ class WidefieldMergedViewer(QMainWindow):
             
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(0)
-            slider.setMaximum(100)
-            slider.setValue(25)  # 25/50 = 0.5 threshold
+            slider.setMaximum(int(self.max_threshold * 100))
+            slider.setValue(50)  # 50/100 = 0.5 threshold
             slider.valueChanged.connect(lambda value, idx=ind: self.on_slider_changed(idx, value))
             group_layout.addWidget(slider, 1, 1)
             self.sliders.append(slider)
@@ -181,20 +187,20 @@ class WidefieldMergedViewer(QMainWindow):
         self.roi_x_min = QLineEdit()
         self.roi_x_min.setText(str(self.roi[0][0]) if self.roi else '0')
         roi_layout.addWidget(self.roi_x_min, 0, 1)
-        
+
         roi_layout.addWidget(QLabel('X max:'), 1, 0)
         self.roi_x_max = QLineEdit()
-        self.roi_x_max.setText(str(self.roi[0][1]) if self.roi else '512')
+        self.roi_x_max.setText(str(self.roi[0][1]) if self.roi else '640')
         roi_layout.addWidget(self.roi_x_max, 1, 1)
-        
+
         roi_layout.addWidget(QLabel('Y min:'), 2, 0)
         self.roi_y_min = QLineEdit()
         self.roi_y_min.setText(str(self.roi[1][0]) if self.roi else '0')
         roi_layout.addWidget(self.roi_y_min, 2, 1)
-        
+
         roi_layout.addWidget(QLabel('Y max:'), 3, 0)
         self.roi_y_max = QLineEdit()
-        self.roi_y_max.setText(str(self.roi[1][1]) if self.roi else '512')
+        self.roi_y_max.setText(str(self.roi[1][1]) if self.roi else '540')
         roi_layout.addWidget(self.roi_y_max, 3, 1)
         
         roi_apply_btn = QPushButton('Apply ROI')
@@ -321,10 +327,10 @@ class WidefieldMergedViewer(QMainWindow):
         
         Args:
             channel_idx (int): Index of the channel (0=Red, 1=Green, 2=Blue).
-            value (int): Slider value (0-100).
+            value (int): Slider value (0 to max_threshold*100).
         """
-        # Convert slider value to threshold (0.0 to 2.0 range)
-        threshold = value / 50.0
+        # Convert slider value to threshold (0.0 to max_threshold range)
+        threshold = value / 100.0
         self.thresholds[channel_idx] = threshold
         self.slider_labels[channel_idx].setText(f'Threshold: {threshold:.2f}')
         self.update_plots()
@@ -897,25 +903,43 @@ def main():
     parser = argparse.ArgumentParser(
         description='Interactive viewer for widefield merged signal change images.'
     )
-    parser.add_argument('session_info', type=str, nargs='?', default=DEFAULT_SESSION,
-                        help='Session info as subject_date_session (default: wifi008_20241219_161007)')
+    parser.add_argument('session_info', type=str, nargs='?', default=None,
+                        help='Session info as subject_date_session')
+    parser.add_argument('--example', action='store_true',
+                        help=f'Run with an example session ({DEFAULT_SESSION})')
+    parser.add_argument('--max-threshold', type=float, default=3.0,
+                        help='Upper bound of the threshold sliders (default: 3.0)')
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
     args = parser.parse_args()
-    
+
+    if args.example:
+        session_info = DEFAULT_SESSION
+    elif args.session_info is not None:
+        session_info = args.session_info
+    else:
+        parser.error('session_info is required (or use --example)')
+
     # Parse session info
-    parts = args.session_info.split('_')
+    parts = session_info.split('_')
     if len(parts) != 3:
         parser.error('session_info must be in format: subject_date_session')
     subject, date, session = parts
     
     # roi = [[170, 370], [250, 450]]  #[[200, 400], [150, 350]]
-    roi = [[(420//2)-(420//6), (420//2)+(420//6)], [(480//2)-(480//6), (480//2)+(480//6)]]  # Centered 1/3 FOV
+    # roi = [[(420//2)-(420//6), (420//2)+(420//6)], [(480//2)-(480//6), (480//2)+(480//6)]]  # Centered 1/3 FOV
     
     # Load precomputed averages
-    wfavg = widefieldanalysis.WidefieldAverage(subject, date, session)
+    try:
+        wfavg = widefieldanalysis.WidefieldAverage(subject, date, session)
+    except (FileNotFoundError, RuntimeError) as error:
+        print(f"Cannot load session '{session_info}': {error}")
+        sys.exit(1)
     
     # Create and run application
     app = QApplication(sys.argv)
-    viewer = WidefieldMergedViewer(wfavg, roi=roi)
+    viewer = WidefieldMergedViewer(wfavg, roi=None, max_threshold=args.max_threshold)
     viewer.show()
     sys.exit(app.exec())
 
