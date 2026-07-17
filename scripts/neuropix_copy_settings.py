@@ -26,6 +26,7 @@ dateStr = sys.argv[2]
 pdepth = int(sys.argv[3])
 debug = True if (len(sys.argv)==5 and sys.argv[4]=='debug') else False
 
+rawSessionsRootPath = os.path.join(settings.RAW_NEUROPIX_PATH, subject)
 sessionsRootPath = os.path.join(settings.EPHYS_NEUROPIX_PATH, subject)
 multisessionRawDir = os.path.join(sessionsRootPath, f'multisession_{dateStr}_{pdepth}um_raw')
 multisessionProcessedDir = os.path.join(sessionsRootPath, f'multisession_{dateStr}_{pdepth}um_processed')
@@ -53,9 +54,18 @@ sessions = siteToProcess.session_ephys_dirs()
 # -- Copy settings.xml --
 for oneSession in sessions:
     processedSessionSubDir = os.path.join(multisessionProcessedDir, oneSession)
-    settingsFile = os.path.join(sessionsRootPath, oneSession, relativePathToNode, 'settings.xml')
+    splitSessionSubDir = os.path.join(sessionsRootPath, f'{oneSession}_processed_multi')
+    settingsFile = os.path.join(rawSessionsRootPath, oneSession, relativePathToNode, 'settings.xml')
     infoDir = os.path.join(processedSessionSubDir, 'info')
-    shutil.copy2(settingsFile, infoDir)
+    if not debug:
+        shutil.copy2(settingsFile, infoDir)
+    else:
+        print('DEBUG: messages will be printed, but nothing will be copied.')
     print(f'Copied {settingsFile} to {infoDir+os.sep}')
+    if os.path.exists(splitSessionSubDir):
+        splitInfoDir = os.path.join(splitSessionSubDir, 'info')
+        if not debug:
+            shutil.copy2(settingsFile, splitInfoDir)
+        print(f'Copied {settingsFile} to {splitInfoDir+os.sep}')
     
 

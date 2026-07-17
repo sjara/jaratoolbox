@@ -8,6 +8,7 @@ BEHAVIOR_PATH = '/data/behavior'
 
 EPHYS_PATH = '/data/ephys'  # For Intan data
 EPHYS_NEUROPIX_PATH = '/data/neuropixels'  # For Neuropixels data
+RAW_NEUROPIX_PATH = '/data/neuropixels_raw'  # For raw Neuropixels data (e.g., settings.xml)
 TWOPHOTON_PATH = '/data/twophoton'  # For two-photon data
 WIDEFIELD_PATH = '/data/widefield'  # For widefield fluorescence or intrinsic
 
@@ -23,6 +24,7 @@ INFOREC_PATH = '/home/jarauser/src/jarainfo/inforecordings/'
 INFOHIST_PATH = '/home/jarauser/src/jarainfo/infohistology/'
 INFOVIDEO_PATH = '/home/jarauser/src/jarainfo/infovideos/'
 INFOWIDEFIELD_PATH = '/home/jarauser/src/jarainfo/infowidefield/'
+INFO2P_PATH = '/home/jarauser/src/jarainfo/info2p/'
 
 DATABASE_PATH = '/mnt/jarahubdata/figuresdata'
 
