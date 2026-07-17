@@ -32,7 +32,7 @@ def plot_spectrum(wave, samplingRate, dc=True, maxFreq=None):
     return (fvec, signalFFT, pobj)
 
 
-def plot_spectrogram(wave, samplingRate, window='hanning', nfft=2048, noverlap=1024):
+def plot_spectrogram(wave, samplingRate, window='hann', nfft=2048, noverlap=1024):
     """
     Display spectrogram.
     """
