@@ -832,3 +832,13 @@ class Inforec():
         for indExp, experiment in enumerate(self.experiments):
             message.append(f'[{indExp+1}] ' + experiment.pretty_print(sites=True))
         return ''.join(message)
+    
+
+def generate_2p_cell_database(info2pFile, singleSession=None, onlyGood=True, minimal=False,
+                              ignoreMissing=False):
+    """
+    Generate a cell database from two-photon data.
+    See: info2p files, generate_cell_database(), loadtwophoton, load_suite2p_data()
+         Check how to get good cells and parameters like location of cell.
+    """
+    pass
