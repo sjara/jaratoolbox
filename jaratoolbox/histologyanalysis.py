@@ -1018,6 +1018,7 @@ def OLD_cell_locations(cellDB, filterConditions=None, brainAreaDict=None):
     mcc = MouseConnectivityCache(resolution=25, manifest_file=ALLEN_SDK_MANIFEST)
     rsp = mcc.get_reference_space()
     rspAnnotationVolumeRotated = np.rot90(rsp.annotation, 1, axes=(2, 0))
+    # Rotated coords are L-R, D-V, P-A
 
     if filterConditions:
         bestCells = cellDB.query(filterConditions)
