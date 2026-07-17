@@ -23,7 +23,8 @@ CHANNELMAPS = {'threetones_sequence': {'stim':0, 'trialStart':1, 'laser':2, 'sou
                'sound_localization': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'laser_tuning_curve':{'stim':0, 'trialStart':1, 'laser':2},
                '2afc':{'stim':0, 'trialStart':1},
-               '2afc_speech':{'stim':0, 'trialStart':1} }
+               '2afc_speech':{'stim':0, 'trialStart':1}, 
+               'am_image_tuning':{'stim':0, 'trialStart':1, 'laser':2}}
 
 
 class SessionData():
@@ -113,6 +114,9 @@ class CellEnsemble():
         self.behavData = self.refCell.load_behavior_by_index(sessionIndToUse, behavClass=behavClass)
         self.ephysData = self.refCell.load_ephys_by_index(sessionIndToUse)
         return self.ephysData, self.behavData
+    def load_ephys_by_index(self, sessionInd):
+        self.ephysData = self.refCell.load_ephys_by_index(sessionInd)
+        return self.ephysData
     def get_spiketimes(self, cluster):
         """
         Get spikes times for a single cluster.
