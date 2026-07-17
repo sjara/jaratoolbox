@@ -8,7 +8,7 @@ BEHAVIOR_PATH = '/data/behavior'
 
 EPHYS_PATH = '/data/ephys'  # For Intan data
 EPHYS_NEUROPIX_PATH = '/data/neuropixels'  # For Neuropixels data
-RAW_NEUROPIX_PATH = '/data/neuropixels_raw'  # For raw Neuropixels data (e.g., settings.xml)
+RAW_NEUROPIX_PATH = '/data/neuropixels_raw'  # For raw Neuropixels data
 TWOPHOTON_PATH = '/data/twophoton'  # For two-photon data
 WIDEFIELD_PATH = '/data/widefield'  # For widefield fluorescence or intrinsic
 
