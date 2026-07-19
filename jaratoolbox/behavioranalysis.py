@@ -85,7 +85,47 @@ def find_trials_each_combination_n(parameters, possibleValuesEachParameter):
     else:
         return find_trials_each_type(parameters[0], possibleValuesEachParameter[0])
     
-'''    
+def find_trials_each_stim_condition(stimType, possibleStimTypes, extraParams=None):
+    '''
+    Find trials for each stimulus condition, where each stim type may have its own
+    associated parameter (with its own possible values), unlike find_trials_each_combination_n
+    which assumes the same parameters apply to every trial (e.g., AM_noise trials are
+    classified by modulation rate, while fading_noise trials are classified by fade
+    direction; modulation rate is meaningless on fading_noise trials and vice versa).
+
+    Args:
+        stimType (np.array): array of length nTrials with the stim type presented on each trial.
+        possibleStimTypes (list): list of possible values of stimType.
+        extraParams (dict): maps a stim type to a tuple (parameterArray, possibleValues)
+            used to further split trials of that stim type into sub-conditions.
+            Stim types not present in this dict are treated as a single condition.
+
+    Returns:
+        trialsEachCond (np.array bool): [nTrials,nConditions]. nConditions is the sum over
+            stim types of (len(possibleValues) if that stim type is in extraParams else 1).
+        condLabels (list): list of (stimType,value) tuples labeling each column of
+            trialsEachCond, in the same order. value is None for stim types without
+            an entry in extraParams.
+    '''
+    if extraParams is None:
+        extraParams = {}
+    columns = []
+    condLabels = []
+    for stype in possibleStimTypes:
+        trialsThisType = (stimType == stype)
+        if stype in extraParams:
+            paramArray, possibleValues = extraParams[stype]
+            for val in possibleValues:
+                columns.append(trialsThisType & (paramArray == val))
+                condLabels.append((stype, val))
+        else:
+            columns.append(trialsThisType)
+            condLabels.append((stype, None))
+    trialsEachCond = np.column_stack(columns)
+    return trialsEachCond, condLabels
+
+
+'''
 ,validTrials=[]
     if(not len(validTrials)):
         validTrials = np.ones(nTrials,dtype=bool)
