@@ -101,28 +101,30 @@ def find_trials_each_stim_condition(stimType, possibleStimTypes, extraParams=Non
             Stim types not present in this dict are treated as a single condition.
 
     Returns:
-        trialsEachCond (np.array bool): [nTrials,nConditions]. nConditions is the sum over
-            stim types of (len(possibleValues) if that stim type is in extraParams else 1).
-        condLabels (list): list of (stimType,value) tuples labeling each column of
-            trialsEachCond, in the same order. value is None for stim types without
-            an entry in extraParams.
+        trialsEachCondByType (dict): maps each stim type to a tuple (trialsEachSubCond,subValues)
+            where trialsEachSubCond is a [nTrials,nSubValues] boolean array (nSubValues==1 and
+            subValues==[None] for stim types without an entry in extraParams), and subValues is
+            the list/array of possible values used to define its columns.
+
+    To recreate a single flat [nTrials,nConditions] array (and matching (stimType,value) labels
+    for each column) from the returned dict:
+        trialsEachCond = np.hstack([tec for tec, _ in trialsEachCondByType.values()])
+        condLabels = [(stype, val) for stype, (_, subValues) in trialsEachCondByType.items()
+                      for val in subValues]
     '''
     if extraParams is None:
         extraParams = {}
-    columns = []
-    condLabels = []
+    trialsEachCondByType = {}
     for stype in possibleStimTypes:
         trialsThisType = (stimType == stype)
         if stype in extraParams:
             paramArray, possibleValues = extraParams[stype]
-            for val in possibleValues:
-                columns.append(trialsThisType & (paramArray == val))
-                condLabels.append((stype, val))
+            trialsEachSubCond = np.column_stack([trialsThisType & (paramArray == val)
+                                                 for val in possibleValues])
+            trialsEachCondByType[stype] = (trialsEachSubCond, possibleValues)
         else:
-            columns.append(trialsThisType)
-            condLabels.append((stype, None))
-    trialsEachCond = np.column_stack(columns)
-    return trialsEachCond, condLabels
+            trialsEachCondByType[stype] = (trialsThisType[:, np.newaxis], [None])
+    return trialsEachCondByType
 
 
 '''
