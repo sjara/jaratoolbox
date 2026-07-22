@@ -85,7 +85,7 @@ def find_trials_each_combination_n(parameters, possibleValuesEachParameter):
     else:
         return find_trials_each_type(parameters[0], possibleValuesEachParameter[0])
     
-def find_trials_each_stim_condition(stimType, possibleStimTypes, extraParams=None):
+def find_trials_each_stim_condition(stimType, extraParams):
     '''
     Find trials for each stimulus condition, where each stim type may have its own
     associated parameter (with its own possible values), unlike find_trials_each_combination_n
@@ -95,29 +95,27 @@ def find_trials_each_stim_condition(stimType, possibleStimTypes, extraParams=Non
 
     Args:
         stimType (np.array): array of length nTrials with the stim type presented on each trial.
-        possibleStimTypes (list): list of possible values of stimType.
-        extraParams (dict): maps a stim type to a tuple (parameterArray, possibleValues)
-            used to further split trials of that stim type into sub-conditions.
-            Stim types not present in this dict are treated as a single condition.
+        extraParams (dict): maps each stim type to process to either a tuple
+            (parameterArray, possibleValues) used to split trials of that stim type into
+            sub-conditions, or to None to treat that stim type as a single condition.
+            Only stim types present as keys of this dict are included in the output.
 
     Returns:
         trialsEachCondByType (dict): maps each stim type to a [nTrials,nSubValues] boolean
-            array (nSubValues==1 for stim types without an entry in extraParams), with
-            columns in the same order as extraParams[stype][1] (possibleValues).
+            array (nSubValues==1 for stim types mapped to None), with columns in the same
+            order as extraParams[stype][1] (possibleValues).
 
     To recreate a single flat [nTrials,nConditions] array (and matching (stimType,value) labels
     for each column) from the returned dict:
         trialsEachCond = np.hstack(list(trialsEachCondByType.values()))
-        condLabels = [(stype, val) for stype in possibleStimTypes
-                      for val in extraParams.get(stype, (None,[None]))[1]]
+        condLabels = [(stype, val) for stype, params in extraParams.items()
+                      for val in (params[1] if params is not None else [None])]
     '''
-    if extraParams is None:
-        extraParams = {}
     trialsEachCondByType = {}
-    for stype in possibleStimTypes:
+    for stype, params in extraParams.items():
         trialsThisType = (stimType == stype)
-        if stype in extraParams:
-            paramArray, possibleValues = extraParams[stype]
+        if params is not None:
+            paramArray, possibleValues = params
             trialsEachCondByType[stype] = np.column_stack([trialsThisType & (paramArray == val)
                                                             for val in possibleValues])
         else:
