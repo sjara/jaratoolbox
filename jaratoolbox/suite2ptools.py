@@ -26,11 +26,125 @@ slower I/O.
 """
 
 import os
+import datetime
 import numpy as np
 from jaratoolbox.loadtwophoton import SbxReader
 from suite2p.io import BinaryFile
 from suite2p.run_s2p import run_s2p, get_save_folder, logger_setup
 from suite2p.parameters import default_db, default_settings
+
+REGISTERED_MARKER_SUFFIX = '.registered'
+
+
+def default_2p_settings():
+    """
+    Return a dict of Suite2p settings with lab defaults for two-photon recordings.
+
+    As of Suite2p's current release, the 'settings' dict (distinct from 'db')
+    is organized into nested sub-dicts by pipeline stage. These are the
+    parameters most likely to need adjustment between experiments. Override
+    any values before passing to run_suite2p():
+
+        settings = suite2ptools.default_2p_settings()
+        settings['fs'] = 9.96
+        settings['diameter'] = [22.0, 22.0]
+        settings['registration']['nonrigid'] = False
+        ops_path = suite2ptools.run_suite2p(..., settings=settings)
+
+    Note: 'nchannels' and 'functional_chan' are 'db' parameters (not
+    'settings') in the current Suite2p version. See default_2p_db().
+
+    Returns:
+        dict with the following keys (Suite2p's own default shown in
+        parentheses where it differs from ours):
+
+        fs (float): Sampling (frame) rate per plane, in Hz. Must match the
+            actual acquisition rate. (Suite2p default: 10.0)
+        tau (float): Timescale for deconvolution and binning, in seconds
+            (Ca2+ indicator decay time constant). 0.6 = GCaMP6f, 1.0 =
+            GCaMP6s, 1.5 = RCaMP. (Suite2p default: 1.0)
+        diameter (int or [int, int]): ROI diameter in Y and X pixels, used
+            for sourcery and cellpose detection. Pass [Ly, Lx] if cells are
+            not round. (Suite2p default: [12.0, 12.0])
+        registration (dict):
+            nonrigid (bool): Whether to use nonrigid (piecewise)
+                registration. (Suite2p default: True)
+            block_size (tuple): Block size (Ly, Lx) for nonrigid
+                registration; keep as a multiple of 2, 3, and/or 5.
+                (Suite2p default: (128, 128))
+            maxregshift (float): Max allowed registration shift, as a
+                fraction of frame max(width, height). (Suite2p default: 0.1)
+            nimg_init (int): Number of subsampled frames used to find the
+                reference image. (Suite2p default: 400)
+            batch_size (int): Number of frames per batch during
+                registration. (Suite2p default: 100)
+        detection (dict):
+            threshold_scaling (float): Scalar multiplier that adjusts the
+                automatically determined ROI detection threshold in sparsery
+                and sourcery. Lower = more ROIs detected; higher = fewer,
+                higher-quality ROIs. (Suite2p default: 1.0)
+            max_overlap (float): ROIs with more overlap than this fraction
+                with other ROIs are discarded. (Suite2p default: 0.75)
+            highpass_time (int): Running mean subtraction across bins with
+                this window size, used for ROI detection. Was named
+                'high_pass' in older Suite2p versions. (Suite2p default: 100)
+        extraction (dict):
+            neuropil_coefficient (float): Coefficient for neuropil
+                subtraction. Was named 'neucoeff' in older Suite2p versions.
+                (Suite2p default: 0.7)
+        dcnv_preprocess (dict):
+            win_baseline (float): Window length (s), used as a max filter,
+                for baseline estimation. (Suite2p default: 60.0)
+            prctile_baseline (float): Percentile of the trace used as
+                baseline when using 'prctile' for baseline estimation.
+                (Suite2p default: 8.0)
+    """
+    return {
+        'fs': 10.0,
+        'tau': 0.6,
+        'diameter': 10,
+        'registration': {
+            'nonrigid': True,
+            'block_size': (128, 128),
+            'maxregshift': 0.1,
+            'nimg_init': 300,
+            'batch_size': 500,
+        },
+        'detection': {
+            'threshold_scaling': 1.5,
+            'max_overlap': 0.25,
+            'highpass_time': 100,
+        },
+        'extraction': {
+            'neuropil_coefficient': 0.7,
+        },
+        'dcnv_preprocess': {
+            'win_baseline': 60.0,
+            'prctile_baseline': 8.0,
+        },
+    }
+
+
+def default_2p_db():
+    """
+    Return a dict of Suite2p 'db' (I/O) parameters with lab defaults.
+
+    Override any values before passing to run_suite2p():
+
+        db = suite2ptools.default_2p_db()
+        db['nchannels'] = 2
+        ops_path = suite2ptools.run_suite2p(..., db=db)
+
+    Returns:
+        dict with the following keys:
+
+        nchannels (int): Number of PMT channels recorded (1 or 2).
+        functional_chan (int): 1-based index of the functional channel.
+    """
+    return {
+        'nchannels': 1,
+        'functional_chan': 1,
+    }
 
 
 def create_merged_binary(sbx_file_list, output_path, channel=0, chunk_size=None):
@@ -104,7 +218,41 @@ def create_merged_binary(sbx_file_list, output_path, channel=0, chunk_size=None)
             'frame_counts': frame_counts}
 
 
-def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None):
+def _registered_marker_path(binary_path):
+    """Return the path of the sidecar marker file for binary_path."""
+    return binary_path + REGISTERED_MARKER_SUFFIX
+
+
+def is_registered(binary_path):
+    """
+    Check whether binary_path has already been through Suite2p registration.
+
+    Registration overwrites the binary in place, so re-registering an
+    already-registered binary applies the shift-and-resample twice, which
+    can introduce artifacts near the frame borders. run_suite2p() writes the
+    sidecar marker checked here after a successful registration run.
+
+    Args:
+        binary_path (str): Path to the .bin file, as passed to run_suite2p().
+
+    Returns:
+        bool: True if a registered-marker sidecar file exists.
+    """
+    return os.path.exists(_registered_marker_path(binary_path))
+
+
+def mark_as_registered(binary_path):
+    """
+    Create a sidecar marker file recording that binary_path was registered.
+
+    Args:
+        binary_path (str): Path to the .bin file, as passed to run_suite2p().
+    """
+    with open(_registered_marker_path(binary_path), 'w') as marker_file:
+        marker_file.write(f"Registered by suite2ptools on {datetime.datetime.now().isoformat()}\n")
+
+
+def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None, allow_reregister=False):
     """
     Run Suite2p on a pre-built binary file.
 
@@ -119,9 +267,19 @@ def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None):
             nplanes, nchannels, keep_movie_raw, etc.). See suite2p docs "db" section.
         settings (dict, optional): Override suite2p settings parameters
             (pipeline: fs, tau, diameter, etc.). See suite2p docs "settings" section.
+        allow_reregister (bool): If False (default), raise a RuntimeError when
+            registration is requested (settings['run']['do_registration']) but
+            binary_path is already marked as registered (see is_registered()).
+            Registration overwrites the binary in place, so running it twice
+            can introduce artifacts near the frame borders. Set to True to
+            force re-registration anyway.
 
     Returns:
         list: Paths to per-plane db.npy files (as returned by run_s2p).
+
+    Raises:
+        RuntimeError: If registration is requested on an already-registered
+            binary_path and allow_reregister is False.
     """
     valid_db_keys = set(default_db().keys())
     valid_settings_keys = set(default_settings().keys())
@@ -134,6 +292,25 @@ def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None):
             raise ValueError(f"'{key}' is not a valid settings parameter. "
                              f"Did you mean to pass it in db?")
 
+    settings_params = default_settings()
+    if settings:
+        for key, val in settings.items():
+            if isinstance(val, dict) and isinstance(settings_params.get(key), dict):
+                settings_params[key].update(val)
+            else:
+                settings_params[key] = val
+
+    keep_raw = (db or {}).get('keep_movie_raw', False)
+    do_registration = bool(settings_params['run']['do_registration'])
+    overwrites_binary = do_registration and not keep_raw
+    if overwrites_binary and is_registered(binary_path) and not allow_reregister:
+        raise RuntimeError(
+            f"{binary_path} is already marked as registered "
+            f"({_registered_marker_path(binary_path)} exists). Re-registering "
+            "overwrites the binary again and can introduce border artifacts. "
+            "Pass allow_reregister=True to force it."
+        )
+
     logger_setup(save_path)
     fast_disk = os.path.dirname(binary_path)
     plane0_dir = os.path.join(save_path, 'suite2p', 'plane0')
@@ -141,7 +318,6 @@ def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None):
 
     nframes = BinaryFile(Ly=Ly, Lx=Lx, filename=binary_path).n_frames
 
-    keep_raw = (db or {}).get('keep_movie_raw', False)
     bin_name = 'data_raw.bin' if keep_raw else 'data.bin'
     symlink_path = os.path.join(plane0_dir, bin_name)
     if not os.path.exists(symlink_path):
@@ -164,18 +340,14 @@ def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None):
     if db:
         db_params.update(db)
 
-    settings_params = default_settings()
-    if settings:
-        for key, val in settings.items():
-            if isinstance(val, dict) and isinstance(settings_params.get(key), dict):
-                settings_params[key].update(val)
-            else:
-                settings_params[key] = val
-
     db_path = os.path.join(plane0_dir, 'db.npy')
     if not os.path.exists(db_path):
         np.save(db_path, db_params)
     np.save(os.path.join(plane0_dir, 'settings.npy'), settings_params)
 
     ops_path = run_s2p(db=db_params, settings=settings_params)
+
+    if overwrites_binary:
+        mark_as_registered(binary_path)
+
     return ops_path
