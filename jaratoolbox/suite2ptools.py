@@ -40,10 +40,13 @@ def default_2p_settings():
     """
     Return a dict of Suite2p settings with lab defaults for two-photon recordings.
 
-    As of Suite2p's current release, the 'settings' dict (distinct from 'db')
-    is organized into nested sub-dicts by pipeline stage. These are the
-    parameters most likely to need adjustment between experiments. Override
-    any values before passing to run_suite2p():
+    This only includes keys where the lab's preferred value differs from
+    Suite2p's own default (Suite2p already fills in everything else via
+    default_settings()) — see run_suite2p(). As of Suite2p's current release,
+    the 'settings' dict (distinct from 'db') is organized into nested
+    sub-dicts by pipeline stage. Override or add values before passing to
+    run_suite2p(), including experiment-specific ones not listed below (e.g.
+    'fs', which must be set to the actual acquisition rate every session):
 
         settings = suite2ptools.default_2p_settings()
         settings['fs'] = 9.96
@@ -52,14 +55,12 @@ def default_2p_settings():
         ops_path = suite2ptools.run_suite2p(..., settings=settings)
 
     Note: 'nchannels' and 'functional_chan' are 'db' parameters (not
-    'settings') in the current Suite2p version. See default_2p_db().
+    'settings') in the current Suite2p version.
 
     Returns:
         dict with the following keys (Suite2p's own default shown in
-        parentheses where it differs from ours):
+        parentheses):
 
-        fs (float): Sampling (frame) rate per plane, in Hz. Must match the
-            actual acquisition rate. (Suite2p default: 10.0)
         tau (float): Timescale for deconvolution and binning, in seconds
             (Ca2+ indicator decay time constant). 0.6 = GCaMP6f, 1.0 =
             GCaMP6s, 1.5 = RCaMP. (Suite2p default: 1.0)
@@ -67,17 +68,8 @@ def default_2p_settings():
             for sourcery and cellpose detection. Pass [Ly, Lx] if cells are
             not round. (Suite2p default: [12.0, 12.0])
         registration (dict):
-            nonrigid (bool): Whether to use nonrigid (piecewise)
-                registration. (Suite2p default: True)
-            block_size (tuple): Block size (Ly, Lx) for nonrigid
-                registration; keep as a multiple of 2, 3, and/or 5.
-                (Suite2p default: (128, 128))
-            maxregshift (float): Max allowed registration shift, as a
-                fraction of frame max(width, height). (Suite2p default: 0.1)
             nimg_init (int): Number of subsampled frames used to find the
                 reference image. (Suite2p default: 400)
-            batch_size (int): Number of frames per batch during
-                registration. (Suite2p default: 100)
         detection (dict):
             threshold_scaling (float): Scalar multiplier that adjusts the
                 automatically determined ROI detection threshold in sparsery
@@ -85,65 +77,17 @@ def default_2p_settings():
                 higher-quality ROIs. (Suite2p default: 1.0)
             max_overlap (float): ROIs with more overlap than this fraction
                 with other ROIs are discarded. (Suite2p default: 0.75)
-            highpass_time (int): Running mean subtraction across bins with
-                this window size, used for ROI detection. Was named
-                'high_pass' in older Suite2p versions. (Suite2p default: 100)
-        extraction (dict):
-            neuropil_coefficient (float): Coefficient for neuropil
-                subtraction. Was named 'neucoeff' in older Suite2p versions.
-                (Suite2p default: 0.7)
-        dcnv_preprocess (dict):
-            win_baseline (float): Window length (s), used as a max filter,
-                for baseline estimation. (Suite2p default: 60.0)
-            prctile_baseline (float): Percentile of the trace used as
-                baseline when using 'prctile' for baseline estimation.
-                (Suite2p default: 8.0)
     """
     return {
-        'fs': 10.0,
         'tau': 0.6,
         'diameter': 10,
         'registration': {
-            'nonrigid': True,
-            'block_size': (128, 128),
-            'maxregshift': 0.1,
             'nimg_init': 300,
-            'batch_size': 500,
         },
         'detection': {
             'threshold_scaling': 1.5,
             'max_overlap': 0.25,
-            'highpass_time': 100,
         },
-        'extraction': {
-            'neuropil_coefficient': 0.7,
-        },
-        'dcnv_preprocess': {
-            'win_baseline': 60.0,
-            'prctile_baseline': 8.0,
-        },
-    }
-
-
-def default_2p_db():
-    """
-    Return a dict of Suite2p 'db' (I/O) parameters with lab defaults.
-
-    Override any values before passing to run_suite2p():
-
-        db = suite2ptools.default_2p_db()
-        db['nchannels'] = 2
-        ops_path = suite2ptools.run_suite2p(..., db=db)
-
-    Returns:
-        dict with the following keys:
-
-        nchannels (int): Number of PMT channels recorded (1 or 2).
-        functional_chan (int): 1-based index of the functional channel.
-    """
-    return {
-        'nchannels': 1,
-        'functional_chan': 1,
     }
 
 
