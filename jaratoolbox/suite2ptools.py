@@ -36,7 +36,7 @@ from suite2p.run_s2p import run_s2p, get_save_folder, logger_setup
 from suite2p.parameters import default_db, default_settings
 
 REGISTERED_MARKER_SUFFIX = '.registration.log'
-SESSION_MANIFEST_FILENAME = 'session_manifest.csv'
+SESSION_MANIFEST_FILENAME = 'multisession.csv'
 
 
 def default_2p_settings():
@@ -361,6 +361,15 @@ def split_sessions(save_path, debug=False):
     ops.npy is copied with its 'nframes' entry updated to the session's own
     frame count.
 
+    Each session's output is saved as a sibling of save_path, named after
+    just that session's ID (the part of its name after the last
+    underscore, e.g. '006' from 'imag029_20260424_006'), rather than
+    nesting it inside save_path under its full SUBJECT_DATE_SESSIONID name.
+    For example, if save_path is
+    '/data/twophoton/imag029_processednew/20260424/006-007', results for
+    session 'imag029_20260424_006' are saved to
+    '/data/twophoton/imag029_processednew/20260424/006/suite2p/plane0/'.
+
     Args:
         save_path (str): Suite2p save_path used with run_suite2p(), i.e. the
             directory containing suite2p/plane0/.
@@ -374,6 +383,7 @@ def split_sessions(save_path, debug=False):
     plane0_dir = os.path.join(save_path, 'suite2p', 'plane0')
     manifest_path = os.path.join(plane0_dir, SESSION_MANIFEST_FILENAME)
     sessionsInfo = pd.read_csv(manifest_path)
+    parent_dir = os.path.dirname(save_path)
 
     framesToSlice = ['F.npy', 'Fneu.npy', 'spks.npy']
     filesToCopy = ['stat.npy', 'iscell.npy']
@@ -391,7 +401,8 @@ def split_sessions(save_path, debug=False):
 
     sessionsDirsList = []
     for _, oneRow in sessionsInfo.iterrows():
-        sessionDir = os.path.join(save_path, oneRow.session, 'suite2p', 'plane0')
+        sessionID = oneRow.session.rsplit('_', 1)[-1]
+        sessionDir = os.path.join(parent_dir, sessionID, 'suite2p', 'plane0')
         if os.path.isdir(sessionDir):
             print(f'WARNING! {sessionDir} exists. Data will be overwritten.')
         else:
