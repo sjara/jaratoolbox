@@ -33,24 +33,26 @@ from suite2p.io import BinaryFile
 from suite2p.run_s2p import run_s2p, get_save_folder, logger_setup
 from suite2p.parameters import default_db, default_settings
 
-REGISTERED_MARKER_SUFFIX = '.registered'
+REGISTERED_MARKER_SUFFIX = '.registration.log'
 
 
 def default_2p_settings():
     """
     Return a dict of Suite2p settings with lab defaults for two-photon recordings.
 
-    This only includes keys where the lab's preferred value differs from
-    Suite2p's own default (Suite2p already fills in everything else via
-    default_settings()) — see run_suite2p(). As of Suite2p's current release,
-    the 'settings' dict (distinct from 'db') is organized into nested
-    sub-dicts by pipeline stage. Override or add values before passing to
-    run_suite2p(), including experiment-specific ones not listed below (e.g.
-    'fs', which must be set to the actual acquisition rate every session):
+    This includes preferred values (some of which the user may need to
+    change between sessions), and Suite2p already fills in everything else
+    via default_settings() — see run_suite2p(). As of Suite2p's current
+    release, the 'settings' dict (distinct from 'db') is organized into
+    nested sub-dicts by pipeline stage. Override or add values before
+    passing to run_suite2p(), including experiment-specific ones not listed
+    below (e.g. 'diameter', which should be checked every session). See
+    https://suite2p.readthedocs.io/en/latest/parameters/ for the full list
+    of Suite2p parameters:
 
         settings = suite2ptools.default_2p_settings()
         settings['fs'] = 9.96
-        settings['diameter'] = [22.0, 22.0]
+        settings['diameter'] = [8.0, 8.0]
         settings['registration']['nonrigid'] = False
         ops_path = suite2ptools.run_suite2p(..., settings=settings)
 
@@ -61,15 +63,23 @@ def default_2p_settings():
         dict with the following keys (Suite2p's own default shown in
         parentheses):
 
+        fs (float): Sampling (frame) rate per plane, in Hz. Must match the
+            actual acquisition rate; verify against the session before
+            running. (Suite2p default: 10.0)
         tau (float): Timescale for deconvolution and binning, in seconds
             (Ca2+ indicator decay time constant). 0.6 = GCaMP6f, 1.0 =
             GCaMP6s, 1.5 = RCaMP. (Suite2p default: 1.0)
-        diameter (int or [int, int]): ROI diameter in Y and X pixels, used
-            for sourcery and cellpose detection. Pass [Ly, Lx] if cells are
-            not round. (Suite2p default: [12.0, 12.0])
+        diameter (float or [float, float]): ROI diameter in Y and X pixels,
+            used for sourcery and cellpose detection. Pass [Ly, Lx] if cells
+            are not round. (Suite2p default: [12.0, 12.0])
         registration (dict):
-            nimg_init (int): Number of subsampled frames used to find the
-                reference image. (Suite2p default: 400)
+            align_by_chan2 (bool): For two-channel recordings, align using
+                the non-functional channel instead of the functional one.
+                (Suite2p default: False)
+            batch_size (int): Number of frames per batch during
+                registration. Lower this if registration runs out of GPU
+                memory (large frames + many nonrigid blocks can need a lot
+                of memory per batch). (Suite2p default: 100)
         detection (dict):
             threshold_scaling (float): Scalar multiplier that adjusts the
                 automatically determined ROI detection threshold in sparsery
@@ -79,13 +89,15 @@ def default_2p_settings():
                 with other ROIs are discarded. (Suite2p default: 0.75)
     """
     return {
+        'fs': 9.96,
         'tau': 0.6,
-        'diameter': 10,
+        'diameter': [16.0, 16.0],
         'registration': {
-            'nimg_init': 300,
+            'align_by_chan2': False,
+            'batch_size': 100,
         },
         'detection': {
-            'threshold_scaling': 1.5,
+            'threshold_scaling': 0.75,
             'max_overlap': 0.25,
         },
     }
@@ -164,7 +176,7 @@ def create_merged_binary(sbx_file_list, output_path, channel=0, chunk_size=None)
 
 def _registered_marker_path(binary_path):
     """Return the path of the sidecar marker file for binary_path."""
-    return binary_path + REGISTERED_MARKER_SUFFIX
+    return os.path.splitext(binary_path)[0] + REGISTERED_MARKER_SUFFIX
 
 
 def is_registered(binary_path):
@@ -193,7 +205,7 @@ def mark_as_registered(binary_path):
         binary_path (str): Path to the .bin file, as passed to run_suite2p().
     """
     with open(_registered_marker_path(binary_path), 'w') as marker_file:
-        marker_file.write(f"Registered by suite2ptools on {datetime.datetime.now().isoformat()}\n")
+        marker_file.write(f"Registered via jaratoolbox.suite2ptools on {datetime.datetime.now().isoformat()}\n")
 
 
 def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None, allow_reregister=False):
