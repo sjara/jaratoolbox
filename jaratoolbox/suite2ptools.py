@@ -1,6 +1,6 @@
 """
-Tools for preprocessing two-photon imaging data, including merging sessions
-and running Suite2p.
+Tools for preprocessing two-photon imaging data, including concatenating
+sessions and running Suite2p.
 
 Design rationale
 ----------------
@@ -18,7 +18,7 @@ gets concatenated (e.g. channel selection, bad-frame exclusion).
 
 Memory note
 -----------
-By default ``create_merged_binary`` calls ``SbxReader.get_channel()``, which
+By default ``create_concatenated_binary`` calls ``SbxReader.get_channel()``, which
 loads an entire session's frames into RAM at once before writing them to the
 binary.  For very large sessions this may exhaust memory.  Pass
 ``chunk_size=N`` to load and write N frames at a time instead, at the cost of
@@ -26,14 +26,17 @@ slower I/O.
 """
 
 import os
+import shutil
 import datetime
 import numpy as np
+import pandas as pd
 from jaratoolbox.loadtwophoton import SbxReader
 from suite2p.io import BinaryFile
 from suite2p.run_s2p import run_s2p, get_save_folder, logger_setup
 from suite2p.parameters import default_db, default_settings
 
 REGISTERED_MARKER_SUFFIX = '.registration.log'
+SESSION_MANIFEST_FILENAME = 'session_manifest.csv'
 
 
 def default_2p_settings():
@@ -103,13 +106,20 @@ def default_2p_settings():
     }
 
 
-def create_merged_binary(sbx_file_list, output_path, channel=0, chunk_size=None):
+def create_concatenated_binary(sbx_file_list, output_path, channel=0, chunk_size=None):
     """
     Concatenate frames from multiple .sbx sessions into a single Suite2p BinaryFile.
 
     All sessions must have the same frame dimensions and the same number of
     active PMT channels.  Only one channel is written to the binary (Suite2p
     processes a single channel at a time).
+
+    Alongside the binary, this also writes a session manifest CSV (see
+    manifest_path_for_binary()) recording each session's name, source path,
+    and frame range within the concatenated binary. This lets you experiment
+    with concatenation without committing to running Suite2p yet.
+    run_suite2p() copies this manifest into the Suite2p output folder, where
+    split_sessions() then reads it from to split results back apart.
 
     Args:
         sbx_file_list (list of str): Base paths to .sbx files (without extension).
@@ -122,7 +132,9 @@ def create_merged_binary(sbx_file_list, output_path, channel=0, chunk_size=None)
             cap memory use at roughly chunk_size * Ly * Lx * 2 bytes.
 
     Returns:
-        dict: {'Ly': int, 'Lx': int, 'n_frames': int} describing the binary.
+        dict: {'Ly': int, 'Lx': int, 'n_frames': int, 'frame_counts': list}
+            describing the binary. frame_counts is the number of frames
+            contributed by each session, in the order given in sbx_file_list.
 
     Raises:
         ValueError: If sessions have mismatched frame dimensions or channel count.
@@ -170,8 +182,29 @@ def create_merged_binary(sbx_file_list, output_path, channel=0, chunk_size=None)
         for r in readers:
             r.close()
 
+    last_frame = np.cumsum(frame_counts) - 1
+    first_frame = last_frame - np.array(frame_counts) + 1
+    manifest = pd.DataFrame({
+        'session': [os.path.basename(f) for f in sbx_file_list],
+        'sbx_path': sbx_file_list,
+        'n_frames': frame_counts,
+        'first_frame': first_frame,
+        'last_frame': last_frame,
+        'channel': channel,
+        'Ly': Ly,
+        'Lx': Lx,
+    })
+    manifest_path = manifest_path_for_binary(output_path)
+    manifest.to_csv(manifest_path, index=False)
+    print(f'Saved {manifest_path}')
+
     return {'Ly': Ly, 'Lx': Lx, 'n_frames': total_frames,
             'frame_counts': frame_counts}
+
+
+def manifest_path_for_binary(binary_path):
+    """Return the path of the session-manifest sidecar CSV for binary_path."""
+    return os.path.splitext(binary_path)[0] + '.' + SESSION_MANIFEST_FILENAME
 
 
 def _registered_marker_path(binary_path):
@@ -213,12 +246,14 @@ def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None, allow_re
     Run Suite2p on a pre-built binary file.
 
     Args:
-        binary_path (str): Path to the .bin file created by create_merged_binary(),
+        binary_path (str): Path to the .bin file created by create_concatenated_binary(),
             on a fast disk. The parent directory is used as fast_disk.
         Ly (int): Frame height in pixels.
         Lx (int): Frame width in pixels.
         save_path (str): Directory where Suite2p outputs (stat.npy, F.npy, etc.)
-            will be saved. Can be on a slow disk.
+            will be saved. Can be on a slow disk. If create_concatenated_binary()
+            wrote a session manifest next to binary_path, it is copied into
+            save_path/suite2p/plane0/ so split_sessions() can later use it.
         db (dict, optional): Override suite2p db parameters (I/O config:
             nplanes, nchannels, keep_movie_raw, etc.). See suite2p docs "db" section.
         settings (dict, optional): Override suite2p settings parameters
@@ -272,6 +307,10 @@ def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None, allow_re
     plane0_dir = os.path.join(save_path, 'suite2p', 'plane0')
     os.makedirs(plane0_dir, exist_ok=True)
 
+    manifest_path = manifest_path_for_binary(binary_path)
+    if os.path.exists(manifest_path):
+        shutil.copy2(manifest_path, os.path.join(plane0_dir, SESSION_MANIFEST_FILENAME))
+
     nframes = BinaryFile(Ly=Ly, Lx=Lx, filename=binary_path).n_frames
 
     bin_name = 'data_raw.bin' if keep_raw else 'data.bin'
@@ -307,3 +346,88 @@ def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None, allow_re
         mark_as_registered(binary_path)
 
     return ops_path
+
+
+def split_sessions(save_path, debug=False):
+    """
+    Split concatenated Suite2p results back into per-session folders.
+
+    Uses the session manifest CSV written by create_concatenated_binary() and
+    copied into place by run_suite2p() to slice the frame-indexed outputs
+    (F.npy, Fneu.npy, spks.npy) of save_path/suite2p/plane0/ back into one
+    folder per original session. Outputs that describe ROIs/registration
+    rather than individual frames (stat.npy, iscell.npy) are copied unchanged
+    into each session's folder, since they are shared across all sessions.
+    ops.npy is copied with its 'nframes' entry updated to the session's own
+    frame count.
+
+    Args:
+        save_path (str): Suite2p save_path used with run_suite2p(), i.e. the
+            directory containing suite2p/plane0/.
+        debug (bool): if True, only print what would be done without writing
+            any files.
+
+    Returns:
+        sessionsInfo (pandas.DataFrame): the session manifest.
+        sessionsDirs (list of str): path to each session's plane0 output dir.
+    """
+    plane0_dir = os.path.join(save_path, 'suite2p', 'plane0')
+    manifest_path = os.path.join(plane0_dir, SESSION_MANIFEST_FILENAME)
+    sessionsInfo = pd.read_csv(manifest_path)
+
+    framesToSlice = ['F.npy', 'Fneu.npy', 'spks.npy']
+    filesToCopy = ['stat.npy', 'iscell.npy']
+
+    sliceArrays = {}
+    for fname in framesToSlice:
+        fpath = os.path.join(plane0_dir, fname)
+        if os.path.exists(fpath):
+            sliceArrays[fname] = np.load(fpath, allow_pickle=True)
+        elif debug:
+            print(f'\nWARNING! File {fpath} does not exist.')
+
+    opsPath = os.path.join(plane0_dir, 'ops.npy')
+    ops = np.load(opsPath, allow_pickle=True).item() if os.path.exists(opsPath) else None
+
+    sessionsDirsList = []
+    for _, oneRow in sessionsInfo.iterrows():
+        sessionDir = os.path.join(save_path, oneRow.session, 'suite2p', 'plane0')
+        if os.path.isdir(sessionDir):
+            print(f'WARNING! {sessionDir} exists. Data will be overwritten.')
+        else:
+            if not debug:
+                os.makedirs(sessionDir)
+            print(f'Created {sessionDir}')
+
+        firstFrame = int(oneRow.first_frame)
+        lastFrame = int(oneRow.last_frame)
+        for fname, arr in sliceArrays.items():
+            slicedArr = arr[:, firstFrame:lastFrame + 1]
+            outPath = os.path.join(sessionDir, fname)
+            if not debug:
+                np.save(outPath, slicedArr)
+            print(f'Saved {outPath}')
+
+        for fname in filesToCopy:
+            srcPath = os.path.join(plane0_dir, fname)
+            if os.path.exists(srcPath):
+                if not debug:
+                    shutil.copy2(srcPath, sessionDir)
+                print(f'Copied {fname} to {sessionDir}{os.sep}')
+            elif debug:
+                print(f'\nWARNING! File {srcPath} does not exist.')
+
+        if ops is not None:
+            sessionOps = ops.copy()
+            sessionOps['nframes'] = int(oneRow.n_frames)
+            if not debug:
+                np.save(os.path.join(sessionDir, 'ops.npy'), sessionOps)
+            print(f'Saved {os.path.join(sessionDir, "ops.npy")}')
+
+        if not debug:
+            shutil.copy2(manifest_path, sessionDir)
+        print(f'Copied {SESSION_MANIFEST_FILENAME} to {sessionDir}{os.sep}')
+        print('')
+        sessionsDirsList.append(sessionDir)
+
+    return (sessionsInfo, sessionsDirsList)
