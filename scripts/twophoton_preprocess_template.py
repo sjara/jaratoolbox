@@ -30,6 +30,7 @@ extra_settings = suite2ptools.default_2p_settings()
 # (shorthand for concatenate+register+detect+deconvolve; 'split' is never
 # implied by 'all', opt in explicitly once you are ready to split results).
 steps = ['concatenate', 'register', 'detect', 'deconvolve']
+# steps = ['split']  # Run this after you have curated the results of Suite2p
 
 result = suite2ptools.process_sessions(subject, session_date, session_ids, steps,
                                         anat_channel=anat_channel, settings_2p=extra_settings)
