@@ -83,7 +83,7 @@ def default_s2p_settings():
         registration (dict):
             align_by_chan2 (bool): For two-channel recordings, align using
                 the non-functional (anatomical) channel instead of the
-                functional one. Lab default True: harmless when there is no
+                functional one. Lab default False: harmless when there is no
                 second channel, since Suite2p ignores this setting whenever
                 no chan2 data is present. (Suite2p default: False)
             batch_size (int): Number of frames per batch during
@@ -108,7 +108,7 @@ def default_s2p_settings():
         'tau': 0.6,
         'diameter': [16.0, 16.0],
         'registration': {
-            'align_by_chan2': True,
+            'align_by_chan2': False,
             'batch_size': 100,
         },
         'detection': {
