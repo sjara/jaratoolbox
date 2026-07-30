@@ -30,6 +30,7 @@ import shutil
 import time
 import datetime
 import contextlib
+import importlib.util
 import numpy as np
 import pandas as pd
 from jaratoolbox import settings
@@ -660,3 +661,87 @@ def process_sessions(subject, session_date, session_ids, steps, channel=0, anat_
         print(f"Per-session output folders: {result['split_result'][1]}")
 
     return result
+
+
+def load_info2p(subject):
+    """
+    Load a subject's info2p metadata file and return its list of sessions.
+
+    Reads <subject>_info2p.py from settings.INFO2P_PATH, following the same
+    executable-Python-module convention as celldatabase.read_inforec().
+
+    Args:
+        subject (str): Subject ID, e.g. 'imag029'.
+
+    Returns:
+        list of dict: The module's 'sessions' list, one dict per recording
+            session (keys typically include 'date', 'session', 'pmt', etc.).
+    """
+    filename = os.path.join(settings.INFO2P_PATH, f'{subject}_info2p.py')
+    spec = importlib.util.spec_from_file_location('info2p_module', filename)
+    info2p_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(info2p_module)
+    assert info2p_module.subject == subject, \
+        f"info2p file subject '{info2p_module.subject}' does not match requested '{subject}'"
+    return info2p_module.sessions
+
+
+def resolve_channels(subject, session_date, session_ids):
+    """
+    Determine (channel, anat_channel) for a set of sessions from info2p metadata.
+
+    Looks up each session's 'pmt' entry (list of PMT channel indices
+    recorded) in the subject's info2p file. Convention: PMT index 0 is
+    always the functional channel; PMT index 1, if present, is always the
+    anatomical channel.
+
+    Args:
+        subject (str): Subject ID, e.g. 'imag029'.
+        session_date (str): Session date string, e.g. '20260424'.
+        session_ids (list of str): Session IDs, e.g. ['006', '007'].
+
+    Returns:
+        channel (int): PMT channel index of the functional channel (always 0).
+        anat_channel (int or None): PMT channel index of the anatomical
+            channel (always 1), or None if no session recorded a second channel.
+
+    Raises:
+        ValueError: If no info2p entry is found for a given session, or if
+            sessions being concatenated disagree on which PMTs were recorded.
+    """
+    sessions = load_info2p(subject)
+    pmt_sets = []
+    for session_id in session_ids:
+        matches = [s for s in sessions if s['date'] == session_date and s['session'] == session_id]
+        if not matches:
+            raise ValueError(f"No info2p entry found for {subject} {session_date} {session_id}")
+        pmt_sets.append(tuple(sorted(matches[0]['pmt'])))
+    if len(set(pmt_sets)) > 1:
+        raise ValueError(f"Sessions {session_ids} have inconsistent pmt channels: {pmt_sets}")
+    pmt = pmt_sets[0]
+    channel = 0
+    anat_channel = 1 if len(pmt) > 1 else None
+    return channel, anat_channel
+
+
+def load_s2p_settings(settings_path):
+    """
+    Load a Suite2p settings-override file for use with process_sessions().
+
+    The file is a Python module exposing a top-level 'settings' dict,
+    typically built from default_2p_settings() with overrides (see
+    scripts/s2p_settings_template.py for an example).
+
+    Args:
+        settings_path (str or None): Path to the settings file, or None to
+            use default_2p_settings() unmodified.
+
+    Returns:
+        dict: The settings dict to pass to process_sessions() as settings_2p.
+    """
+    if settings_path is None:
+        return default_2p_settings()
+    spec = importlib.util.spec_from_file_location('s2p_settings_module', settings_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.settings
