@@ -30,7 +30,7 @@ def parse_args():
     parser.add_argument('--settings', default=None,
                          help='Path to a Python settings-override file (see '
                               's2p_settings_template.py). If omitted, uses '
-                              'default_2p_settings() unmodified.')
+                              'default_s2p_settings() unmodified.')
     parser.add_argument('--steps', nargs='+', default=['all'],
                          help="Steps to run: any of 'concatenate', 'register', 'detect', "
                               "'deconvolve', or 'all' (shorthand for all four). Default: all.")

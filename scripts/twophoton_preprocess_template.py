@@ -17,7 +17,7 @@ session_ids = ['006', '007']
 
 anat_channel = None  # PMT channel index (0-based) of the anatomical channel, or None to skip it
 
-extra_settings = suite2ptools.default_2p_settings()
+extra_settings = suite2ptools.default_s2p_settings()
 # extra_settings['diameter'] = [16.0, 16.0]
 # extra_settings['detection']['nbins'] = 1000  # If not enough RAM
 

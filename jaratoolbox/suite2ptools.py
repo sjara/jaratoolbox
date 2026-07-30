@@ -43,7 +43,7 @@ REGISTERED_MARKER_SUFFIX = '.registration.log'
 SESSION_MANIFEST_FILENAME = 'multisession.csv'
 
 
-def default_2p_settings():
+def default_s2p_settings():
     """
     Return a dict of Suite2p settings with lab defaults for two-photon recordings.
 
@@ -57,7 +57,7 @@ def default_2p_settings():
     https://suite2p.readthedocs.io/en/latest/parameters/ for the full list
     of Suite2p parameters:
 
-        settings = suite2ptools.default_2p_settings()
+        settings = suite2ptools.default_s2p_settings()
         settings['fs'] = 9.96
         settings['diameter'] = [8.0, 8.0]
         settings['registration']['nonrigid'] = False
@@ -602,7 +602,7 @@ def process_sessions(subject, session_date, session_ids, steps, channel=0, anat_
             channel (0-based). Only used if 'concatenate' is in steps.
         chunk_size (int or None): Passed to create_concatenated_binary().
         settings_2p (dict, optional): Suite2p settings, e.g. from
-            default_2p_settings() with overrides. do_registration/
+            default_s2p_settings() with overrides. do_registration/
             do_detection/do_deconvolution are set automatically from steps
             and should not be included here.
         db (dict, optional): Passed to run_suite2p() as db.
@@ -642,7 +642,7 @@ def process_sessions(subject, session_date, session_ids, steps, channel=0, anat_
     if run_stages:
         sbxinfo = load_scanbox_mat_file(paths['mat_path'])
         Ly, Lx = int(sbxinfo['sz'][0]), int(sbxinfo['sz'][1])
-        merged_settings = dict(settings_2p) if settings_2p else default_2p_settings()
+        merged_settings = dict(settings_2p) if settings_2p else default_s2p_settings()
         merged_settings['run'] = {
             'do_registration': 'register' in steps,
             'do_detection': 'detect' in steps,
@@ -729,18 +729,18 @@ def load_s2p_settings(settings_path):
     Load a Suite2p settings-override file for use with process_sessions().
 
     The file is a Python module exposing a top-level 'settings' dict,
-    typically built from default_2p_settings() with overrides (see
+    typically built from default_s2p_settings() with overrides (see
     scripts/s2p_settings_template.py for an example).
 
     Args:
         settings_path (str or None): Path to the settings file, or None to
-            use default_2p_settings() unmodified.
+            use default_s2p_settings() unmodified.
 
     Returns:
         dict: The settings dict to pass to process_sessions() as settings_2p.
     """
     if settings_path is None:
-        return default_2p_settings()
+        return default_s2p_settings()
     spec = importlib.util.spec_from_file_location('s2p_settings_module', settings_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

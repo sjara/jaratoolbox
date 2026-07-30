@@ -3,14 +3,14 @@ Template extra-settings file for twophoton_preprocess.py.
 
 Copy this file, uncomment/edit what you need, then pass its path via
 --settings. If you don't need any overrides, you can omit --settings
-entirely and default_2p_settings() will be used unmodified.
+entirely and default_s2p_settings() will be used unmodified.
 
 https://suite2p.readthedocs.io/en/latest/parameters/
 """
 
 from jaratoolbox import suite2ptools
 
-settings = suite2ptools.default_2p_settings()
+settings = suite2ptools.default_s2p_settings()
 # settings['diameter'] = [16.0, 16.0]
 # settings['detection']['nbins'] = 1000  # If not enough RAM
 
