@@ -32,7 +32,8 @@ import datetime
 import contextlib
 import numpy as np
 import pandas as pd
-from jaratoolbox.loadtwophoton import SbxReader
+from jaratoolbox import settings
+from jaratoolbox.loadtwophoton import SbxReader, load_scanbox_mat_file
 from suite2p.io import BinaryFile
 from suite2p.run_s2p import run_s2p, get_save_folder, logger_setup
 from suite2p.parameters import default_db, default_settings
@@ -530,3 +531,132 @@ def split_sessions(save_path, debug=False):
         sessionsDirsList.append(sessionDir)
 
     return (sessionsInfo, sessionsDirsList)
+
+
+def session_paths(subject, session_date, session_ids):
+    """
+    Compute standard paths for concatenating/processing a set of sessions.
+
+    Reads settings.TWOPHOTON_PATH and settings.SUITE2P_FAST_DIR from
+    jaratoolbox.settings. All sessions must belong to the same subject and
+    session_date, and follow the SUBJECT_DATE_SESSIONID naming convention
+    (see loadtwophoton.py).
+
+    Args:
+        subject (str): Subject ID, e.g. 'imag029'.
+        session_date (str): Session date string, e.g. '20260424'.
+        session_ids (list of str): Session IDs to concatenate, e.g. ['006', '007'].
+
+    Returns:
+        dict with:
+            data_dir (str): TWOPHOTON_PATH/subject/session_date
+            sbx_file_list (list of str): data_dir/subject_session_date_sid,
+                one per session_id, in the given order.
+            mat_path (str): .mat companion of the first session, for reading
+                Ly/Lx via load_scanbox_mat_file().
+            concat_binary_path (str): SUITE2P_FAST_DIR/subject_session_date_id1-id2....bin
+            output_dir (str): TWOPHOTON_PATH/subject_processed/session_date/id1-id2-.../
+                the save_path to use with run_suite2p() and split_sessions().
+    """
+    sessions_str = '-'.join(session_ids)
+    data_dir = os.path.join(settings.TWOPHOTON_PATH, subject, session_date)
+    sbx_file_list = [os.path.join(data_dir, f'{subject}_{session_date}_{sid}')
+                      for sid in session_ids]
+    mat_path = os.path.join(data_dir, f'{subject}_{session_date}_{session_ids[0]}.mat')
+    concat_binary_path = os.path.join(settings.SUITE2P_FAST_DIR,
+                                       f'{subject}_{session_date}_{sessions_str}.bin')
+    output_dir = os.path.join(f'{settings.TWOPHOTON_PATH}', f'{subject}_processed',
+                               session_date, sessions_str)
+    return {
+        'data_dir': data_dir,
+        'sbx_file_list': sbx_file_list,
+        'mat_path': mat_path,
+        'concat_binary_path': concat_binary_path,
+        'output_dir': output_dir,
+    }
+
+
+def process_sessions(subject, session_date, session_ids, steps, channel=0, anat_channel=None,
+                      chunk_size=100, settings_2p=None, db=None, allow_reregister=False):
+    """
+    Concatenate and/or run Suite2p on a set of sessions, using standard paths.
+
+    A high-level wrapper around session_paths(), create_concatenated_binary(),
+    run_suite2p(), and split_sessions() so a template script only needs to
+    specify which sessions to process, which steps to run, and any extra
+    Suite2p settings.
+
+    Args:
+        subject (str): Subject ID, e.g. 'imag029'.
+        session_date (str): Session date string, e.g. '20260424'.
+        session_ids (list of str): Session IDs to concatenate, e.g. ['006', '007'].
+        steps (list of str or 'all'): Which pipeline steps to run, drawn from
+            'concatenate', 'register', 'detect', 'deconvolve', 'split'.
+            'all' is shorthand for ['concatenate', 'register', 'detect',
+            'deconvolve'] ('split' is never implied by 'all'; opt in
+            explicitly once you are ready to split results back apart).
+        channel (int): PMT channel index of the functional channel (0-based,
+            default 0). Only used if 'concatenate' is in steps.
+        anat_channel (int or None): PMT channel index of the anatomical
+            channel (0-based). Only used if 'concatenate' is in steps.
+        chunk_size (int or None): Passed to create_concatenated_binary().
+        settings_2p (dict, optional): Suite2p settings, e.g. from
+            default_2p_settings() with overrides. do_registration/
+            do_detection/do_deconvolution are set automatically from steps
+            and should not be included here.
+        db (dict, optional): Passed to run_suite2p() as db.
+        allow_reregister (bool): Passed to run_suite2p().
+
+    Returns:
+        dict with:
+            paths: the dict returned by session_paths().
+            binary_info: return value of create_concatenated_binary(), if
+                'concatenate' was in steps, else None.
+            ops_path: return value of run_suite2p(), if any of 'register',
+                'detect', 'deconvolve' were in steps, else None.
+            split_result: (sessionsInfo, sessionsDirs) tuple from
+                split_sessions(), if 'split' was in steps, else None.
+    """
+    valid_steps = {'concatenate', 'register', 'detect', 'deconvolve', 'split'}
+    if steps == 'all':
+        steps = ['concatenate', 'register', 'detect', 'deconvolve']
+    steps = set(steps)
+    invalid = steps - valid_steps
+    if invalid:
+        raise ValueError(f"Invalid steps {sorted(invalid)}. Valid steps are {sorted(valid_steps)}.")
+
+    paths = session_paths(subject, session_date, session_ids)
+    result = {'paths': paths, 'binary_info': None, 'ops_path': None, 'split_result': None}
+
+    run_stages = {'register', 'detect', 'deconvolve'} & steps
+
+    if 'concatenate' in steps:
+        os.makedirs(settings.SUITE2P_FAST_DIR, exist_ok=True)
+        print(f"Creating concatenated binary for sessions: {'-'.join(session_ids)}")
+        result['binary_info'] = create_concatenated_binary(
+            paths['sbx_file_list'], paths['concat_binary_path'],
+            channel=channel, anat_channel=anat_channel, chunk_size=chunk_size)
+        print(f"Concatenated binary: {result['binary_info']}")
+
+    if run_stages:
+        sbxinfo = load_scanbox_mat_file(paths['mat_path'])
+        Ly, Lx = int(sbxinfo['sz'][0]), int(sbxinfo['sz'][1])
+        merged_settings = dict(settings_2p) if settings_2p else default_2p_settings()
+        merged_settings['run'] = {
+            'do_registration': 'register' in steps,
+            'do_detection': 'detect' in steps,
+            'do_deconvolution': 'deconvolve' in steps,
+        }
+        os.makedirs(paths['output_dir'], exist_ok=True)
+        print(f"Running Suite2p ({', '.join(sorted(run_stages))}) on: {paths['concat_binary_path']}")
+        result['ops_path'] = run_suite2p(
+            paths['concat_binary_path'], Ly, Lx, paths['output_dir'],
+            db=db, settings=merged_settings, allow_reregister=allow_reregister)
+        print(f"Suite2p output: {result['ops_path']}")
+
+    if 'split' in steps:
+        print(f"Splitting results in {paths['output_dir']} back into per-session folders")
+        result['split_result'] = split_sessions(paths['output_dir'])
+        print(f"Per-session output folders: {result['split_result'][1]}")
+
+    return result
