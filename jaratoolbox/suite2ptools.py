@@ -102,6 +102,7 @@ def default_2p_settings():
         'detection': {
             'threshold_scaling': 0.75,
             'max_overlap': 0.25,
+            'cellpose_chan2': False,
         },
     }
 
@@ -212,6 +213,30 @@ def _registered_marker_path(binary_path):
     return os.path.splitext(binary_path)[0] + REGISTERED_MARKER_SUFFIX
 
 
+def _archive_run_log(save_path):
+    """
+    Archive an existing save_path/run.log before Suite2p overwrites it.
+
+    Suite2p's logger_setup() unconditionally deletes and recreates run.log
+    on every run_s2p() call, so when running the pipeline in stages (e.g.
+    registration then detection as separate calls), each stage's log
+    replaces the previous one. This renames any existing run.log to
+    run.<YYYYMMDDHHMMSS>.log (based on the file's modification time) so
+    logs from earlier stages are preserved.
+    """
+    log_path = os.path.join(save_path, 'run.log')
+    if not os.path.exists(log_path):
+        return
+    timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(log_path)).strftime('%Y%m%d%H%M%S')
+    archived_path = os.path.join(save_path, f'run.{timestamp}.log')
+    suffix = 1
+    while os.path.exists(archived_path):
+        archived_path = os.path.join(save_path, f'run.{timestamp}_{suffix}.log')
+        suffix += 1
+    shutil.move(log_path, archived_path)
+    print(f'Archived previous log to {archived_path}')
+
+
 def is_registered(binary_path):
     """
     Check whether binary_path has already been through Suite2p registration.
@@ -302,6 +327,7 @@ def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None, allow_re
             "Pass allow_reregister=True to force it."
         )
 
+    _archive_run_log(save_path)
     logger_setup(save_path)
     fast_disk = os.path.dirname(binary_path)
     plane0_dir = os.path.join(save_path, 'suite2p', 'plane0')
