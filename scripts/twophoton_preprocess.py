@@ -2,10 +2,10 @@
 """
 Concatenate two-photon sessions and run Suite2p using standard paths.
 
-Paths are derived from jaratoolbox.settings (TWOPHOTON_PATH,
-SUITE2P_FAST_DIR), and the functional/anatomical channel assignment is
-looked up automatically from the subject's info2p metadata file
-(settings.INFO2P_PATH), so this script never needs to be edited.
+Paths are derived from jaratoolbox.settings (TWOPHOTON_RAW_PATH,
+TWOPHOTON_PATH, SUITE2P_FAST_DIR), and the functional/anatomical channel
+assignment is looked up automatically from the subject's info2p metadata
+file (settings.INFO2P_PATH), so this script never needs to be edited.
 
 Usage:
     python twophoton_preprocess.py imag029 20260424 006,007 \\

@@ -10,6 +10,7 @@ EPHYS_PATH = '/data/ephys'  # For Intan data
 EPHYS_NEUROPIX_PATH = '/data/neuropixels'  # For Neuropixels data
 RAW_NEUROPIX_PATH = '/data/neuropixels_raw'  # For raw Neuropixels data
 TWOPHOTON_PATH = '/data/twophoton'  # For two-photon data
+TWOPHOTON_RAW_PATH = '/data/twophoton'  # For raw two-photon data (e.g. an external drive)
 WIDEFIELD_PATH = '/data/widefield'  # For widefield fluorescence or intrinsic
 
 KK_PATH = '/home/jarauser/src/klustakwik/KK2/KlustaKwik'

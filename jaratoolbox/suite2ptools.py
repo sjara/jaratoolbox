@@ -464,9 +464,9 @@ def split_sessions(save_path, debug=False):
     underscore, e.g. '006' from 'imag029_20260424_006'), rather than
     nesting it inside save_path under its full SUBJECT_DATE_SESSIONID name.
     For example, if save_path is
-    '/data/twophoton/imag029_processednew/20260424/006-007', results for
+    '/data/twophoton/imag029_processed/20260424/006-007', results for
     session 'imag029_20260424_006' are saved to
-    '/data/twophoton/imag029_processednew/20260424/006/suite2p/plane0/'.
+    '/data/twophoton/imag029_processed/20260424/006/suite2p/plane0/'.
 
     Args:
         save_path (str): Suite2p save_path used with run_suite2p(), i.e. the
@@ -546,8 +546,11 @@ def session_paths(subject, session_date, session_ids):
     """
     Compute standard paths for concatenating/processing a set of sessions.
 
-    Reads settings.TWOPHOTON_PATH and settings.SUITE2P_FAST_DIR from
-    jaratoolbox.settings. All sessions must belong to the same subject and
+    Reads settings.TWOPHOTON_RAW_PATH, settings.TWOPHOTON_PATH, and
+    settings.SUITE2P_FAST_DIR from jaratoolbox.settings. Raw session data is
+    read from TWOPHOTON_RAW_PATH (e.g. an external drive), while processed
+    output is written under TWOPHOTON_PATH, so the two can point to
+    different disks. All sessions must belong to the same subject and
     session_date, and follow the SUBJECT_DATE_SESSIONID naming convention
     (see loadtwophoton.py).
 
@@ -558,7 +561,7 @@ def session_paths(subject, session_date, session_ids):
 
     Returns:
         dict with:
-            data_dir (str): TWOPHOTON_PATH/subject/session_date
+            data_dir (str): TWOPHOTON_RAW_PATH/subject/session_date
             sbx_file_list (list of str): data_dir/subject_session_date_sid,
                 one per session_id, in the given order.
             mat_path (str): .mat companion of the first session, for reading
@@ -568,7 +571,7 @@ def session_paths(subject, session_date, session_ids):
                 the save_path to use with run_suite2p() and split_sessions().
     """
     sessions_str = '-'.join(session_ids)
-    data_dir = os.path.join(settings.TWOPHOTON_PATH, subject, session_date)
+    data_dir = os.path.join(settings.TWOPHOTON_RAW_PATH, subject, session_date)
     sbx_file_list = [os.path.join(data_dir, f'{subject}_{session_date}_{sid}')
                       for sid in session_ids]
     mat_path = os.path.join(data_dir, f'{subject}_{session_date}_{session_ids[0]}.mat')
