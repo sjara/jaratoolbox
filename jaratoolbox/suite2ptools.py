@@ -30,6 +30,7 @@ import shutil
 import time
 import datetime
 import contextlib
+import importlib.util
 import numpy as np
 import pandas as pd
 from jaratoolbox import settings
@@ -42,7 +43,7 @@ REGISTERED_MARKER_SUFFIX = '.registration.log'
 SESSION_MANIFEST_FILENAME = 'multisession.csv'
 
 
-def default_2p_settings():
+def default_s2p_settings():
     """
     Return a dict of Suite2p settings with lab defaults for two-photon recordings.
 
@@ -56,7 +57,7 @@ def default_2p_settings():
     https://suite2p.readthedocs.io/en/latest/parameters/ for the full list
     of Suite2p parameters:
 
-        settings = suite2ptools.default_2p_settings()
+        settings = suite2ptools.default_s2p_settings()
         settings['fs'] = 9.96
         settings['diameter'] = [8.0, 8.0]
         settings['registration']['nonrigid'] = False
@@ -80,13 +81,20 @@ def default_2p_settings():
             are not round. (Suite2p default: [12.0, 12.0])
         registration (dict):
             align_by_chan2 (bool): For two-channel recordings, align using
-                the non-functional channel instead of the functional one.
-                (Suite2p default: False)
+                the non-functional (anatomical) channel instead of the
+                functional one. Lab default True: harmless when there is no
+                second channel, since Suite2p ignores this setting whenever
+                no chan2 data is present. (Suite2p default: False)
             batch_size (int): Number of frames per batch during
                 registration. Lower this if registration runs out of GPU
                 memory (large frames + many nonrigid blocks can need a lot
                 of memory per batch). (Suite2p default: 100)
         detection (dict):
+            cellpose_chan2 (bool): Detect red cells in the anatomical
+                channel using Cellpose. Lab default True: harmless when
+                there is no second channel, since Suite2p ignores this
+                setting whenever no chan2 data is present. (Suite2p
+                default: False)
             threshold_scaling (float): Scalar multiplier that adjusts the
                 automatically determined ROI detection threshold in sparsery
                 and sourcery. Lower = more ROIs detected; higher = fewer,
@@ -99,13 +107,13 @@ def default_2p_settings():
         'tau': 0.6,
         'diameter': [16.0, 16.0],
         'registration': {
-            'align_by_chan2': False,
+            'align_by_chan2': True,
             'batch_size': 100,
         },
         'detection': {
             'threshold_scaling': 0.75,
             'max_overlap': 0.25,
-            'cellpose_chan2': False,
+            'cellpose_chan2': True,
         },
     }
 
@@ -601,7 +609,7 @@ def process_sessions(subject, session_date, session_ids, steps, channel=0, anat_
             channel (0-based). Only used if 'concatenate' is in steps.
         chunk_size (int or None): Passed to create_concatenated_binary().
         settings_2p (dict, optional): Suite2p settings, e.g. from
-            default_2p_settings() with overrides. do_registration/
+            default_s2p_settings() with overrides. do_registration/
             do_detection/do_deconvolution are set automatically from steps
             and should not be included here.
         db (dict, optional): Passed to run_suite2p() as db.
@@ -641,7 +649,7 @@ def process_sessions(subject, session_date, session_ids, steps, channel=0, anat_
     if run_stages:
         sbxinfo = load_scanbox_mat_file(paths['mat_path'])
         Ly, Lx = int(sbxinfo['sz'][0]), int(sbxinfo['sz'][1])
-        merged_settings = dict(settings_2p) if settings_2p else default_2p_settings()
+        merged_settings = dict(settings_2p) if settings_2p else default_s2p_settings()
         merged_settings['run'] = {
             'do_registration': 'register' in steps,
             'do_detection': 'detect' in steps,
@@ -660,3 +668,87 @@ def process_sessions(subject, session_date, session_ids, steps, channel=0, anat_
         print(f"Per-session output folders: {result['split_result'][1]}")
 
     return result
+
+
+def load_info2p(subject):
+    """
+    Load a subject's info2p metadata file and return its list of sessions.
+
+    Reads <subject>_info2p.py from settings.INFO2P_PATH, following the same
+    executable-Python-module convention as celldatabase.read_inforec().
+
+    Args:
+        subject (str): Subject ID, e.g. 'imag029'.
+
+    Returns:
+        list of dict: The module's 'sessions' list, one dict per recording
+            session (keys typically include 'date', 'session', 'pmt', etc.).
+    """
+    filename = os.path.join(settings.INFO2P_PATH, f'{subject}_info2p.py')
+    spec = importlib.util.spec_from_file_location('info2p_module', filename)
+    info2p_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(info2p_module)
+    assert info2p_module.subject == subject, \
+        f"info2p file subject '{info2p_module.subject}' does not match requested '{subject}'"
+    return info2p_module.sessions
+
+
+def resolve_channels(subject, session_date, session_ids):
+    """
+    Determine (channel, anat_channel) for a set of sessions from info2p metadata.
+
+    Looks up each session's 'pmt' entry (list of PMT channel indices
+    recorded) in the subject's info2p file. Convention: PMT index 0 is
+    always the functional channel; PMT index 1, if present, is always the
+    anatomical channel.
+
+    Args:
+        subject (str): Subject ID, e.g. 'imag029'.
+        session_date (str): Session date string, e.g. '20260424'.
+        session_ids (list of str): Session IDs, e.g. ['006', '007'].
+
+    Returns:
+        channel (int): PMT channel index of the functional channel (always 0).
+        anat_channel (int or None): PMT channel index of the anatomical
+            channel (always 1), or None if no session recorded a second channel.
+
+    Raises:
+        ValueError: If no info2p entry is found for a given session, or if
+            sessions being concatenated disagree on which PMTs were recorded.
+    """
+    sessions = load_info2p(subject)
+    pmt_sets = []
+    for session_id in session_ids:
+        matches = [s for s in sessions if s['date'] == session_date and s['session'] == session_id]
+        if not matches:
+            raise ValueError(f"No info2p entry found for {subject} {session_date} {session_id}")
+        pmt_sets.append(tuple(sorted(matches[0]['pmt'])))
+    if len(set(pmt_sets)) > 1:
+        raise ValueError(f"Sessions {session_ids} have inconsistent pmt channels: {pmt_sets}")
+    pmt = pmt_sets[0]
+    channel = 0
+    anat_channel = 1 if len(pmt) > 1 else None
+    return channel, anat_channel
+
+
+def load_s2p_settings(settings_path):
+    """
+    Load a Suite2p settings-override file for use with process_sessions().
+
+    The file is a Python module exposing a top-level 'settings' dict,
+    typically built from default_s2p_settings() with overrides (see
+    scripts/s2p_settings_template.py for an example).
+
+    Args:
+        settings_path (str or None): Path to the settings file, or None to
+            use default_s2p_settings() unmodified.
+
+    Returns:
+        dict: The settings dict to pass to process_sessions() as settings_2p.
+    """
+    if settings_path is None:
+        return default_s2p_settings()
+    spec = importlib.util.spec_from_file_location('s2p_settings_module', settings_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.settings
