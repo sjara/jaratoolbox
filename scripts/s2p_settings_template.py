@@ -13,7 +13,7 @@ from jaratoolbox import suite2ptools
 settings = suite2ptools.default_s2p_settings()
 
 # -- General settings --
-settings['fs'] = 9.96
+# settings['fs'] = 9.96
 # settings['diameter'] = [16.0, 16.0]
 # settings['detection']['nbins'] = 1000  # If not enough RAM
 
