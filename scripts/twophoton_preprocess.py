@@ -16,6 +16,7 @@ back into per-session folders.
 """
 
 import argparse
+import json
 from jaratoolbox import suite2ptools
 
 
@@ -30,9 +31,13 @@ def parse_args():
                          help='Path to a Python settings-override file (see '
                               's2p_settings_template.py). If omitted, uses '
                               'default_s2p_settings() unmodified.')
-    parser.add_argument('--steps', nargs='+', default=['all'],
-                         help="Steps to run: any of 'concatenate', 'register', 'detect', "
-                              "'deconvolve', or 'all' (shorthand for all four). Default: all.")
+    parser.add_argument('--steps', type=lambda s: s.split(','), default=['all'],
+                         help="Comma-separated steps to run: any of 'concatenate', 'register', "
+                              "'detect', 'deconvolve', or 'all' (shorthand for all four). "
+                              "Default: all.")
+    parser.add_argument('--dry-run', action='store_true',
+                         help='Resolve channels, load settings, and print the paths/settings '
+                              'that would be used, without concatenating or running Suite2p.')
     return parser.parse_args()
 
 
@@ -42,6 +47,15 @@ def main():
         args.subject, args.session_date, args.session_ids)
     settings_2p = suite2ptools.load_s2p_settings(args.settings)
     steps = args.steps[0] if args.steps == ['all'] else args.steps
+
+    if args.dry_run:
+        paths = suite2ptools.session_paths(args.subject, args.session_date, args.session_ids)
+        print(f"steps: {steps}")
+        print(f"channel: {channel}")
+        print(f"anat_channel: {anat_channel}")
+        print(f"settings:\n{json.dumps(settings_2p, indent=4)}")
+        print(f"paths:\n{json.dumps(paths, indent=4)}")
+        return
 
     result = suite2ptools.process_sessions(
         args.subject, args.session_date, args.session_ids, steps,
