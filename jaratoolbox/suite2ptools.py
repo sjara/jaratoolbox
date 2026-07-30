@@ -27,7 +27,9 @@ slower I/O.
 
 import os
 import shutil
+import time
 import datetime
+import contextlib
 import numpy as np
 import pandas as pd
 from jaratoolbox.loadtwophoton import SbxReader
@@ -107,13 +109,18 @@ def default_2p_settings():
     }
 
 
-def create_concatenated_binary(sbx_file_list, output_path, channel=0, chunk_size=None):
+def create_concatenated_binary(sbx_file_list, output_path, channel=0, anat_channel=None,
+                                chunk_size=None):
     """
     Concatenate frames from multiple .sbx sessions into a single Suite2p BinaryFile.
 
     All sessions must have the same frame dimensions and the same number of
-    active PMT channels.  Only one channel is written to the binary (Suite2p
-    processes a single channel at a time).
+    active PMT channels. The functional channel is written to output_path.
+    If anat_channel is given, a second binary is also written (see
+    chan2_binary_path_for_binary()) with that channel's frames, for
+    anatomical-channel ROI detection (e.g. settings['detection']['cellpose_chan2']).
+    Suite2p expects the two channels as separate binaries, not interleaved
+    frames in one file.
 
     Alongside the binary, this also writes a session manifest CSV (see
     manifest_path_for_binary()) recording each session's name, source path,
@@ -126,7 +133,11 @@ def create_concatenated_binary(sbx_file_list, output_path, channel=0, chunk_size
         sbx_file_list (list of str): Base paths to .sbx files (without extension).
             Each path must have a companion .mat metadata file.
         output_path (str): Path for the output .bin file.
-        channel (int): PMT channel index to extract (0-based, default 0).
+        channel (int): PMT channel index of the functional channel to extract
+            (0-based, default 0).
+        anat_channel (int or None): PMT channel index of the anatomical
+            channel to extract into a second binary (0-based). None (default)
+            skips writing a second binary.
         chunk_size (int or None): Number of frames to load into memory at a time.
             None (default) loads each session all at once, which is fastest but
             requires enough RAM to hold a full session.  Set to e.g. 1000 to
@@ -138,8 +149,13 @@ def create_concatenated_binary(sbx_file_list, output_path, channel=0, chunk_size
             contributed by each session, in the order given in sbx_file_list.
 
     Raises:
-        ValueError: If sessions have mismatched frame dimensions or channel count.
+        ValueError: If sessions have mismatched frame dimensions or channel count,
+            or if anat_channel equals channel.
     """
+    if anat_channel is not None and anat_channel == channel:
+        raise ValueError("anat_channel must differ from channel.")
+
+    start_time = time.time()
     readers = [SbxReader(f) for f in sbx_file_list]
     try:
         Ly = readers[0].lines_per_frame
@@ -156,19 +172,32 @@ def create_concatenated_binary(sbx_file_list, output_path, channel=0, chunk_size
                     f"Channel {channel} not available in {r.filepath} "
                     f"(only {r.num_channels} channel(s))."
                 )
+            if anat_channel is not None and anat_channel >= r.num_channels:
+                raise ValueError(
+                    f"Channel {anat_channel} not available in {r.filepath} "
+                    f"(only {r.num_channels} channel(s))."
+                )
 
         total_frames = sum(r.num_frames for r in readers)
         frame_counts = [r.num_frames for r in readers]
 
         if os.path.exists(output_path):
             os.remove(output_path)
-        with BinaryFile(Ly, Lx, output_path, n_frames=total_frames, write=True) as bf:
+        chan2_output_path = chan2_binary_path_for_binary(output_path) if anat_channel is not None else None
+        if chan2_output_path is not None and os.path.exists(chan2_output_path):
+            os.remove(chan2_output_path)
+
+        with BinaryFile(Ly, Lx, output_path, n_frames=total_frames, write=True) as bf, \
+             (BinaryFile(Ly, Lx, chan2_output_path, n_frames=total_frames, write=True)
+              if chan2_output_path is not None else contextlib.nullcontext()) as bf2:
             frame_idx = 0
             for reader in readers:
                 nf = reader.num_frames
                 if chunk_size is None:
                     frames = reader.get_channel(channel)  # (nframes, Ly, Lx) uint16
                     bf[frame_idx:frame_idx + nf] = frames
+                    if bf2 is not None:
+                        bf2[frame_idx:frame_idx + nf] = reader.get_channel(anat_channel)
                     frame_idx += nf
                 else:
                     for start in range(0, nf, chunk_size):
@@ -178,6 +207,11 @@ def create_concatenated_binary(sbx_file_list, output_path, channel=0, chunk_size
                             [reader.get_frame(i)[channel] for i in range(start, end)]
                         )
                         bf[frame_idx:frame_idx + (end - start)] = chunk
+                        if bf2 is not None:
+                            chunk2 = np.stack(
+                                [reader.get_frame(i)[anat_channel] for i in range(start, end)]
+                            )
+                            bf2[frame_idx:frame_idx + (end - start)] = chunk2
                         frame_idx += end - start
     finally:
         for r in readers:
@@ -192,12 +226,17 @@ def create_concatenated_binary(sbx_file_list, output_path, channel=0, chunk_size
         'first_frame': first_frame,
         'last_frame': last_frame,
         'channel': channel,
+        'anat_channel': anat_channel,
         'Ly': Ly,
         'Lx': Lx,
     })
     manifest_path = manifest_path_for_binary(output_path)
     manifest.to_csv(manifest_path, index=False)
     print(f'Saved {manifest_path}')
+
+    elapsed = time.time() - start_time
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
+    print(f'{timestamp} [INFO] ----------- Total {elapsed:.2f} sec')
 
     return {'Ly': Ly, 'Lx': Lx, 'n_frames': total_frames,
             'frame_counts': frame_counts}
@@ -206,6 +245,11 @@ def create_concatenated_binary(sbx_file_list, output_path, channel=0, chunk_size
 def manifest_path_for_binary(binary_path):
     """Return the path of the session-manifest sidecar CSV for binary_path."""
     return os.path.splitext(binary_path)[0] + '.' + SESSION_MANIFEST_FILENAME
+
+
+def chan2_binary_path_for_binary(binary_path):
+    """Return the path of the anatomical-channel sidecar binary for binary_path."""
+    return os.path.splitext(binary_path)[0] + '.chan2.bin'
 
 
 def _registered_marker_path(binary_path):
@@ -279,6 +323,11 @@ def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None, allow_re
             will be saved. Can be on a slow disk. If create_concatenated_binary()
             wrote a session manifest next to binary_path, it is copied into
             save_path/suite2p/plane0/ so split_sessions() can later use it.
+            If create_concatenated_binary() also wrote an anatomical-channel
+            binary next to binary_path (anat_channel argument), it is symlinked
+            in alongside the functional binary and db['nchannels']/['reg_file_chan2']
+            are set accordingly, so e.g. settings['detection']['cellpose_chan2']
+            can be used.
         db (dict, optional): Override suite2p db parameters (I/O config:
             nplanes, nchannels, keep_movie_raw, etc.). See suite2p docs "db" section.
         settings (dict, optional): Override suite2p settings parameters
@@ -358,6 +407,19 @@ def run_suite2p(binary_path, Ly, Lx, save_path, db=None, settings=None, allow_re
     }
     if keep_raw:
         db_params['raw_file'] = symlink_path
+
+    chan2_binary_path = chan2_binary_path_for_binary(binary_path)
+    if os.path.exists(chan2_binary_path):
+        chan2_bin_name = 'data_raw_chan2.bin' if keep_raw else 'data_chan2.bin'
+        chan2_symlink_path = os.path.join(plane0_dir, chan2_bin_name)
+        if not os.path.exists(chan2_symlink_path):
+            os.symlink(os.path.abspath(chan2_binary_path), chan2_symlink_path)
+        db_params['nchannels'] = 2
+        db_params['functional_chan'] = 1
+        db_params['reg_file_chan2'] = os.path.join(plane0_dir, 'data_chan2.bin')
+        if keep_raw:
+            db_params['raw_file_chan2'] = chan2_symlink_path
+
     if db:
         db_params.update(db)
 
@@ -411,7 +473,7 @@ def split_sessions(save_path, debug=False):
     sessionsInfo = pd.read_csv(manifest_path)
     parent_dir = os.path.dirname(save_path)
 
-    framesToSlice = ['F.npy', 'Fneu.npy', 'spks.npy']
+    framesToSlice = ['F.npy', 'Fneu.npy', 'spks.npy', 'F_chan2.npy', 'Fneu_chan2.npy']
     filesToCopy = ['stat.npy', 'iscell.npy']
 
     sliceArrays = {}
