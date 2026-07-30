@@ -22,9 +22,9 @@ extra_settings = suite2ptools.default_s2p_settings()
 # extra_settings['detection']['nbins'] = 1000  # If not enough RAM
 
 # -- Anatomical channel (chan2) detection --
-# extra_settings['detection']['cellpose_chan2'] = True  # Requires anat_channel above and Cellpose installed
+# align_by_chan2 and cellpose_chan2 are already True by default (harmless
+# when there is no second channel; requires anat_channel above and Cellpose installed)
 # extra_settings['detection']['chan2_threshold'] = 0.25  # IOU threshold for Cellpose overlap red-cell classification
-# extra_settings['registration']['align_by_chan2'] = True  # Align by anatomical channel instead of functional
 
 # Steps to run: any of 'concatenate', 'register', 'detect', 'deconvolve', 'split', or 'all'
 # (shorthand for concatenate+register+detect+deconvolve; 'split' is never

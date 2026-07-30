@@ -81,13 +81,20 @@ def default_s2p_settings():
             are not round. (Suite2p default: [12.0, 12.0])
         registration (dict):
             align_by_chan2 (bool): For two-channel recordings, align using
-                the non-functional channel instead of the functional one.
-                (Suite2p default: False)
+                the non-functional (anatomical) channel instead of the
+                functional one. Lab default True: harmless when there is no
+                second channel, since Suite2p ignores this setting whenever
+                no chan2 data is present. (Suite2p default: False)
             batch_size (int): Number of frames per batch during
                 registration. Lower this if registration runs out of GPU
                 memory (large frames + many nonrigid blocks can need a lot
                 of memory per batch). (Suite2p default: 100)
         detection (dict):
+            cellpose_chan2 (bool): Detect red cells in the anatomical
+                channel using Cellpose. Lab default True: harmless when
+                there is no second channel, since Suite2p ignores this
+                setting whenever no chan2 data is present. (Suite2p
+                default: False)
             threshold_scaling (float): Scalar multiplier that adjusts the
                 automatically determined ROI detection threshold in sparsery
                 and sourcery. Lower = more ROIs detected; higher = fewer,
@@ -100,13 +107,13 @@ def default_s2p_settings():
         'tau': 0.6,
         'diameter': [16.0, 16.0],
         'registration': {
-            'align_by_chan2': False,
+            'align_by_chan2': True,
             'batch_size': 100,
         },
         'detection': {
             'threshold_scaling': 0.75,
             'max_overlap': 0.25,
-            'cellpose_chan2': False,
+            'cellpose_chan2': True,
         },
     }
 
