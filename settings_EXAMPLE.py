@@ -36,4 +36,5 @@ TEMP_OUTPUT_PATH = '/tmp/'
 
 SOUNDS_PATH = '/mnt/jarahubdata/jarasounds/'
 
-TWOPHOTON_ADDRESS = '127.0.0.1'
+TWOPHOTON_ADDRESS = '127.0.0.1'  # For synchronization with widefieldmapping.py
+SUITE2P_FAST_DIR = '/var/tmp/s2pbin/'
