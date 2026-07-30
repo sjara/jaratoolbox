@@ -41,6 +41,7 @@ from suite2p.parameters import default_db, default_settings
 
 REGISTERED_MARKER_SUFFIX = '.registration.log'
 SESSION_MANIFEST_FILENAME = 'multisession.csv'
+PROCESSED_SUBJECT_SUFFIX = '_processed'
 
 
 def default_s2p_settings():
@@ -563,7 +564,7 @@ def session_paths(subject, session_date, session_ids):
             mat_path (str): .mat companion of the first session, for reading
                 Ly/Lx via load_scanbox_mat_file().
             concat_binary_path (str): SUITE2P_FAST_DIR/subject_session_date_id1-id2....bin
-            output_dir (str): TWOPHOTON_PATH/subject_processed/session_date/id1-id2-.../
+            output_dir (str): TWOPHOTON_PATH/subject+PROCESSED_SUBJECT_SUFFIX/session_date/id1-id2-.../
                 the save_path to use with run_suite2p() and split_sessions().
     """
     sessions_str = '-'.join(session_ids)
@@ -573,7 +574,7 @@ def session_paths(subject, session_date, session_ids):
     mat_path = os.path.join(data_dir, f'{subject}_{session_date}_{session_ids[0]}.mat')
     concat_binary_path = os.path.join(settings.SUITE2P_FAST_DIR,
                                        f'{subject}_{session_date}_{sessions_str}.bin')
-    output_dir = os.path.join(f'{settings.TWOPHOTON_PATH}', f'{subject}_processed',
+    output_dir = os.path.join(f'{settings.TWOPHOTON_PATH}', f'{subject}{PROCESSED_SUBJECT_SUFFIX}',
                                session_date, sessions_str)
     return {
         'data_dir': data_dir,
