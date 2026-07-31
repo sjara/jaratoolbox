@@ -7,7 +7,7 @@ results (e.g. manually reviewed/cleaned ROIs). Uses the same standard
 paths as twophoton_preprocess.py, derived from jaratoolbox.settings.
 
 Usage:
-    python twophoton_split.py imag029 20260424 006,007
+    python twophoton_split.py imag029 20260424 006-007
 """
 
 import argparse
@@ -19,8 +19,8 @@ def parse_args():
                                       formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('subject', help="Subject ID, e.g. 'imag029'.")
     parser.add_argument('session_date', help="Session date, e.g. '20260424'.")
-    parser.add_argument('session_ids', type=lambda s: s.split(','),
-                         help="Comma-separated session IDs that were concatenated, e.g. 006,007.")
+    parser.add_argument('session_ids', type=lambda s: s.split('-'),
+                         help="Dash-separated session IDs that were concatenated, e.g. 006-007.")
     return parser.parse_args()
 
 
