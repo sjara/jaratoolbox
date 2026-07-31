@@ -455,8 +455,12 @@ def split_sessions(save_path, debug=False):
     folder per original session. Outputs that describe ROIs/registration
     rather than individual frames (stat.npy, iscell.npy) are copied unchanged
     into each session's folder, since they are shared across all sessions.
-    ops.npy is copied with its 'nframes' entry updated to the session's own
-    frame count.
+    ops.npy is large (it stores data, not just parameters) and is shared
+    across sessions, so instead of copying it, each session's folder gets a
+    symlink to the multisession ops.npy. Note this means 'nframes' in each
+    session's ops.npy reflects the full concatenated recording, not that
+    session alone (this has been tested to work fine when curating in the
+    Suite2p GUI).
 
     Each session's output is saved as a sibling of save_path, named after
     just that session's ID (the part of its name after the last
@@ -494,7 +498,9 @@ def split_sessions(save_path, debug=False):
             print(f'\nWARNING! File {fpath} does not exist.')
 
     opsPath = os.path.join(plane0_dir, 'ops.npy')
-    ops = np.load(opsPath, allow_pickle=True).item() if os.path.exists(opsPath) else None
+    opsExists = os.path.exists(opsPath)
+    if not opsExists and debug:
+        print(f'\nWARNING! File {opsPath} does not exist.')
 
     sessionsDirsList = []
     for _, oneRow in sessionsInfo.iterrows():
@@ -525,12 +531,13 @@ def split_sessions(save_path, debug=False):
             elif debug:
                 print(f'\nWARNING! File {srcPath} does not exist.')
 
-        if ops is not None:
-            sessionOps = ops.copy()
-            sessionOps['nframes'] = int(oneRow.n_frames)
+        if opsExists:
+            sessionOpsPath = os.path.join(sessionDir, 'ops.npy')
             if not debug:
-                np.save(os.path.join(sessionDir, 'ops.npy'), sessionOps)
-            print(f'Saved {os.path.join(sessionDir, "ops.npy")}')
+                if os.path.islink(sessionOpsPath) or os.path.exists(sessionOpsPath):
+                    os.remove(sessionOpsPath)
+                os.symlink(os.path.relpath(opsPath, sessionDir), sessionOpsPath)
+            print(f'Linked {sessionOpsPath} -> {opsPath}')
 
         if not debug:
             shutil.copy2(manifest_path, sessionDir)
