@@ -106,7 +106,7 @@ def default_s2p_settings():
     return {
         'fs': 9.96,
         'tau': 0.6,
-        'diameter': [16.0, 16.0],
+        'diameter': [12.0, 12.0],
         'registration': {
             'align_by_chan2': False,
             'batch_size': 100,
