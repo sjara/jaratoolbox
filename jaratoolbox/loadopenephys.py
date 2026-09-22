@@ -207,7 +207,7 @@ class DataSpikes(object):
         nSamplesPerSpike = datapre['nSamplesPerSpike']
         nSamplesPerRecord = nChannels*nSamplesPerSpike
         fid.seek(HEADER_SIZE)
-        SPIKES_RECORD_SIZE = 1 + 8 + 2 + 2 + 2 + nChannels*nSamplesPerSpike*2 + nChannels*2 + nChannels*2 + 2
+        SPIKES_RECORD_SIZE = int(1 + 8 + 2 + 2 + 2 + nChannels*nSamplesPerSpike*2 + nChannels*2 + nChannels*2 + 2)
 
         # -- Find number of records --
         if (self.filesize-HEADER_SIZE)%SPIKES_RECORD_SIZE:
