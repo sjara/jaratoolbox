@@ -3,7 +3,12 @@
 \#*
 .emacs*
 old
+old*
 doc/_build
+
+tmp/
+.vscode/
+temp_*
 
 settings.py
 
