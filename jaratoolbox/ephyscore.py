@@ -14,7 +14,8 @@ from jaratoolbox import settings
 # Define the event channel mapping for each paradigm. For each paradigm, you
 # should include a dict like this: {eventName:intanEventChannel}
 # where intanEventChannel is the digital input channel that your event TTL is connected to
-CHANNELMAPS = {'threetones_sequence': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
+CHANNELMAPS = {'default': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
+               'threetones_sequence': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'natural_sound_detection': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'oddball_sequence': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'am_tuning_curve': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
@@ -470,7 +471,12 @@ def load_ephys_neuropixels_v1(subject, paradigm, sessionDir, egroup, cluster=Non
     eventOnsetTimes = eventsData.get_onset_times()
 
     # -- Find events on each channel of the channel map for this paradigm --
-    channelMap = CHANNELMAPS[paradigm]
+    try:
+        channelMap = CHANNELMAPS[paradigm]
+    except:
+        # print('Falling back to default paradigm channelMap')
+        channelMap = CHANNELMAPS['default']
+
     eventDict = {}
     for channelType, channelID in channelMap.items():
         channelID = channelID+1   # FIXME: it looks like neuropix system uses Channel 1 not 0
