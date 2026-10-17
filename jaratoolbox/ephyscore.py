@@ -14,8 +14,7 @@ from jaratoolbox import settings
 # Define the event channel mapping for each paradigm. For each paradigm, you
 # should include a dict like this: {eventName:intanEventChannel}
 # where intanEventChannel is the digital input channel that your event TTL is connected to
-CHANNELMAPS = {'default': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
-               'threetones_sequence': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
+CHANNELMAPS = {'threetones_sequence': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'natural_sound_detection': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'oddball_sequence': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
                'am_tuning_curve': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5},
@@ -26,6 +25,9 @@ CHANNELMAPS = {'default': {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':
                '2afc':{'stim':0, 'trialStart':1},
                '2afc_speech':{'stim':0, 'trialStart':1}, 
                'am_image_tuning':{'stim':0, 'trialStart':1, 'laser':2}}
+
+# Channel map used for paradigms not listed in CHANNELMAPS
+DEFAULT_CHANNELMAP = {'stim':0, 'trialStart':1, 'laser':2, 'soundDetector':5}
 
 
 class SessionData():
@@ -397,6 +399,19 @@ class Cell():
         return behavDataFilePath
 
     
+def get_channel_map(paradigm):
+    """
+    Return the event channel map for a paradigm.
+
+    If the paradigm is not listed in CHANNELMAPS, print a warning and return DEFAULT_CHANNELMAP.
+    """
+    if paradigm in CHANNELMAPS:
+        return CHANNELMAPS[paradigm]
+    print(f'WARNING: paradigm "{paradigm}" not in CHANNELMAPS. ' +
+          f'Using default channel map {DEFAULT_CHANNELMAP}')
+    return DEFAULT_CHANNELMAP
+
+
 def load_ephys_neuronexus_tetrodes(subject, paradigm, sessionDir, tetrode, cluster=None,
                                    useModifiedClusters=False, verbose=False):
     # -- Setup path and filenames --
@@ -442,7 +457,7 @@ def load_ephys_neuronexus_tetrodes(subject, paradigm, sessionDir, tetrode, clust
     eventData = loadopenephys.convert_openephys(eventData)
 
     # -- Choose channel map based on paradigm --
-    channelMap = CHANNELMAPS[paradigm]
+    channelMap = get_channel_map(paradigm)
     eventDict = {}
     for channelType, channelID in channelMap.items():
         thisChannelOn = eventData.get_event_onset_times(eventID=1, eventChannel=channelID)
@@ -471,12 +486,7 @@ def load_ephys_neuropixels_v1(subject, paradigm, sessionDir, egroup, cluster=Non
     eventOnsetTimes = eventsData.get_onset_times()
 
     # -- Find events on each channel of the channel map for this paradigm --
-    try:
-        channelMap = CHANNELMAPS[paradigm]
-    except:
-        # print('Falling back to default paradigm channelMap')
-        channelMap = CHANNELMAPS['default']
-
+    channelMap = get_channel_map(paradigm)
     eventDict = {}
     for channelType, channelID in channelMap.items():
         channelID = channelID+1   # FIXME: it looks like neuropix system uses Channel 1 not 0
