@@ -149,7 +149,14 @@ class Events():
         """
         self.convertUnits = convert
         self.openEphysVersion = get_openephys_version(processedDataDir)
-        if (self.openEphysVersion[:3] == '0.6') or (self.openEphysVersion[:3] == '1.0'):
+        versionMajorMinor = tuple(int(part) for part in self.openEphysVersion.split('.')[:2])
+        if versionMajorMinor >= (0, 6):
+            self.newFormat = True
+        elif versionMajorMinor == (0, 5):
+            self.newFormat = False
+        else:
+            raise ValueError(f'Open Ephys version {self.openEphysVersion} is not supported.')
+        if self.newFormat:
             self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.ProbeA/TTL/')
             #self.eventsDir = os.path.join(processedDataDir,'events/NI-DAQmx-104.PXI-6255/TTL/')
             samplesFile = 'sample_numbers.npy'
@@ -161,7 +168,7 @@ class Events():
             self.states = np.load(os.path.join(self.eventsDir, statesFile))
             self.fullWords = np.load(os.path.join(self.eventsDir, fullWordsFile))
             self.timestamps = np.load(os.path.join(self.eventsDir, samplesFile))  # In samples
-        elif self.openEphysVersion[:3] == '0.5':
+        else:
             # Use the old path and file names (for Open Ephys v0.5)
             self.eventsDir = os.path.join(processedDataDir,'events/Neuropix-PXI-100.0/TTL_1/')
             samplesFile = 'timestamps.npy'
@@ -193,9 +200,9 @@ class Events():
         Returns:
             eventOnsetTimes (array): An array of the timestamps of the event onsets.
         """
-        if (self.openEphysVersion[:3] == '0.6') or (self.openEphysVersion[:3] == '1.0'):
+        if self.newFormat:
             thisStateThisChannel = (self.states==(channelState*eventChannel))
-        elif self.openEphysVersion[:3] == '0.5':
+        else:
             thisStateThisChannel = (self.states==channelState)&(self.fullWords==eventChannel)
         eventOnsetTimes = self.timestamps[thisStateThisChannel]
         return eventOnsetTimes
