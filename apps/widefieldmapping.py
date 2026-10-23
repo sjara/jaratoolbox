@@ -13,7 +13,7 @@ from scipy import ndimage
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QSlider, QLabel, QCheckBox, QGroupBox, QGridLayout, QLineEdit, QPushButton, QDoubleSpinBox,
-    QSpinBox
+    QSpinBox, QScrollArea, QFrame
 )
 from PyQt5.QtCore import Qt, QTimer
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -141,11 +141,20 @@ class WidefieldMergedViewer(QMainWindow):
         plot_layout.addWidget(self.canvas)
         main_layout.addWidget(plot_widget, stretch=3)
         
-        # Right side: controls
+        # Middle column: channel controls (scrollable, since there may be many channels)
+        channels_widget = QWidget()
+        channels_layout = QVBoxLayout(channels_widget)
+        channels_scroll = QScrollArea()
+        channels_scroll.setWidgetResizable(True)
+        channels_scroll.setFrameShape(QFrame.NoFrame)
+        channels_scroll.setWidget(channels_widget)
+        main_layout.addWidget(channels_scroll, stretch=1)
+
+        # Right column: ROI, display, and two-photon controls
         controls_widget = QWidget()
         controls_layout = QVBoxLayout(controls_widget)
         main_layout.addWidget(controls_widget, stretch=1)
-        
+
         # Create controls for each channel
         self.sliders = []
         self.slider_labels = []
@@ -176,8 +185,10 @@ class WidefieldMergedViewer(QMainWindow):
             slider.valueChanged.connect(lambda value, idx=ind: self.on_slider_changed(idx, value))
             group_layout.addWidget(slider, 1, 1)
             self.sliders.append(slider)
-            
-            controls_layout.addWidget(group)
+
+            channels_layout.addWidget(group)
+
+        channels_layout.addStretch()
         
         # ROI controls
         roi_group = QGroupBox('Region of Interest')
@@ -822,8 +833,10 @@ class WidefieldMergedViewer(QMainWindow):
                 ax = self.figure.add_subplot(gs[indf, 0], 
                                              sharex=ax_first, sharey=ax_first)
             
-            im = ax.imshow(normed[indf], cmap='viridis',
-                          vmin=self.clim[0], vmax=self.clim[1])
+            ax.imshow(normed[indf], cmap='viridis',
+                      vmin=self.clim[0], vmax=self.clim[1])
+            # Use tick_params (not set_xticks) since tick locators are shared with other axes
+            ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
             
             # Add indicator if channel is disabled
             status = '' if self.enabled[indf] else ' [DISABLED]'
@@ -834,8 +847,6 @@ class WidefieldMergedViewer(QMainWindow):
             
             if indf == 0:
                 ax.set_title('Normalized dF/F')
-            
-            self.figure.colorbar(im, ax=ax)
         
         # Right column: merged RGB image spanning all rows
         ax_merged = self.figure.add_subplot(gs[:, 1], sharex=ax_first, sharey=ax_first)
