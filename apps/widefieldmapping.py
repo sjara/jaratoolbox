@@ -13,18 +13,19 @@ from scipy import ndimage
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QSlider, QLabel, QCheckBox, QGroupBox, QGridLayout, QLineEdit, QPushButton, QDoubleSpinBox,
-    QSpinBox, QScrollArea, QFrame
+    QSpinBox, QScrollArea, QFrame, QComboBox
 )
 from PyQt5.QtCore import Qt, QTimer
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.figure import Figure
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 
 from jaratoolbox import widefieldanalysis
-from jaratoolbox.widefieldanalysis import CHANNEL_COLORS, CHANNEL_NAMES
+from jaratoolbox.widefieldanalysis import CHANNEL_COLORS
 from jaratoolbox import settings
 
 try:
@@ -37,6 +38,36 @@ SCALE_BAR_LENGTH = 1.0  # in mm
 SCALE_BAR_POS = 'lower left'
 
 ORIENTATION_LABELS_COLOR = 'yellow'  # Color for anatomical direction labels
+
+COLORMAP_NAMES = ['3-color', 'rainbow', 'tab10']
+
+
+def get_channel_colors(colormap_name, n_channels):
+    """
+    Return a list of RGB colors (values 0-1) for each channel.
+
+    Args:
+        colormap_name (str): One of COLORMAP_NAMES. '3-color' uses CHANNEL_COLORS
+            (only 3 colors, extra channels are not shown), 'rainbow' is matplotlib's
+            rainbow reversed (red for the first channel), and 'tab10' is matplotlib's
+            tab10 without its gray color (cycled if there are more than 9 channels).
+        n_channels (int): Number of channels.
+
+    Returns:
+        colors (list): RGB color for each channel.
+    """
+    if colormap_name == '3-color':
+        return [list(color) for color in CHANNEL_COLORS[:n_channels]]
+    elif colormap_name == 'rainbow':
+        cmap = matplotlib.colormaps['rainbow_r']
+        return cmap(np.linspace(0, 1, n_channels))[:, :3].tolist()
+    elif colormap_name == 'tab10':
+        tab10_colors = [color for indc, color in enumerate(matplotlib.colormaps['tab10'].colors)
+                        if indc != 7]  # Skip gray
+        return [list(tab10_colors[indc % len(tab10_colors)]) for indc in range(n_channels)]
+    else:
+        raise ValueError(f'Unknown colormap: {colormap_name}')
+
 
 class WidefieldMergedViewer(QMainWindow):
     """
@@ -76,6 +107,10 @@ class WidefieldMergedViewer(QMainWindow):
         # Initialize thresholds and enabled states based on number of channels
         self.thresholds = [0.5] * self.n_channels
         self.enabled = [True] * self.n_channels
+
+        # Channel colors (3-color only covers 3 channels, so use rainbow if there are more)
+        self.colormap_name = '3-color' if self.n_channels <= 3 else 'rainbow'
+        self.channel_colors = get_channel_colors(self.colormap_name, self.n_channels)
         
         # Track scale bar artists for easy removal
         self.scale_bar_artists = None
@@ -155,21 +190,33 @@ class WidefieldMergedViewer(QMainWindow):
         controls_layout = QVBoxLayout(controls_widget)
         main_layout.addWidget(controls_widget, stretch=1)
 
+        # Colormap selector
+        colormap_group = QGroupBox('Colormap')
+        colormap_layout = QHBoxLayout(colormap_group)
+        self.colormap_combo = QComboBox()
+        self.colormap_combo.addItems(COLORMAP_NAMES)
+        self.colormap_combo.setCurrentText(self.colormap_name)
+        self.colormap_combo.currentTextChanged.connect(self.on_colormap_changed)
+        colormap_layout.addWidget(self.colormap_combo)
+        controls_layout.addWidget(colormap_group)
+
         # Create controls for each channel
         self.sliders = []
         self.slider_labels = []
         self.checkboxes = []
+        self.color_swatches = []
         
         for ind in range(self.n_channels):
-            # Get channel name, use index if not enough names defined
-            channel_name = CHANNEL_NAMES[ind] if ind < len(CHANNEL_NAMES) else f'Ch{ind}'
             group = QGroupBox()
             group_layout = QGridLayout(group)
 
-            # Channel label with right-justified enable checkbox
+            # Color swatch and channel label with right-justified enable checkbox
             header_layout = QHBoxLayout()
-            header_layout.addWidget(
-                QLabel(f'{channel_name} Channel ({self.wfavg._cond_label(ind, sep=", ")})'))
+            swatch = QLabel()
+            swatch.setFixedSize(14, 14)
+            header_layout.addWidget(swatch)
+            self.color_swatches.append(swatch)
+            header_layout.addWidget(QLabel(self.wfavg._cond_label(ind, sep=', ')))
             header_layout.addStretch()
             checkbox = QCheckBox()
             checkbox.setChecked(True)
@@ -195,6 +242,7 @@ class WidefieldMergedViewer(QMainWindow):
             channels_layout.addWidget(group)
 
         channels_layout.addStretch()
+        self.update_color_swatches()
         
         # ROI controls
         roi_group = QGroupBox('Region of Interest')
@@ -337,6 +385,25 @@ class WidefieldMergedViewer(QMainWindow):
         Return the normalized signal change for all conditions, shape (n_cond, H, W).
         """
         return self.normed_signal_change
+
+    def update_color_swatches(self):
+        """Set the color of each channel swatch according to the current colormap."""
+        for ind, swatch in enumerate(self.color_swatches):
+            if ind < len(self.channel_colors):
+                red, green, blue = (int(round(255 * val)) for val in self.channel_colors[ind])
+                swatch.setStyleSheet(f'background-color: rgb({red}, {green}, {blue});'
+                                     'border: 1px solid gray;')
+                swatch.setToolTip('')
+            else:
+                swatch.setStyleSheet('border: 1px solid gray;')
+                swatch.setToolTip('Not shown with this colormap')
+
+    def on_colormap_changed(self, colormap_name):
+        """Handle colormap selection change."""
+        self.colormap_name = colormap_name
+        self.channel_colors = get_channel_colors(colormap_name, self.n_channels)
+        self.update_color_swatches()
+        self.update_plots()
 
     def on_slider_changed(self, channel_idx, value):
         """
@@ -816,7 +883,8 @@ class WidefieldMergedViewer(QMainWindow):
             thresholds=self.thresholds,
             enabled=self.enabled,
             bg_image=baseline_image,
-            alpha=0.5
+            alpha=0.5,
+            colors=self.channel_colors
         )
         
         # Create subplots with GridSpec for better control over spacing
@@ -846,10 +914,7 @@ class WidefieldMergedViewer(QMainWindow):
             
             # Add indicator if channel is disabled
             status = '' if self.enabled[indf] else ' [DISABLED]'
-            # Get channel name for label
-            channel_name = CHANNEL_NAMES[indf] if indf < len(CHANNEL_NAMES) else f'Ch{indf}'
-            ax.set_ylabel(f'{self.wfavg._cond_label(indf)}\n({channel_name}){status}',
-                          fontsize='small')
+            ax.set_ylabel(f'{self.wfavg._cond_label(indf)}{status}', fontsize='small')
             ax.set_aspect('equal')
             
             if indf == 0:
