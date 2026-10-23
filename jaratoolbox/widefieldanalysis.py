@@ -28,6 +28,12 @@ PARAM_UNITS = {
     'currentIntensity': 'dB-SPL',
 }
 
+
+def format_param_value(val):
+    """Format a stimulus parameter value, avoiding scientific notation for large values."""
+    return f'{val:.0f}' if abs(val) >= 1000 else f'{val:.4g}'
+
+
 def load_infowidefield(subject):
     """
     Load the infowidefield file for a given subject.
@@ -327,7 +333,7 @@ class Widefield(loadwidefield.WidefieldData):
             return ''
         names = (self.stim_param_names if isinstance(self.stim_param_names, list)
                   else [self.stim_param_names])
-        parts = [f'{val:.4g} {PARAM_UNITS.get(name, "")}'.strip()
+        parts = [f'{format_param_value(val)} {PARAM_UNITS.get(name, "")}'.strip()
                  for name, val in zip(names, self.cond_values[ic])]
         return sep.join(parts)
 
@@ -588,7 +594,7 @@ class WidefieldAverage:
             return ''
         names = (self.stim_param_names if isinstance(self.stim_param_names, list)
                   else [self.stim_param_names])
-        parts = [f'{val:.4g} {PARAM_UNITS.get(name, "")}'.strip()
+        parts = [f'{format_param_value(val)} {PARAM_UNITS.get(name, "")}'.strip()
                  for name, val in zip(names, self.cond_values[ic])]
         return sep.join(parts)
 
