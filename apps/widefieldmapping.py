@@ -48,7 +48,7 @@ def get_channel_colors(colormap_name, n_channels):
 
     Args:
         colormap_name (str): One of COLORMAP_NAMES. '3-color' uses CHANNEL_COLORS
-            (only 3 colors, extra channels are not shown), 'rainbow' is matplotlib's
+            (cycled if there are more than 3 channels), 'rainbow' is matplotlib's
             rainbow reversed (red for the first channel), and 'tab10' is matplotlib's
             tab10 without its gray color (cycled if there are more than 9 channels).
         n_channels (int): Number of channels.
@@ -57,7 +57,7 @@ def get_channel_colors(colormap_name, n_channels):
         colors (list): RGB color for each channel.
     """
     if colormap_name == '3-color':
-        return [list(color) for color in CHANNEL_COLORS[:n_channels]]
+        return [list(CHANNEL_COLORS[indc % len(CHANNEL_COLORS)]) for indc in range(n_channels)]
     elif colormap_name == 'rainbow':
         cmap = matplotlib.colormaps['rainbow_r']
         return cmap(np.linspace(0, 1, n_channels))[:, :3].tolist()
@@ -108,7 +108,7 @@ class WidefieldMergedViewer(QMainWindow):
         self.thresholds = [0.5] * self.n_channels
         self.enabled = [True] * self.n_channels
 
-        # Channel colors (3-color only covers 3 channels, so use rainbow if there are more)
+        # Channel colors (3-color repeats colors beyond 3 channels, so use rainbow if there are more)
         self.colormap_name = '3-color' if self.n_channels <= 3 else 'rainbow'
         self.channel_colors = get_channel_colors(self.colormap_name, self.n_channels)
         
@@ -389,14 +389,9 @@ class WidefieldMergedViewer(QMainWindow):
     def update_color_swatches(self):
         """Set the color of each channel swatch according to the current colormap."""
         for ind, swatch in enumerate(self.color_swatches):
-            if ind < len(self.channel_colors):
-                red, green, blue = (int(round(255 * val)) for val in self.channel_colors[ind])
-                swatch.setStyleSheet(f'background-color: rgb({red}, {green}, {blue});'
-                                     'border: 1px solid gray;')
-                swatch.setToolTip('')
-            else:
-                swatch.setStyleSheet('border: 1px solid gray;')
-                swatch.setToolTip('Not shown with this colormap')
+            red, green, blue = (int(round(255 * val)) for val in self.channel_colors[ind])
+            swatch.setStyleSheet(f'background-color: rgb({red}, {green}, {blue});'
+                                 'border: 1px solid gray;')
 
     def on_colormap_changed(self, colormap_name):
         """Handle colormap selection change."""
@@ -912,9 +907,9 @@ class WidefieldMergedViewer(QMainWindow):
             # Use tick_params (not set_xticks) since tick locators are shared with other axes
             ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
             
-            # Add indicator if channel is disabled
-            status = '' if self.enabled[indf] else ' [DISABLED]'
-            ax.set_ylabel(f'{self.wfavg._cond_label(indf)}{status}', fontsize='small')
+            # Gray out the label if channel is disabled
+            label_color = 'black' if self.enabled[indf] else 'lightgray'
+            ax.set_ylabel(self.wfavg._cond_label(indf), fontsize='small', color=label_color)
             ax.set_aspect('equal')
             
             if indf == 0:
