@@ -163,14 +163,20 @@ class WidefieldMergedViewer(QMainWindow):
         for ind in range(self.n_channels):
             # Get channel name, use index if not enough names defined
             channel_name = CHANNEL_NAMES[ind] if ind < len(CHANNEL_NAMES) else f'Ch{ind}'
-            group = QGroupBox(f'{channel_name} Channel ({self.wfavg._cond_label(ind, sep=", ")})')
+            group = QGroupBox()
             group_layout = QGridLayout(group)
-            
-            # Enable checkbox
-            checkbox = QCheckBox('Enabled')
+
+            # Channel label with right-justified enable checkbox
+            header_layout = QHBoxLayout()
+            header_layout.addWidget(
+                QLabel(f'{channel_name} Channel ({self.wfavg._cond_label(ind, sep=", ")})'))
+            header_layout.addStretch()
+            checkbox = QCheckBox()
             checkbox.setChecked(True)
+            checkbox.setToolTip('Enable channel')
             checkbox.stateChanged.connect(lambda state, idx=ind: self.on_checkbox_changed(idx, state))
-            group_layout.addWidget(checkbox, 0, 0, 1, 2)
+            header_layout.addWidget(checkbox)
+            group_layout.addLayout(header_layout, 0, 0, 1, 2)
             self.checkboxes.append(checkbox)
             
             # Threshold slider
@@ -842,7 +848,8 @@ class WidefieldMergedViewer(QMainWindow):
             status = '' if self.enabled[indf] else ' [DISABLED]'
             # Get channel name for label
             channel_name = CHANNEL_NAMES[indf] if indf < len(CHANNEL_NAMES) else f'Ch{indf}'
-            ax.set_ylabel(f'{self.wfavg._cond_label(indf)}\n({channel_name}){status}')
+            ax.set_ylabel(f'{self.wfavg._cond_label(indf)}\n({channel_name}){status}',
+                          fontsize='small')
             ax.set_aspect('equal')
             
             if indf == 0:
